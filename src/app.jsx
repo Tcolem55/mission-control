@@ -767,6 +767,7 @@ export default function App() {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [selectedStock, setSelectedStock] = useState(null);
   const [booting, setBooting]     = useState(true);
+  const [activeTab, setActiveTab] = useState("HOME");
 
   const stockContext = Object.entries(stocks).map(([t,d])=>`${t}: $${d.price?.toFixed(2)} (${fmtP(d.changePct)})`).join(", ");
 
@@ -890,26 +891,94 @@ export default function App() {
         </div>
       </div>
 
-      {/* GRID */}
-      <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#010308",minHeight:0,overflow:"hidden",zIndex:1}}>
-        {PANELS_CFG.map(cfg=>{
-          if(expanded&&expanded!==cfg.id) return null;
-          return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
+      {/* NAV BAR */}
+      <div style={{flexShrink:0,height:40,borderBottom:"1px solid #0a1828",display:"flex",alignItems:"stretch",background:"#02040a",zIndex:10,position:"relative"}}>
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#0a1828,transparent)"}}/>
+        {[
+          {id:"HOME",  icon:"⊞", label:"HOME BASE"},
+          {id:"FINANCE",icon:"💳", label:"FINANCE"},
+          {id:"JOBS",  icon:"💼", label:"JOBS"},
+          {id:"HEALTH",icon:"🏋️", label:"HEALTH"},
+          {id:"TRAVEL",icon:"✈️", label:"TRAVEL"},
+        ].map((tab,i)=>{
+          const active = activeTab===tab.id;
+          const colors = {HOME:"#00ff88",FINANCE:"#38bdf8",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24"};
+          const tc = colors[tab.id];
+          return (
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{
+              flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+              background: active?`${tc}10`:"transparent",
+              border:"none",
+              borderBottom: active?`2px solid ${tc}`:"2px solid transparent",
+              borderRight: i<4?"1px solid #0a1828":"none",
+              color: active?tc:"#2a3a5a",
+              cursor:"pointer",
+              transition:"all 0.2s",
+              padding:"0 8px",
+            }}
+            onMouseEnter={e=>{if(!active){e.currentTarget.style.background=`${tc}08`;e.currentTarget.style.color=`${tc}80`;}}}
+            onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="#2a3a5a";}}}>
+              <span style={{fontSize:13}}>{tab.icon}</span>
+              <span style={{fontSize:9,letterSpacing:2,fontFamily:"'Orbitron',monospace",fontWeight:active?"bold":"normal"}}>{tab.label}</span>
+              {active && <div style={{width:4,height:4,borderRadius:"50%",background:tc,boxShadow:`0 0 6px ${tc}`,animation:"blink 2s infinite"}}/>}
+            </button>
+          );
         })}
       </div>
 
-      {/* BOTTOM BAR */}
-      <div style={{flexShrink:0,padding:"4px 16px",borderTop:"1px solid #0a1828",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#02040a",zIndex:10}}>
-        <div style={{fontSize:9,color:"#2a3a55",letterSpacing:2,fontFamily:"'Inter',sans-serif"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
-        <div style={{display:"flex",gap:12}}>
-          {[["SYS","#00ff88"],["AI","#c084fc"],["MKT","#38bdf8"],["NEWS","#fb923c"]].map(([label,color])=>(
-            <div key={label} style={{display:"flex",alignItems:"center",gap:3}}>
-              <div style={{width:4,height:4,borderRadius:"50%",background:color,boxShadow:`0 0 5px ${color}`,animation:"blink 2s infinite"}}/>
-              <span style={{fontSize:7,color:"#0d1a30",letterSpacing:2}}>{label}</span>
+      {/* TAB CONTENT */}
+      {activeTab==="HOME" && (
+        <>
+          {/* GRID */}
+          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#010308",minHeight:0,overflow:"hidden",zIndex:1}}>
+            {PANELS_CFG.map(cfg=>{
+              if(expanded&&expanded!==cfg.id) return null;
+              return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
+            })}
+          </div>
+          {/* BOTTOM BAR */}
+          <div style={{flexShrink:0,padding:"4px 16px",borderTop:"1px solid #0a1828",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#02040a",zIndex:10}}>
+            <div style={{fontSize:9,color:"#2a3a55",letterSpacing:2,fontFamily:"'Inter',sans-serif"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
+            <div style={{display:"flex",gap:12}}>
+              {[["SYS","#00ff88"],["AI","#c084fc"],["MKT","#38bdf8"],["NEWS","#fb923c"]].map(([label,color])=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:3}}>
+                  <div style={{width:4,height:4,borderRadius:"50%",background:color,boxShadow:`0 0 5px ${color}`,animation:"blink 2s infinite"}}/>
+                  <span style={{fontSize:7,color:"#0d1a30",letterSpacing:2}}>{label}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+        </>
+      )}
+
+      {activeTab!=="HOME" && (
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#010308",position:"relative",overflow:"hidden"}}>
+          {/* Grid texture */}
+          <div style={{position:"absolute",inset:0,opacity:0.02,backgroundImage:"linear-gradient(#ffffff 1px,transparent 1px),linear-gradient(90deg,#ffffff 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
+          {/* Coming soon content */}
+          <div style={{textAlign:"center",zIndex:1,animation:"fadeUp 0.5s ease"}}>
+            <div style={{fontSize:40,marginBottom:16}}>
+              {{FINANCE:"💳",JOBS:"💼",HEALTH:"🏋️",TRAVEL:"✈️"}[activeTab]}
+            </div>
+            <div style={{fontSize:20,fontWeight:"900",letterSpacing:4,color:{"FINANCE":"#38bdf8",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24"}[activeTab],fontFamily:"'Orbitron',monospace",marginBottom:8,textShadow:`0 0 30px ${{"FINANCE":"#38bdf840",JOBS:"#c084fc40",HEALTH:"#f472b640",TRAVEL:"#fbbf2440"}[activeTab]}`}}>
+              {activeTab} MODULE
+            </div>
+            <div style={{fontSize:12,color:"#3a5070",letterSpacing:3,fontFamily:"'Inter',sans-serif",marginBottom:32}}>
+              COMING SOON — UNDER CONSTRUCTION
+            </div>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              {{"FINANCE":["Bills Tracker","Subscription Manager","Budget Overview","Spending Alerts"],
+                "JOBS":["Job Finder","Resume Auto-Tailor","Application Tracker","Cover Letter AI"],
+                "HEALTH":["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"],
+                "TRAVEL":["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}[activeTab].map(feature=>(
+                <div key={feature} style={{padding:"8px 16px",background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>
+                  {feature}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Article Modal */}
       {selectedArticle&&(
