@@ -505,7 +505,11 @@ function Chat({ panel, contextStr }) {
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
       <div style={{padding:"4px 12px",borderBottom:`1px solid ${c}15`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,background:`${c}05`}}>
         <span style={{fontSize:8,color:c,opacity:0.7,letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>AI INTERFACE</span>
-        {messages.length>0&&<button onClick={clear} style={{background:"none",border:"none",color:"#2a2a3a",cursor:"pointer",fontSize:8,letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>CLEAR</button>}
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {messages.length===0&&showQ&&<button onClick={()=>setShowQ(false)} style={{fontSize:8,color:`${c}80`,background:"none",border:"none",cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>HIDE PROMPTS</button>}
+          {messages.length===0&&!showQ&&<button onClick={()=>setShowQ(true)} style={{fontSize:8,color:`${c}80`,background:"none",border:"none",cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>SHOW PROMPTS</button>}
+          {messages.length>0&&<button onClick={clear} style={{background:"none",border:"none",color:"#2a2a3a",cursor:"pointer",fontSize:8,letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>CLEAR</button>}
+        </div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:8,scrollbarWidth:"thin",scrollbarColor:`${c}20 transparent`,minHeight:0}}>
         {messages.length===0&&showQ&&(
@@ -558,14 +562,15 @@ function Chat({ panel, contextStr }) {
 // ── Stock Ticker ──────────────────────────────────────────────────────────────
 function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock }) {
   const [filter, setFilter] = useState("ALL");
+  const [collapsed, setCollapsed] = useState(false);
   const sectors = ["ALL","AI","TECH","ENERGY","HEALTH"];
   const filtered = filter==="ALL" ? WATCHLIST : WATCHLIST.filter(s=>s.sector===filter);
   const portfolio = loadPortfolio();
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",height:collapsed?"auto":"100%",overflow:"hidden",transition:"height 0.3s ease"}}>
       <div style={{display:"flex",gap:4,padding:"6px 10px",borderBottom:"1px solid #0d2040",flexShrink:0,alignItems:"center"}}>
-        {sectors.map(s=>{
+        {!collapsed && sectors.map(s=>{
           const sc = s==="ALL"?"#38bdf8":SECTOR_COLORS[s];
           return (
             <button key={s} onClick={()=>setFilter(s)} style={{padding:"3px 8px",fontSize:7,letterSpacing:2,cursor:"pointer",background:filter===s?`${sc}20`:"transparent",border:filter===s?`1px solid ${sc}50`:"1px solid transparent",borderRadius:2,color:filter===s?sc:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
@@ -574,13 +579,17 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock })
           );
         })}
         <div style={{flex:1}}/>
-        <button onClick={onRefresh} style={{fontSize:8,color:"#1a2a4a",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Orbitron',monospace",transition:"color 0.2s"}}
+        {!collapsed && <button onClick={onRefresh} style={{fontSize:8,color:"#1a2a4a",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Orbitron',monospace",transition:"color 0.2s"}}
           onMouseEnter={e=>e.target.style.color="#38bdf8"}
           onMouseLeave={e=>e.target.style.color="#1a2a4a"}>
           {loading?"···":"↻ SYNC"}
+        </button>}
+        <button onClick={()=>setCollapsed(c=>!c)} style={{fontSize:9,color:"#38bdf8",background:"#38bdf810",border:"1px solid #38bdf825",borderRadius:2,cursor:"pointer",padding:"2px 8px",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginLeft:4,transition:"all 0.2s"}}
+          title={collapsed?"Expand watchlist":"Collapse watchlist"}>
+          {collapsed?"▼ WATCHLIST":"▲ HIDE"}
         </button>
       </div>
-      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+      {!collapsed && <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
         {filtered.map((s,i)=>{
           const d=stocks[s.ticker]; const up=d?d.changePct>=0:null; const sc=SECTOR_COLORS[s.sector];
           const hasPosition = portfolio[s.ticker]?.shares > 0;
@@ -608,8 +617,8 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock })
             </div>
           );
         })}
-      </div>
-      {lastUpdated&&<div style={{padding:"4px 12px",fontSize:9,color:"#2a3a55",letterSpacing:1,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Inter',sans-serif"}}>Last sync: {lastUpdated} · Click ticker for chart</div>}
+      </div>}
+      {!collapsed && lastUpdated&&<div style={{padding:"4px 12px",fontSize:9,color:"#2a3a55",letterSpacing:1,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Inter',sans-serif"}}>Last sync: {lastUpdated} · Click ticker for chart</div>}
     </div>
   );
 }
@@ -617,24 +626,29 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock })
 // ── News Feed ─────────────────────────────────────────────────────────────────
 function NewsFeed({ articles, loading, onRefresh, onArticleClick }) {
   const [cat, setCat] = useState("TOP");
+  const [collapsed, setCollapsed] = useState(false);
   const categories = ["TOP","TECH","MARKETS","HEALTH"];
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
+    <div style={{display:"flex",flexDirection:"column",height:collapsed?"auto":"100%",overflow:"hidden",transition:"height 0.3s ease"}}>
       <div style={{display:"flex",gap:4,padding:"6px 10px",borderBottom:"1px solid #1a1008",flexShrink:0,alignItems:"center"}}>
-        {categories.map(c=>(
+        {!collapsed && categories.map(c=>(
           <button key={c} onClick={()=>{setCat(c);onRefresh(c);}} style={{padding:"3px 8px",fontSize:7,letterSpacing:2,cursor:"pointer",background:cat===c?"#fb923c20":"transparent",border:cat===c?"1px solid #fb923c50":"1px solid transparent",borderRadius:2,color:cat===c?"#fb923c":"#2a2010",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {c}
           </button>
         ))}
         <div style={{flex:1}}/>
-        <button onClick={()=>onRefresh(cat)} style={{fontSize:8,color:"#1a1008",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}
+        {!collapsed && <button onClick={()=>onRefresh(cat)} style={{fontSize:8,color:"#1a1008",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}
           onMouseEnter={e=>e.target.style.color="#fb923c"}
           onMouseLeave={e=>e.target.style.color="#1a1008"}>
           {loading?"···":"↻ SYNC"}
+        </button>}
+        <button onClick={()=>setCollapsed(c=>!c)} style={{fontSize:9,color:"#fb923c",background:"#fb923c10",border:"1px solid #fb923c25",borderRadius:2,cursor:"pointer",padding:"2px 8px",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginLeft:4,transition:"all 0.2s"}}
+          title={collapsed?"Expand news":"Collapse news"}>
+          {collapsed?"▼ NEWS":"▲ HIDE"}
         </button>
       </div>
-      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#1a1008 transparent"}}>
+      {!collapsed && <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#1a1008 transparent"}}>
         {loading&&articles.length===0&&<div style={{padding:20,textAlign:"center",color:"#1a1008",fontSize:9,letterSpacing:4,fontFamily:"'Orbitron',monospace"}}>LOADING FEED...</div>}
         {articles.map((a,i)=>(
           <div key={i} onClick={()=>onArticleClick(a)}
@@ -650,7 +664,7 @@ function NewsFeed({ articles, loading, onRefresh, onArticleClick }) {
           </div>
         ))}
         {!loading&&articles.length===0&&<div style={{padding:20,textAlign:"center",color:"#1a1008",fontSize:9,letterSpacing:4,fontFamily:"'Orbitron',monospace"}}>NO FEED DATA</div>}
-      </div>
+      </div>}
     </div>
   );
 }
