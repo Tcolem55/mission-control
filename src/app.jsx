@@ -250,7 +250,7 @@ function StockChartModal({ stock, stockData, onClose }) {
             <div style={{width:8,height:40,borderRadius:2,background:sc,boxShadow:`0 0 12px ${sc}`}}/>
             <div>
               <div style={{fontSize:20,fontWeight:"900",color:"#e0f0ff",letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>{stock.ticker}</div>
-              <div style={{fontSize:9,color:"#2a3a5a",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{stock.name.toUpperCase()} · {stock.sector}</div>
+              <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{stock.name} · {stock.sector}</div>
             </div>
             {d && (
               <div style={{marginLeft:12}}>
@@ -324,8 +324,8 @@ function StockChartModal({ stock, stockData, onClose }) {
                       {label:"TOTAL COST", val:totalCost?`$${totalCost.toFixed(2)}`:"—"},
                     ].map(({label,val})=>(
                       <div key={label}>
-                        <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
-                        <div style={{fontSize:14,color:"#c0d0e0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
+                        <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif",marginBottom:3}}>{label}</div>
+                        <div style={{fontSize:15,color:"#d0e0f5",fontFamily:"'Orbitron',monospace",fontWeight:"bold"}}>{val}</div>
                       </div>
                     ))}
                   </div>
@@ -375,7 +375,7 @@ function StockChartModal({ stock, stockData, onClose }) {
               ].map(({label,val})=>(
                 <div key={label} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:"12px 14px"}}>
                   <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                  <div style={{fontSize:14,color:"#a0c0e0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
+                  <div style={{fontSize:15,color:"#c0d8f0",fontFamily:"'Orbitron',monospace",fontWeight:"bold"}}>{val}</div>
                 </div>
               ))}
             </div>
@@ -504,18 +504,18 @@ function Chat({ panel, contextStr }) {
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
       <div style={{padding:"4px 12px",borderBottom:`1px solid ${c}15`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,background:`${c}05`}}>
-        <span style={{fontSize:7,color:c,opacity:0.5,letterSpacing:4}}>AI INTERFACE</span>
+        <span style={{fontSize:8,color:c,opacity:0.7,letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>AI INTERFACE</span>
         {messages.length>0&&<button onClick={clear} style={{background:"none",border:"none",color:"#2a2a3a",cursor:"pointer",fontSize:8,letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>CLEAR</button>}
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:8,scrollbarWidth:"thin",scrollbarColor:`${c}20 transparent`,minHeight:0}}>
         {messages.length===0&&showQ&&(
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            <div style={{fontSize:7,color:c,opacity:0.4,letterSpacing:4,marginBottom:4}}>QUICK ACCESS</div>
+            <div style={{fontSize:8,color:c,opacity:0.6,letterSpacing:3,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>QUICK ACCESS</div>
             {panel.quickPrompts.map(q=>(
               <button key={q} onClick={()=>send(q)}
-                style={{textAlign:"left",padding:"8px 12px",background:`${c}08`,border:`1px solid ${c}18`,borderRadius:3,color:"#667",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}
+                style={{textAlign:"left",padding:"8px 12px",background:`${c}08`,border:`1px solid ${c}18`,borderRadius:3,color:"#8899aa",fontSize:12,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all 0.2s",fontWeight:"400"}}
                 onMouseEnter={e=>{e.currentTarget.style.background=`${c}18`;e.currentTarget.style.color=c;e.currentTarget.style.borderColor=`${c}50`;}}
-                onMouseLeave={e=>{e.currentTarget.style.background=`${c}08`;e.currentTarget.style.color="#667";e.currentTarget.style.borderColor=`${c}18`;}}>
+                onMouseLeave={e=>{e.currentTarget.style.background=`${c}08`;e.currentTarget.style.color="#8899aa";e.currentTarget.style.borderColor=`${c}18`;}}>
                 <span style={{color:c,marginRight:8,fontSize:12}}>›</span>{q}
               </button>
             ))}
@@ -526,7 +526,7 @@ function Chat({ panel, contextStr }) {
             <div style={{width:22,height:22,borderRadius:3,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:"bold",background:m.role==="user"?`${c}25`:"#0d1628",border:`1px solid ${m.role==="user"?c+"50":"#1e2d4a"}`,color:m.role==="user"?c:"#3a4a6a",marginTop:2,fontFamily:"'Orbitron',monospace"}}>
               {m.role==="user"?"YOU":"AI"}
             </div>
-            <div style={{maxWidth:"82%",padding:"8px 12px",borderRadius:m.role==="user"?"3px 12px 12px 12px":"12px 3px 12px 12px",background:m.role==="user"?`linear-gradient(135deg,${c}15,${c}08)`:"linear-gradient(135deg,#0d1628,#0a1220)",border:`1px solid ${m.role==="user"?c+"25":"#1e2d4a"}`,fontSize:11,lineHeight:1.7,color:m.role==="user"?"#ddd":"#a0b4cc",whiteSpace:"pre-wrap",boxShadow:m.role==="user"?`0 0 20px ${c}10`:"none"}}>
+            <div style={{maxWidth:"82%",padding:"8px 12px",borderRadius:m.role==="user"?"3px 12px 12px 12px":"12px 3px 12px 12px",background:m.role==="user"?`linear-gradient(135deg,${c}15,${c}08)`:"linear-gradient(135deg,#0d1628,#0a1220)",border:`1px solid ${m.role==="user"?c+"25":"#1e2d4a"}`,fontSize:13,lineHeight:1.7,color:m.role==="user"?"#f0f4ff":"#c8d8f0",whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif",boxShadow:m.role==="user"?`0 0 20px ${c}10`:"none"}}>
               {m.content}
             </div>
           </div>
@@ -543,7 +543,7 @@ function Chat({ panel, contextStr }) {
       </div>
       <div style={{padding:"8px 10px",borderTop:`1px solid ${c}12`,display:"flex",gap:8,background:"#030810",flexShrink:0}}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send();}} placeholder={panel.placeholder}
-          style={{flex:1,background:"#0a1220",border:`1px solid ${c}20`,borderRadius:3,padding:"8px 12px",color:"#ccc",fontSize:11,fontFamily:"'Orbitron',monospace",outline:"none",transition:"border-color 0.2s"}}
+          style={{flex:1,background:"#0a1220",border:`1px solid ${c}20`,borderRadius:3,padding:"8px 12px",color:"#dde8f5",fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.2s"}}
           onFocus={e=>e.target.style.borderColor=`${c}60`}
           onBlur={e=>e.target.style.borderColor=`${c}20`}/>
         <button onClick={()=>send()} disabled={loading||!input.trim()}
@@ -596,7 +596,7 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock })
                   <span style={{fontSize:11,fontWeight:"bold",color:"#c8d8e8",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{s.ticker}</span>
                   {hasPosition&&<span style={{fontSize:6,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"1px 4px",borderRadius:2,letterSpacing:1}}>OWNED</span>}
                 </div>
-                <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:1}}>{s.name}</div>
+                <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{s.name}</div>
               </div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:12,color:"#a0c0e0",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{d?fmt(d.price):"—"}</div>
@@ -609,7 +609,7 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock })
           );
         })}
       </div>
-      {lastUpdated&&<div style={{padding:"4px 12px",fontSize:7,color:"#0d1a30",letterSpacing:3,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Orbitron',monospace"}}>LAST SYNC · {lastUpdated} · CLICK TICKER FOR CHART</div>}
+      {lastUpdated&&<div style={{padding:"4px 12px",fontSize:9,color:"#2a3a55",letterSpacing:1,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Inter',sans-serif"}}>Last sync: {lastUpdated} · Click ticker for chart</div>}
     </div>
   );
 }
@@ -641,9 +641,9 @@ function NewsFeed({ articles, loading, onRefresh, onArticleClick }) {
             style={{padding:"9px 12px",borderBottom:"1px solid #100a04",cursor:"pointer",transition:"all 0.15s",animation:`fadeUp 0.3s ease ${i*0.04}s both`,borderLeft:"2px solid transparent"}}
             onMouseEnter={e=>{e.currentTarget.style.background="#fb923c08";e.currentTarget.style.borderLeftColor="#fb923c";}}
             onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.borderLeftColor="transparent";}}>
-            <div style={{fontSize:10,color:"#b0a090",lineHeight:1.5,marginBottom:4}}>{a.title}</div>
+            <div style={{fontSize:12,color:"#d4c8b8",lineHeight:1.6,marginBottom:4,fontFamily:"'Inter',sans-serif",fontWeight:"400"}}>{a.title}</div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <span style={{fontSize:7,color:"#fb923c",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{a.source?.name?.toUpperCase()}</span>
+              <span style={{fontSize:9,color:"#fb923c",letterSpacing:1,fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{a.source?.name}</span>
               <span style={{fontSize:7,color:"#1a1008"}}>·</span>
               <span style={{fontSize:7,color:"#2a1a08",fontFamily:"'Orbitron',monospace"}}>{new Date(a.publishedAt).toLocaleDateString([],{month:"short",day:"numeric"})}</span>
             </div>
@@ -675,7 +675,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
           </div>
           <div>
             <div style={{fontSize:9,letterSpacing:4,color:c,fontWeight:"bold",fontFamily:"'Orbitron',monospace"}}>{cfg.label}</div>
-            <div style={{fontSize:7,color:`${c}50`,letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>SYSTEM ACTIVE</div>
+            <div style={{fontSize:8,color:`${c}70`,letterSpacing:2,fontFamily:"'Inter',sans-serif"}}>SYSTEM ACTIVE</div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -797,7 +797,7 @@ export default function App() {
 
   return (
     <div style={{height:"100vh",width:"100vw",background:"#02040a",color:"#e8e8f0",fontFamily:"'Orbitron',monospace",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+      <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:200,background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.015) 3px,rgba(0,0,0,0.015) 4px)"}}/>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,opacity:0.02,backgroundImage:"linear-gradient(#00ff88 1px,transparent 1px),linear-gradient(90deg,#00ff88 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
 
@@ -805,23 +805,23 @@ export default function App() {
       <div style={{flexShrink:0,padding:"0 16px",height:52,borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:0,background:"linear-gradient(90deg,#02040a,#030810,#02040a)",zIndex:10,position:"relative",overflow:"hidden"}}>
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#00ff8840,#38bdf840,transparent)"}}/>
         <div style={{flexShrink:0,paddingRight:16,borderRight:"1px solid #0a1828"}}>
-          <div style={{fontSize:7,letterSpacing:4,color:"#00ff8840"}}>SYSTEM</div>
+          <div style={{fontSize:8,letterSpacing:3,color:"#00ff8860",fontFamily:"'Inter',sans-serif"}}>SYSTEM</div>
           <div style={{fontSize:14,fontWeight:"900",letterSpacing:3,color:"#00ff88",textShadow:"0 0 20px #00ff8840"}}>MISSION<span style={{color:"#38bdf8"}}>·</span>CTRL</div>
         </div>
         <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
-          <div style={{fontSize:7,letterSpacing:3,color:"#1a2a4a"}}>OPERATOR</div>
+          <div style={{fontSize:8,letterSpacing:2,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>OPERATOR</div>
           <div style={{fontSize:11,letterSpacing:2,fontWeight:"bold"}}>
-            <span style={{color:"#2a3a5a"}}>{getGreeting()}, </span>
+            <span style={{color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{getGreeting()}, </span>
             <span style={{color:"#00ff88",textShadow:"0 0 15px #00ff8860"}}>{NAME}</span>
           </div>
         </div>
         <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
-          <div style={{fontSize:7,letterSpacing:3,color:"#1a2a4a"}}>UPTIME</div>
+          <div style={{fontSize:8,letterSpacing:2,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>UPTIME</div>
           <div style={{fontSize:11,color:"#00ff8870",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
         <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"4px 16px",borderRight:"1px solid #0a1828",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid #0a1828",textAlign:"left"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:4}}>
-            <span style={{fontSize:7,letterSpacing:3,color:"#00ff8870"}}>⚡ NUTRITION</span>
+            <span style={{fontSize:9,letterSpacing:1,color:"#00ff8890",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>⚡ NUTRITION</span>
             <span style={{fontSize:7,color:"#1a2a4a"}}>{kcalPct}% · {protPct}%P</span>
           </div>
           <div style={{display:"flex",gap:3,alignItems:"center"}}>
@@ -838,7 +838,7 @@ export default function App() {
               <div style={{fontSize:7,color:p.color,opacity:0.6,letterSpacing:2,whiteSpace:"nowrap",marginBottom:2}}>{p.icon} {p.label}</div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
                 <div style={{width:4,height:4,borderRadius:"50%",background:p.color,boxShadow:`0 0 6px ${p.color}`,animation:"blink 2s infinite"}}/>
-                <span style={{fontSize:7,color:"#1a2a4a",letterSpacing:1}}>ONLINE</span>
+                <span style={{fontSize:8,color:"#2a4060",letterSpacing:1,fontFamily:"'Inter',sans-serif"}}>ONLINE</span>
               </div>
             </div>
           ))}
@@ -865,7 +865,7 @@ export default function App() {
 
       {/* BOTTOM BAR */}
       <div style={{flexShrink:0,padding:"4px 16px",borderTop:"1px solid #0a1828",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#02040a",zIndex:10}}>
-        <div style={{fontSize:7,color:"#0d1a30",letterSpacing:3}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
+        <div style={{fontSize:9,color:"#2a3a55",letterSpacing:2,fontFamily:"'Inter',sans-serif"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
         <div style={{display:"flex",gap:12}}>
           {[["SYS","#00ff88"],["AI","#c084fc"],["MKT","#38bdf8"],["NEWS","#fb923c"]].map(([label,color])=>(
             <div key={label} style={{display:"flex",alignItems:"center",gap:3}}>
@@ -882,8 +882,8 @@ export default function App() {
           <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",boxShadow:"0 0 60px #fb923c10",position:"relative"}} onClick={e=>e.stopPropagation()}>
             <HUDBrackets color="#fb923c" size={12}/>
             <div style={{fontSize:7,color:"#fb923c",letterSpacing:4,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>🌐 INTEL REPORT</div>
-            <div style={{fontSize:13,color:"#c0b0a0",lineHeight:1.6,marginBottom:12}}>{selectedArticle.title}</div>
-            <div style={{fontSize:11,color:"#5a4a3a",lineHeight:1.7,marginBottom:20}}>{selectedArticle.description}</div>
+            <div style={{fontSize:14,color:"#e0d4c4",lineHeight:1.6,marginBottom:12,fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{selectedArticle.title}</div>
+            <div style={{fontSize:13,color:"#8a7a6a",lineHeight:1.7,marginBottom:20,fontFamily:"'Inter',sans-serif"}}>{selectedArticle.description}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:7,color:"#2a1a08",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{selectedArticle.source?.name?.toUpperCase()}</span>
               <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#fb923c",textDecoration:"none",letterSpacing:2,border:"1px solid #fb923c40",padding:"6px 14px",borderRadius:3,fontFamily:"'Orbitron',monospace",boxShadow:"0 0 15px #fb923c15"}}>FULL REPORT →</a>
@@ -907,9 +907,9 @@ export default function App() {
         ::-webkit-scrollbar{width:2px;height:2px;}
         ::-webkit-scrollbar-track{background:transparent;}
         ::-webkit-scrollbar-thumb{background:#0d1a30;border-radius:2px;}
-        input::placeholder{color:#1a2a4a;}
+        input::placeholder{color:#3a5070;font-family:'Inter',sans-serif;}
         a{color:inherit;}
-        button{font-family:'Orbitron',monospace;}
+        button{font-family:'Inter',sans-serif;} .orb{font-family:'Orbitron',monospace;}
       `}</style>
     </div>
   );
