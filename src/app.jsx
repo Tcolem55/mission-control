@@ -669,6 +669,27 @@ function NewsFeed({ articles, loading, onRefresh, onArticleClick }) {
   );
 }
 
+// ── Smart Split — collapses data feed when chat is active ─────────────────────
+function SmartSplit({ top, bottom, color, topLabel }) {
+  const [showTop, setShowTop] = useState(true);
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,overflow:"hidden"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"3px 10px",background:`${color}06`,borderBottom:`1px solid ${color}10`,flexShrink:0}}>
+        <span style={{fontSize:8,color:`${color}60`,letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{topLabel}</span>
+        <button onClick={()=>setShowTop(s=>!s)} style={{fontSize:8,color:color,background:`${color}10`,border:`1px solid ${color}25`,borderRadius:2,cursor:"pointer",padding:"2px 10px",letterSpacing:1,fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+          {showTop?"▲ HIDE":"▼ SHOW"}
+        </button>
+      </div>
+      <div style={{flexShrink:0,overflow:"hidden",transition:"max-height 0.35s cubic-bezier(0.16,1,0.3,1)",maxHeight:showTop?"55%":"0px",borderBottom:showTop?`1px solid ${color}10`:"none"}}>
+        <div style={{height:"100%",minHeight:180,overflow:"hidden"}}>{top}</div>
+      </div>
+      <div style={{flex:1,minHeight:0,overflow:"hidden"}}>
+        {bottom}
+      </div>
+    </div>
+  );
+}
+
 // ── Panel ─────────────────────────────────────────────────────────────────────
 function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   const c = cfg.color;
@@ -708,19 +729,19 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
 
       <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,zIndex:2,overflow:"hidden"}}>
         {isMarkets ? (
-          <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
-            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}>
-              <StockTicker stocks={extraProps.stocks} loading={extraProps.stockLoading} lastUpdated={extraProps.stockUpdated} onRefresh={extraProps.onRefreshStocks} onSelectStock={extraProps.onSelectStock}/>
-            </div>
-            <div style={{overflow:"hidden"}}><Chat panel={cfg} contextStr={extraProps.stockContext}/></div>
-          </div>
+          <SmartSplit
+            top={<StockTicker stocks={extraProps.stocks} loading={extraProps.stockLoading} lastUpdated={extraProps.stockUpdated} onRefresh={extraProps.onRefreshStocks} onSelectStock={extraProps.onSelectStock}/>}
+            bottom={<Chat panel={cfg} contextStr={extraProps.stockContext}/>}
+            color={c}
+            topLabel="WATCHLIST"
+          />
         ) : isNews ? (
-          <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
-            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}>
-              <NewsFeed articles={extraProps.articles} loading={extraProps.newsLoading} onRefresh={extraProps.onRefreshNews} onArticleClick={extraProps.onArticleClick}/>
-            </div>
-            <div style={{overflow:"hidden"}}><Chat panel={cfg} contextStr={extraProps.newsContext}/></div>
-          </div>
+          <SmartSplit
+            top={<NewsFeed articles={extraProps.articles} loading={extraProps.newsLoading} onRefresh={extraProps.onRefreshNews} onArticleClick={extraProps.onArticleClick}/>}
+            bottom={<Chat panel={cfg} contextStr={extraProps.newsContext}/>}
+            color={c}
+            topLabel="NEWS FEED"
+          />
         ) : (
           <Chat panel={cfg} contextStr=""/>
         )}
