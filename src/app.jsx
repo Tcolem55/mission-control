@@ -1,8 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 
-const CLAUDE_API = "https://api.anthropic.com/v1/messages";
-const POLYGON_KEY = "Zn9k51V6lQSR7rBGPs8LwmR68x3NZVxy";
-const NEWS_KEY = "b574c48c4b3d4493942884dbf452ca87";
 const NAME = "Tris";
 const MACROS_GOAL = { kcal: 3300, protein: 200, carbs: 380, fat: 90 };
 
@@ -60,9 +57,11 @@ const saveMacros   = m => { try { localStorage.setItem(`macros_${getTodayKey()}`
 const loadHistory  = id => { try { const r=localStorage.getItem(`chat_${id}`); return r?JSON.parse(r):[]; } catch { return []; }};
 const saveHistory  = (id,msgs) => { try { localStorage.setItem(`chat_${id}`,JSON.stringify(msgs.slice(-20))); } catch {} };
 
+// ── API Calls via backend routes ─────────────────────────────────────────────
 async function askClaude(messages, system) {
-  const res = await fetch(CLAUDE_API, {
-    method:"POST", headers:{"Content-Type":"application/json"},
+  const res = await fetch('/api/claude', {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:800, system, messages }),
   });
   const data = await res.json();
@@ -71,7 +70,7 @@ async function askClaude(messages, system) {
 
 async function fetchStock(ticker) {
   try {
-    const r = await fetch(`https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?adjusted=true&apiKey=${POLYGON_KEY}`);
+    const r = await fetch(`/api/stocks?ticker=${ticker}`);
     const d = await r.json();
     if (d.results?.[0]) {
       const s = d.results[0];
@@ -90,17 +89,10 @@ async function fetchAllStocks() {
   return out;
 }
 
-async function fetchNews(query="technology business finance") {
+async function fetchNews(type="top", q="") {
   try {
-    const r = await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&sortBy=publishedAt&pageSize=15&language=en&apiKey=${NEWS_KEY}`);
-    const d = await r.json();
-    return d.articles?.filter(a=>a.title&&a.title!=="[Removed]").slice(0,12) || [];
-  } catch { return []; }
-}
-
-async function fetchTopNews() {
-  try {
-    const r = await fetch(`https://newsapi.org/v2/top-headlines?language=en&pageSize=12&apiKey=${NEWS_KEY}`);
+    const url = type==="top" ? `/api/news?type=top` : `/api/news?q=${encodeURIComponent(q)}`;
+    const r = await fetch(url);
     const d = await r.json();
     return d.articles?.filter(a=>a.title&&a.title!=="[Removed]").slice(0,12) || [];
   } catch { return []; }
@@ -345,14 +337,12 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   return (
     <div style={{position:"relative",background:"#07070f",border:`1px solid ${c}18`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.4s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 40px ${c}15`:"none",cursor:isExpanded?"default":"pointer",minHeight:0}}
       onClick={!isExpanded?onExpand:undefined}>
-      {/* Corner accents */}
       <div style={{position:"absolute",top:0,left:0,width:10,height:10,borderTop:`2px solid ${c}`,borderLeft:`2px solid ${c}`,zIndex:5}}/>
       <div style={{position:"absolute",top:0,right:0,width:10,height:10,borderTop:`2px solid ${c}`,borderRight:`2px solid ${c}`,zIndex:5}}/>
       <div style={{position:"absolute",bottom:0,left:0,width:10,height:10,borderBottom:`2px solid ${c}`,borderLeft:`2px solid ${c}`,zIndex:5}}/>
       <div style={{position:"absolute",bottom:0,right:0,width:10,height:10,borderBottom:`2px solid ${c}`,borderRight:`2px solid ${c}`,zIndex:5}}/>
       <div style={{position:"absolute",inset:0,pointerEvents:"none",background:`radial-gradient(ellipse 80% 50% at 50% 0%, ${c}04 0%, transparent 70%)`}}/>
 
-      {/* Header */}
       <div style={{padding:"8px 12px",borderBottom:`1px solid ${c}12`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:`${c}03`,zIndex:2}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:12}}>{cfg.icon}</span>
@@ -370,7 +360,6 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
         </div>
       </div>
 
-      {/* Body */}
       <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,zIndex:2,overflow:"hidden"}}>
         {cfg.id==="markets" ? (
           <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
@@ -391,7 +380,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
             </div>
           </div>
         ) : (
-          <Chat panel={cfg} contextStr=""  />
+          <Chat panel={cfg} contextStr=""/>
         )}
       </div>
     </div>
@@ -399,7 +388,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
 }
 
 // ── Main App ─────────────────────────────────────────────────────────────────
-export default function CommandCenter() {
+export default function App() {
   const [time, setTime]           = useState(new Date());
   const [uptime, setUptime]       = useState(0);
   const [expanded, setExpanded]   = useState(null);
@@ -407,18 +396,15 @@ export default function CommandCenter() {
   const [showMacros, setShowMacros] = useState(false);
   const [macroSnap, setMacroSnap] = useState(loadMacros());
 
-  // Stocks
-  const [stocks, setStocks]           = useState({});
+  const [stocks, setStocks]             = useState({});
   const [stockLoading, setStockLoading] = useState(false);
   const [stockUpdated, setStockUpdated] = useState(null);
 
-  // News
   const [articles, setArticles]       = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsContext, setNewsContext] = useState("");
   const [selectedArticle, setSelectedArticle] = useState(null);
 
-  // Build stock context string for AI
   const stockContext = Object.entries(stocks).map(([t,d])=>`${t}: $${d.price?.toFixed(2)} (${fmtP(d.changePct)})`).join(", ");
 
   useEffect(()=>{
@@ -440,21 +426,14 @@ export default function CommandCenter() {
   const refreshNews = async (cat="TOP") => {
     setNewsLoading(true);
     let arts = [];
-    if (cat==="TOP") arts = await fetchTopNews();
-    else if (cat==="TECH") arts = await fetchNews("technology AI software");
-    else if (cat==="MARKETS") arts = await fetchNews("stock market investing finance");
-    else if (cat==="HEALTH") arts = await fetchNews("health medical biotech");
+    if (cat==="TOP") arts = await fetchNews("top");
+    else if (cat==="TECH") arts = await fetchNews("q","technology AI software");
+    else if (cat==="MARKETS") arts = await fetchNews("q","stock market investing finance");
+    else if (cat==="HEALTH") arts = await fetchNews("q","health medical biotech");
     setArticles(arts);
     const ctx = arts.slice(0,6).map(a=>`- ${a.title} (${a.source?.name})`).join("\n");
     setNewsContext(ctx);
     setNewsLoading(false);
-  };
-
-  const handleArticleClick = (article) => setSelectedArticle(article);
-
-  const getGreetingFull = () => {
-    const h=new Date().getHours();
-    return h<12?"Good morning":h<17?"Good afternoon":"Good evening";
   };
 
   const formatUptime = s => {
@@ -472,32 +451,28 @@ export default function CommandCenter() {
     onRefreshStocks: refreshStocks,
     articles, newsLoading, newsContext,
     onRefreshNews: refreshNews,
-    onArticleClick: handleArticleClick,
+    onArticleClick: setSelectedArticle,
   };
 
   return (
     <div style={{height:"100vh",width:"100vw",background:"#030308",color:"#e8e8f0",fontFamily:"'Courier New',monospace",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Scanlines */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:100,background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)"}}/>
 
       {/* TOP BAR */}
       <div style={{flexShrink:0,padding:"6px 14px",borderBottom:"1px solid #0d0d1a",display:"flex",alignItems:"center",gap:12,background:"#03030c",zIndex:10,flexWrap:"nowrap",overflowX:"auto"}}>
-        {/* Identity */}
         <div style={{flexShrink:0}}>
           <div style={{fontSize:8,letterSpacing:4,color:"#1a1a2e"}}>OPERATOR</div>
           <div style={{fontSize:13,letterSpacing:2,fontWeight:"bold",whiteSpace:"nowrap"}}>
-            <span style={{color:"#333"}}>{getGreetingFull()}, </span>
+            <span style={{color:"#333"}}>{getGreeting()}, </span>
             <span style={{color:"#00ff88"}}>{NAME}</span>
           </div>
         </div>
         <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        {/* Uptime */}
         <div style={{flexShrink:0}}>
           <div style={{fontSize:7,letterSpacing:3,color:"#1a1a2e"}}>UPTIME</div>
           <div style={{fontSize:11,color:"#00ff8880",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
         <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        {/* Macro mini */}
         <button onClick={()=>setShowMacros(true)} style={{background:"#00ff8806",border:"1px solid #00ff8815",borderRadius:2,padding:"3px 10px",cursor:"pointer",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:3}}>
             <span style={{fontSize:7,letterSpacing:2,color:"#00ff8870"}}>⚡ MACROS</span>
@@ -512,7 +487,6 @@ export default function CommandCenter() {
           </div>
         </button>
         <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        {/* Panel status */}
         <div style={{display:"flex",gap:14,flex:1,justifyContent:"center"}}>
           {PANELS_CFG.map(p=>(
             <div key={p.id} style={{textAlign:"center",flexShrink:0}}>
@@ -525,17 +499,15 @@ export default function CommandCenter() {
           ))}
         </div>
         <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        {/* Weather */}
         {weather?(
           <div style={{textAlign:"center",flexShrink:0}}>
             <div style={{fontSize:15}}>{weather.icon}</div>
             <div style={{fontSize:9,color:"#555",letterSpacing:1}}>{weather.temp}°F</div>
           </div>
         ):(
-          <div style={{fontSize:7,color:"#1a1a2e",letterSpacing:2,flexShrink:0}}>WEATHER<br/>--</div>
+          <div style={{fontSize:7,color:"#1a1a2e",letterSpacing:2,flexShrink:0}}>--</div>
         )}
         <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        {/* Clock */}
         <div style={{textAlign:"right",flexShrink:0}}>
           <div style={{fontSize:15,fontWeight:"bold",letterSpacing:2,color:"#ccc",fontVariantNumeric:"tabular-nums"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
           <div style={{fontSize:7,color:"#222",letterSpacing:2}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
