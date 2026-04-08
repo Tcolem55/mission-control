@@ -56,6 +56,8 @@ const loadMacros  = () => { try { const r=localStorage.getItem(`macros_${getToda
 const saveMacros  = m => { try { localStorage.setItem(`macros_${getTodayKey()}`,JSON.stringify(m)); } catch {} };
 const loadHistory = id => { try { const r=localStorage.getItem(`chat_${id}`); return r?JSON.parse(r):[]; } catch { return []; }};
 const saveHistory = (id,msgs) => { try { localStorage.setItem(`chat_${id}`,JSON.stringify(msgs.slice(-20))); } catch {} };
+const loadPortfolio = () => { try { const r=localStorage.getItem("portfolio"); return r?JSON.parse(r):{}; } catch { return {}; }};
+const savePortfolio = p => { try { localStorage.setItem("portfolio",JSON.stringify(p)); } catch {} };
 
 async function askClaude(messages, system) {
   const res = await fetch('/api/claude', {
@@ -72,7 +74,7 @@ async function fetchStock(ticker) {
     const d = await r.json();
     if (d.results?.[0]) {
       const s = d.results[0];
-      return { price:s.c, changePct:((s.c-s.o)/s.o)*100, high:s.h, low:s.l };
+      return { price:s.c, changePct:((s.c-s.o)/s.o)*100, high:s.h, low:s.l, open:s.o, volume:s.v };
     }
     return null;
   } catch { return null; }
@@ -82,6 +84,19 @@ async function fetchAllStocks() {
   const out = {};
   await Promise.all(WATCHLIST.map(async s => { const d=await fetchStock(s.ticker); if(d) out[s.ticker]=d; }));
   return out;
+}
+
+async function fetchChartData(ticker, days=30) {
+  try {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    const from = start.toISOString().split("T")[0];
+    const to = end.toISOString().split("T")[0];
+    const r = await fetch(`/api/stocks?ticker=${ticker}&chart=true&from=${from}&to=${to}`);
+    const d = await r.json();
+    return d.results || [];
+  } catch { return []; }
 }
 
 async function fetchNews(type="top", q="") {
@@ -115,6 +130,262 @@ function HUDBrackets({ color, size=12, thickness=2 }) {
       <div style={{...s, bottom:0, left:0, borderBottom:b, borderLeft:b}}/>
       <div style={{...s, bottom:0, right:0, borderBottom:b, borderRight:b}}/>
     </>
+  );
+}
+
+// ── SVG Sparkline Chart ───────────────────────────────────────────────────────
+function SparkChart({ data, color, width=500, height=160 }) {
+  if (!data || data.length < 2) return (
+    <div style={{width,height,display:"flex",alignItems:"center",justifyContent:"center",color:"#1a2a4a",fontSize:9,letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>
+      NO CHART DATA
+    </div>
+  );
+
+  const prices = data.map(d => d.c);
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 1;
+  const pad = 20;
+  const W = width - pad*2;
+  const H = height - pad*2;
+
+  const pts = prices.map((p, i) => {
+    const x = pad + (i / (prices.length - 1)) * W;
+    const y = pad + H - ((p - min) / range) * H;
+    return `${x},${y}`;
+  });
+
+  const linePath = `M ${pts.join(" L ")}`;
+  const areaPath = `M ${pad},${pad+H} L ${pts.join(" L ")} L ${pad+W},${pad+H} Z`;
+  const isUp = prices[prices.length-1] >= prices[0];
+  const lineColor = isUp ? "#00ff88" : "#ff4444";
+  const areaColor = isUp ? "#00ff8815" : "#ff444415";
+
+  // X axis labels
+  const labelIndices = [0, Math.floor(prices.length/2), prices.length-1];
+
+  return (
+    <svg width={width} height={height} style={{overflow:"visible"}}>
+      <defs>
+        <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={lineColor} stopOpacity="0.3"/>
+          <stop offset="100%" stopColor={lineColor} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {/* Grid lines */}
+      {[0,0.25,0.5,0.75,1].map((pct,i)=>(
+        <line key={i} x1={pad} y1={pad+H*pct} x2={pad+W} y2={pad+H*pct} stroke="#0d2040" strokeWidth="1"/>
+      ))}
+      {/* Price labels */}
+      {[0,0.5,1].map((pct,i)=>(
+        <text key={i} x={pad-4} y={pad+H*pct+4} fill="#1a2a4a" fontSize="8" textAnchor="end" fontFamily="'Orbitron',monospace">
+          ${(max - range*pct).toFixed(0)}
+        </text>
+      ))}
+      {/* Area fill */}
+      <path d={areaPath} fill="url(#chartGrad)" opacity="0.6"/>
+      {/* Line */}
+      <path d={linePath} fill="none" stroke={lineColor} strokeWidth="2" style={{filter:`drop-shadow(0 0 4px ${lineColor})`}}/>
+      {/* Data points at start/end */}
+      <circle cx={pts[0].split(",")[0]} cy={pts[0].split(",")[1]} r="3" fill={lineColor} opacity="0.5"/>
+      <circle cx={pts[pts.length-1].split(",")[0]} cy={pts[pts.length-1].split(",")[1]} r="4" fill={lineColor} style={{filter:`drop-shadow(0 0 6px ${lineColor})`}}/>
+    </svg>
+  );
+}
+
+// ── Stock Chart Modal ─────────────────────────────────────────────────────────
+function StockChartModal({ stock, stockData, onClose }) {
+  const [range, setRange] = useState(30);
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [shares, setShares] = useState("");
+  const [avgCost, setAvgCost] = useState("");
+  const [portfolio, setPortfolio] = useState(loadPortfolio());
+  const [tab, setTab] = useState("CHART");
+
+  const sc = SECTOR_COLORS[stock.sector] || "#38bdf8";
+  const d = stockData;
+  const up = d ? d.changePct >= 0 : null;
+
+  const saved = portfolio[stock.ticker] || {};
+  const totalValue = saved.shares && d ? (saved.shares * d.price) : null;
+  const totalCost  = saved.shares && saved.avgCost ? (saved.shares * saved.avgCost) : null;
+  const pnl = totalValue && totalCost ? totalValue - totalCost : null;
+  const pnlPct = pnl && totalCost ? (pnl/totalCost)*100 : null;
+
+  useEffect(()=>{
+    setChartLoading(true);
+    fetchChartData(stock.ticker, range).then(data => {
+      setChartData(data);
+      setChartLoading(false);
+    });
+  }, [stock.ticker, range]);
+
+  const savePosition = () => {
+    if (!shares) return;
+    const updated = { ...portfolio, [stock.ticker]:{ shares:Number(shares), avgCost:Number(avgCost)||0 } };
+    setPortfolio(updated);
+    savePortfolio(updated);
+    setShares(""); setAvgCost("");
+  };
+
+  const clearPosition = () => {
+    const updated = { ...portfolio };
+    delete updated[stock.ticker];
+    setPortfolio(updated);
+    savePortfolio(updated);
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(12px)"}} onClick={onClose}>
+      <div style={{background:"linear-gradient(135deg,#030810,#040c1a,#030810)",border:`1px solid ${sc}30`,borderRadius:4,width:600,maxWidth:"95vw",maxHeight:"90vh",overflow:"hidden",boxShadow:`0 0 80px ${sc}15`,position:"relative",display:"flex",flexDirection:"column"}} onClick={e=>e.stopPropagation()}>
+        <HUDBrackets color={sc} size={14} thickness={2}/>
+
+        {/* Top glow */}
+        <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${sc}80,transparent)`}}/>
+
+        {/* Header */}
+        <div style={{padding:"16px 20px",borderBottom:`1px solid ${sc}18`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:8,height:40,borderRadius:2,background:sc,boxShadow:`0 0 12px ${sc}`}}/>
+            <div>
+              <div style={{fontSize:20,fontWeight:"900",color:"#e0f0ff",letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>{stock.ticker}</div>
+              <div style={{fontSize:9,color:"#2a3a5a",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{stock.name.toUpperCase()} · {stock.sector}</div>
+            </div>
+            {d && (
+              <div style={{marginLeft:12}}>
+                <div style={{fontSize:22,fontWeight:"bold",color:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{fmt(d.price)}</div>
+                <div style={{fontSize:11,color:up?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{fmtP(d.changePct)} TODAY</div>
+              </div>
+            )}
+          </div>
+          <button onClick={onClose} style={{background:`${sc}15`,border:`1px solid ${sc}30`,color:sc,width:28,height:28,borderRadius:3,cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Orbitron',monospace"}}>✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",borderBottom:`1px solid ${sc}15`,flexShrink:0}}>
+          {["CHART","PORTFOLIO","STATS"].map(t=>(
+            <button key={t} onClick={()=>setTab(t)} style={{flex:1,padding:"10px",fontSize:8,letterSpacing:3,cursor:"pointer",background:tab===t?`${sc}15`:"transparent",border:"none",borderBottom:tab===t?`2px solid ${sc}`:"2px solid transparent",color:tab===t?sc:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div style={{flex:1,overflow:"auto",padding:20}}>
+
+          {/* CHART TAB */}
+          {tab==="CHART" && (
+            <div>
+              <div style={{display:"flex",gap:6,marginBottom:16}}>
+                {[7,30,90].map(r=>(
+                  <button key={r} onClick={()=>setRange(r)} style={{padding:"4px 14px",fontSize:8,letterSpacing:2,cursor:"pointer",background:range===r?`${sc}20`:"transparent",border:range===r?`1px solid ${sc}50`:"1px solid #0d2040",borderRadius:2,color:range===r?sc:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+                    {r}D
+                  </button>
+                ))}
+              </div>
+              {chartLoading ? (
+                <div style={{height:160,display:"flex",alignItems:"center",justifyContent:"center",color:sc,fontSize:9,letterSpacing:4,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>
+                  LOADING CHART...
+                </div>
+              ) : (
+                <div style={{width:"100%",overflowX:"auto"}}>
+                  <SparkChart data={chartData} color={sc} width={540} height={180}/>
+                </div>
+              )}
+              {chartData.length > 0 && (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:16}}>
+                  {[
+                    {label:"PERIOD HIGH", val:`$${Math.max(...chartData.map(d=>d.h)).toFixed(2)}`},
+                    {label:"PERIOD LOW",  val:`$${Math.min(...chartData.map(d=>d.l)).toFixed(2)}`},
+                    {label:"PERIOD CHG",  val:fmtP(((chartData[chartData.length-1]?.c - chartData[0]?.o) / chartData[0]?.o)*100)},
+                  ].map(({label,val})=>(
+                    <div key={label} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:"10px 12px",textAlign:"center"}}>
+                      <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                      <div style={{fontSize:13,color:"#a0c0e0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PORTFOLIO TAB */}
+          {tab==="PORTFOLIO" && (
+            <div>
+              {saved.shares ? (
+                <div style={{background:"#0a1220",border:`1px solid ${sc}20`,borderRadius:3,padding:16,marginBottom:16}}>
+                  <div style={{fontSize:8,color:sc,letterSpacing:3,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>YOUR POSITION</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    {[
+                      {label:"SHARES", val:saved.shares},
+                      {label:"AVG COST", val:saved.avgCost?`$${saved.avgCost}`:"—"},
+                      {label:"MARKET VALUE", val:totalValue?`$${totalValue.toFixed(2)}`:"—"},
+                      {label:"TOTAL COST", val:totalCost?`$${totalCost.toFixed(2)}`:"—"},
+                    ].map(({label,val})=>(
+                      <div key={label}>
+                        <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
+                        <div style={{fontSize:14,color:"#c0d0e0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {pnl !== null && (
+                    <div style={{marginTop:14,padding:"10px 14px",background:pnl>=0?"#00ff8810":"#ff444410",border:`1px solid ${pnl>=0?"#00ff8830":"#ff444430"}`,borderRadius:3}}>
+                      <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:4}}>UNREALIZED P&L</div>
+                      <div style={{fontSize:20,fontWeight:"bold",color:pnl>=0?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>
+                        {pnl>=0?"+":""}{pnl.toFixed(2)} <span style={{fontSize:12}}>({pnlPct>=0?"+":""}{pnlPct?.toFixed(2)}%)</span>
+                      </div>
+                    </div>
+                  )}
+                  <button onClick={clearPosition} style={{marginTop:12,width:"100%",padding:"8px",background:"#ff444410",border:"1px solid #ff444430",borderRadius:3,color:"#ff4444",fontSize:9,cursor:"pointer",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>CLEAR POSITION</button>
+                </div>
+              ) : (
+                <div style={{padding:"20px",textAlign:"center",color:"#1a2a4a",fontSize:9,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:16}}>NO POSITION TRACKED</div>
+              )}
+              <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:16}}>
+                <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:3,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>LOG POSITION</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                  {[{key:"shares",label:"SHARES",val:shares,set:setShares},{key:"avgCost",label:"AVG COST ($)",val:avgCost,set:setAvgCost}].map(({key,label,val,set})=>(
+                    <div key={key}>
+                      <div style={{fontSize:7,color:"#1a2a4a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                      <input type="number" value={val} onChange={e=>set(e.target.value)} placeholder="0"
+                        style={{width:"100%",background:"#050d18",border:"1px solid #0d2040",borderRadius:3,padding:"8px 10px",color:"#a0c0e0",fontSize:12,fontFamily:"'Orbitron',monospace",outline:"none",boxSizing:"border-box"}}/>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={savePosition} style={{width:"100%",padding:"10px",background:`linear-gradient(135deg,${sc}20,${sc}10)`,border:`1px solid ${sc}40`,borderRadius:3,color:sc,fontSize:9,cursor:"pointer",letterSpacing:3,fontFamily:"'Orbitron',monospace",boxShadow:`0 0 15px ${sc}15`}}>
+                  SAVE POSITION
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* STATS TAB */}
+          {tab==="STATS" && d && (
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[
+                {label:"OPEN",   val:fmt(d.open)},
+                {label:"CLOSE",  val:fmt(d.price)},
+                {label:"HIGH",   val:fmt(d.high)},
+                {label:"LOW",    val:fmt(d.low)},
+                {label:"CHANGE", val:fmtP(d.changePct)},
+                {label:"VOLUME", val:d.volume?`${(d.volume/1e6).toFixed(1)}M`:"—"},
+                {label:"SECTOR", val:stock.sector},
+                {label:"STATUS", val:"PREV CLOSE"},
+              ].map(({label,val})=>(
+                <div key={label} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:"12px 14px"}}>
+                  <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                  <div style={{fontSize:14,color:"#a0c0e0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {tab==="STATS" && !d && (
+            <div style={{textAlign:"center",color:"#1a2a4a",fontSize:9,letterSpacing:3,fontFamily:"'Orbitron',monospace",padding:40}}>NO DATA — MARKET MAY BE CLOSED</div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -242,7 +513,7 @@ function Chat({ panel, contextStr }) {
             <div style={{fontSize:7,color:c,opacity:0.4,letterSpacing:4,marginBottom:4}}>QUICK ACCESS</div>
             {panel.quickPrompts.map(q=>(
               <button key={q} onClick={()=>send(q)}
-                style={{textAlign:"left",padding:"8px 12px",background:`${c}08`,border:`1px solid ${c}18`,borderRadius:3,color:"#667",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:10,transition:"all 0.2s",position:"relative",overflow:"hidden"}}
+                style={{textAlign:"left",padding:"8px 12px",background:`${c}08`,border:`1px solid ${c}18`,borderRadius:3,color:"#667",fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}
                 onMouseEnter={e=>{e.currentTarget.style.background=`${c}18`;e.currentTarget.style.color=c;e.currentTarget.style.borderColor=`${c}50`;}}
                 onMouseLeave={e=>{e.currentTarget.style.background=`${c}08`;e.currentTarget.style.color="#667";e.currentTarget.style.borderColor=`${c}18`;}}>
                 <span style={{color:c,marginRight:8,fontSize:12}}>›</span>{q}
@@ -285,10 +556,11 @@ function Chat({ panel, contextStr }) {
 }
 
 // ── Stock Ticker ──────────────────────────────────────────────────────────────
-function StockTicker({ stocks, loading, lastUpdated, onRefresh }) {
+function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock }) {
   const [filter, setFilter] = useState("ALL");
   const sectors = ["ALL","AI","TECH","ENERGY","HEALTH"];
   const filtered = filter==="ALL" ? WATCHLIST : WATCHLIST.filter(s=>s.sector===filter);
+  const portfolio = loadPortfolio();
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
@@ -311,13 +583,19 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh }) {
       <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
         {filtered.map((s,i)=>{
           const d=stocks[s.ticker]; const up=d?d.changePct>=0:null; const sc=SECTOR_COLORS[s.sector];
+          const hasPosition = portfolio[s.ticker]?.shares > 0;
           return (
-            <div key={s.ticker} style={{display:"grid",gridTemplateColumns:"8px 1fr auto auto",alignItems:"center",gap:10,padding:"7px 12px",borderBottom:"1px solid #0a1828",transition:"background 0.15s",animation:`fadeUp 0.3s ease ${i*0.04}s both`}}
-              onMouseEnter={e=>e.currentTarget.style.background=`${sc}08`}
-              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <div key={s.ticker}
+              onClick={()=>onSelectStock(s)}
+              style={{display:"grid",gridTemplateColumns:"8px 1fr auto auto",alignItems:"center",gap:10,padding:"7px 12px",borderBottom:"1px solid #0a1828",transition:"all 0.15s",animation:`fadeUp 0.3s ease ${i*0.04}s both`,cursor:"pointer",borderLeft:"2px solid transparent"}}
+              onMouseEnter={e=>{e.currentTarget.style.background=`${sc}08`;e.currentTarget.style.borderLeftColor=sc;}}
+              onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.borderLeftColor="transparent";}}>
               <div style={{width:3,height:24,borderRadius:2,background:sc,boxShadow:`0 0 8px ${sc}`,flexShrink:0}}/>
               <div>
-                <div style={{fontSize:11,fontWeight:"bold",color:"#c8d8e8",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{s.ticker}</div>
+                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{fontSize:11,fontWeight:"bold",color:"#c8d8e8",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{s.ticker}</span>
+                  {hasPosition&&<span style={{fontSize:6,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"1px 4px",borderRadius:2,letterSpacing:1}}>OWNED</span>}
+                </div>
                 <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:1}}>{s.name}</div>
               </div>
               <div style={{textAlign:"right"}}>
@@ -331,7 +609,7 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh }) {
           );
         })}
       </div>
-      {lastUpdated&&<div style={{padding:"4px 12px",fontSize:7,color:"#0d1a30",letterSpacing:3,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Orbitron',monospace"}}>LAST SYNC · {lastUpdated}</div>}
+      {lastUpdated&&<div style={{padding:"4px 12px",fontSize:7,color:"#0d1a30",letterSpacing:3,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Orbitron',monospace"}}>LAST SYNC · {lastUpdated} · CLICK TICKER FOR CHART</div>}
     </div>
   );
 }
@@ -384,31 +662,12 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   const isNews = cfg.id==="news";
 
   return (
-    <div style={{
-      position:"relative",
-      background:`linear-gradient(135deg, #04080f 0%, #060c18 50%, #040810 100%)`,
-      border:`1px solid ${c}25`,
-      display:"flex", flexDirection:"column",
-      overflow:"hidden",
-      transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",
-      boxShadow: isExpanded ? `0 0 60px ${c}20, inset 0 0 40px ${c}05` : `inset 0 0 30px #00000040`,
-      cursor: isExpanded?"default":"pointer",
-      minHeight:0,
-    }}
+    <div style={{position:"relative",background:`linear-gradient(135deg, #04080f 0%, #060c18 50%, #040810 100%)`,border:`1px solid ${c}25`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 60px ${c}20, inset 0 0 40px ${c}05`:`inset 0 0 30px #00000040`,cursor:isExpanded?"default":"pointer",minHeight:0}}
       onClick={!isExpanded?onExpand:undefined}>
-
-      {/* Animated corner brackets */}
       <HUDBrackets color={c} size={14} thickness={2}/>
-
-      {/* Grid bg texture */}
-      <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.03,
-        backgroundImage:`linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px)`,
-        backgroundSize:"40px 40px"}}/>
-
-      {/* Top glow */}
+      <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.03,backgroundImage:`linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px)`,backgroundSize:"40px 40px"}}/>
       <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${c}60,transparent)`,zIndex:4}}/>
 
-      {/* Header */}
       <div style={{padding:"9px 14px",borderBottom:`1px solid ${c}18`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:`linear-gradient(90deg,${c}08,transparent)`,zIndex:2}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{width:28,height:28,borderRadius:3,background:`${c}15`,border:`1px solid ${c}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:`0 0 15px ${c}20`}}>
@@ -433,16 +692,19 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
         </div>
       </div>
 
-      {/* Body */}
       <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,zIndex:2,overflow:"hidden"}}>
         {isMarkets ? (
           <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
-            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}><StockTicker stocks={extraProps.stocks} loading={extraProps.stockLoading} lastUpdated={extraProps.stockUpdated} onRefresh={extraProps.onRefreshStocks}/></div>
+            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}>
+              <StockTicker stocks={extraProps.stocks} loading={extraProps.stockLoading} lastUpdated={extraProps.stockUpdated} onRefresh={extraProps.onRefreshStocks} onSelectStock={extraProps.onSelectStock}/>
+            </div>
             <div style={{overflow:"hidden"}}><Chat panel={cfg} contextStr={extraProps.stockContext}/></div>
           </div>
         ) : isNews ? (
           <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
-            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}><NewsFeed articles={extraProps.articles} loading={extraProps.newsLoading} onRefresh={extraProps.onRefreshNews} onArticleClick={extraProps.onArticleClick}/></div>
+            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}>
+              <NewsFeed articles={extraProps.articles} loading={extraProps.newsLoading} onRefresh={extraProps.onRefreshNews} onArticleClick={extraProps.onArticleClick}/>
+            </div>
             <div style={{overflow:"hidden"}}><Chat panel={cfg} contextStr={extraProps.newsContext}/></div>
           </div>
         ) : (
@@ -468,6 +730,7 @@ export default function App() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsContext, setNewsContext] = useState("");
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [selectedStock, setSelectedStock] = useState(null);
   const [booting, setBooting]     = useState(true);
 
   const stockContext = Object.entries(stocks).map(([t,d])=>`${t}: $${d.price?.toFixed(2)} (${fmtP(d.changePct)})`).join(", ");
@@ -511,7 +774,14 @@ export default function App() {
   const kcalPct = Math.min(Math.round((macroSnap.kcal/MACROS_GOAL.kcal)*100),100);
   const protPct = Math.min(Math.round((macroSnap.protein/MACROS_GOAL.protein)*100),100);
 
-  const extraProps = { stocks, stockLoading, stockUpdated, stockContext, onRefreshStocks:refreshStocks, articles, newsLoading, newsContext, onRefreshNews:refreshNews, onArticleClick:setSelectedArticle };
+  const extraProps = {
+    stocks, stockLoading, stockUpdated, stockContext,
+    onRefreshStocks:refreshStocks,
+    onSelectStock:setSelectedStock,
+    articles, newsLoading, newsContext,
+    onRefreshNews:refreshNews,
+    onArticleClick:setSelectedArticle,
+  };
 
   if (booting) return (
     <div style={{height:"100vh",width:"100vw",background:"#02040a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Orbitron',monospace"}}>
@@ -528,25 +798,16 @@ export default function App() {
   return (
     <div style={{height:"100vh",width:"100vw",background:"#02040a",color:"#e8e8f0",fontFamily:"'Orbitron',monospace",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
-
-      {/* Scanlines */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:200,background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.015) 3px,rgba(0,0,0,0.015) 4px)"}}/>
-
-      {/* Global grid */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,opacity:0.02,backgroundImage:"linear-gradient(#00ff88 1px,transparent 1px),linear-gradient(90deg,#00ff88 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
 
       {/* TOP BAR */}
       <div style={{flexShrink:0,padding:"0 16px",height:52,borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:0,background:"linear-gradient(90deg,#02040a,#030810,#02040a)",zIndex:10,position:"relative",overflow:"hidden"}}>
-        {/* Bottom glow line */}
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#00ff8840,#38bdf840,transparent)"}}/>
-
-        {/* Logo */}
         <div style={{flexShrink:0,paddingRight:16,borderRight:"1px solid #0a1828"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"#00ff8840"}}>SYSTEM</div>
           <div style={{fontSize:14,fontWeight:"900",letterSpacing:3,color:"#00ff88",textShadow:"0 0 20px #00ff8840"}}>MISSION<span style={{color:"#38bdf8"}}>·</span>CTRL</div>
         </div>
-
-        {/* Greeting */}
         <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
           <div style={{fontSize:7,letterSpacing:3,color:"#1a2a4a"}}>OPERATOR</div>
           <div style={{fontSize:11,letterSpacing:2,fontWeight:"bold"}}>
@@ -554,14 +815,10 @@ export default function App() {
             <span style={{color:"#00ff88",textShadow:"0 0 15px #00ff8860"}}>{NAME}</span>
           </div>
         </div>
-
-        {/* Uptime */}
         <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
           <div style={{fontSize:7,letterSpacing:3,color:"#1a2a4a"}}>UPTIME</div>
           <div style={{fontSize:11,color:"#00ff8870",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
-
-        {/* Macro mini widget */}
         <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"4px 16px",borderRight:"1px solid #0a1828",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid #0a1828",textAlign:"left"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:4}}>
             <span style={{fontSize:7,letterSpacing:3,color:"#00ff8870"}}>⚡ NUTRITION</span>
@@ -575,8 +832,6 @@ export default function App() {
             ))}
           </div>
         </button>
-
-        {/* Panel status */}
         <div style={{display:"flex",gap:0,flex:1,justifyContent:"center"}}>
           {PANELS_CFG.map((p,i)=>(
             <div key={p.id} style={{textAlign:"center",padding:"0 14px",borderRight:i<3?"1px solid #0a1828":"none"}}>
@@ -588,16 +843,12 @@ export default function App() {
             </div>
           ))}
         </div>
-
-        {/* Weather */}
         {weather&&(
           <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid #0a1828",textAlign:"center"}}>
             <div style={{fontSize:18}}>{weather.icon}</div>
             <div style={{fontSize:9,color:"#38bdf8",letterSpacing:1}}>{weather.temp}°F</div>
           </div>
         )}
-
-        {/* Clock */}
         <div style={{flexShrink:0,padding:"0 0 0 16px",borderLeft:"1px solid #0a1828",textAlign:"right"}}>
           <div style={{fontSize:16,fontWeight:"bold",letterSpacing:2,color:"#c8d8e8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px #38bdf840"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
           <div style={{fontSize:7,color:"#1a2a4a",letterSpacing:2}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
@@ -612,9 +863,9 @@ export default function App() {
         })}
       </div>
 
-      {/* BOTTOM STATUS BAR */}
+      {/* BOTTOM BAR */}
       <div style={{flexShrink:0,padding:"4px 16px",borderTop:"1px solid #0a1828",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#02040a",zIndex:10}}>
-        <div style={{fontSize:7,color:"#0d1a30",letterSpacing:3}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK NUTRITION TO LOG MACROS"}</div>
+        <div style={{fontSize:7,color:"#0d1a30",letterSpacing:3}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
         <div style={{display:"flex",gap:12}}>
           {[["SYS","#00ff88"],["AI","#c084fc"],["MKT","#38bdf8"],["NEWS","#fb923c"]].map(([label,color])=>(
             <div key={label} style={{display:"flex",alignItems:"center",gap:3}}>
@@ -639,6 +890,11 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Stock Chart Modal */}
+      {selectedStock&&(
+        <StockChartModal stock={selectedStock} stockData={stocks[selectedStock.ticker]} onClose={()=>setSelectedStock(null)}/>
       )}
 
       {showMacros&&<MacroModal onClose={()=>setShowMacros(false)}/>}
