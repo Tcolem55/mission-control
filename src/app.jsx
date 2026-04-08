@@ -18,50 +18,48 @@ const WATCHLIST = [
   { ticker:"AXSM", name:"Axsome Therap.", sector:"HEALTH" },
 ];
 
-const SECTOR_COLORS = { AI:"#bf80ff", TECH:"#00c8ff", ENERGY:"#ffaa00", HEALTH:"#ff6b9d" };
+const SECTOR_COLORS = { AI:"#a78bfa", TECH:"#38bdf8", ENERGY:"#fbbf24", HEALTH:"#f472b6" };
 
 const PANELS_CFG = [
   {
-    id:"fitness", label:"FITNESS", icon:"⚡", color:"#00ff88",
-    system:`You are an elite fitness and nutrition coach for ${NAME}. He runs MWF, lifts 5-6 days/week, weighs 216 lbs, body recomp goal. Split: legs/push/pull/shoulders/pull/push. Targets: 3300 kcal, 200g protein, 380g carbs, 90g fat. Proteins: chicken, fish, steak, shrimp (no eggs). Carbs: rice, potatoes, protein pasta. Snacks: Greek yogurt, peanut butter. Supplements: creatine 5g/day, D3+K2, magnesium glycinate. Be concise, expert, personalized.`,
-    quickPrompts:["Today's nutrition plan","Recovery tips","Pre-workout fuel","Supplement timing"],
-    placeholder:"Ask about training, nutrition, recovery...",
-  },
-  {
-    id:"markets", label:"MARKETS", icon:"📈", color:"#00c8ff",
-    system:`You are a sharp financial analyst advising ${NAME}. His watchlist: NVDA, TSM, PLTR, AMD, MSFT (AI/Tech), GEV, VRT, BE (Energy), UNH, ISRG, LLY, AXSM (Health). Give concise actionable insights. Not financial advice.`,
-    quickPrompts:["Analyze my watchlist","Best opportunity now?","Market outlook","Biggest risks?"],
-    placeholder:"Ask about stocks, markets, strategy...",
-  },
-  {
-    id:"news", label:"WORLD NEWS", icon:"🌐", color:"#ff6b35",
-    system:`You are a world news analyst briefing ${NAME}. Give concise, balanced, factual summaries of current events and how they affect markets and everyday life. Use any provided news context to give real-time relevant answers.`,
-    quickPrompts:["Top stories now","Market-moving news","Tech headlines","How does this affect me?"],
-    placeholder:"Ask about world events, news...",
-  },
-  {
-    id:"command", label:"COMMAND AI", icon:"◈", color:"#bf80ff",
-    system:`You are the personal AI command center for ${NAME} (Tris). He is into fitness (runs MWF, lifts 5-6 days, 216 lbs, body recomp), tech, investing (watchlist: NVDA, TSM, PLTR, AMD, MSFT, GEV, VRT, BE, UNH, ISRG, LLY, AXSM), and world news. Be sharp, concise, highly personalized. Help him plan his day, connect dots, and give elite advice.`,
+    id:"command", label:"COMMAND AI", icon:"◈", color:"#c084fc", dim:"#c084fc20",
+    system:`You are the personal AI command center for ${NAME} (Tris). He is into fitness (runs MWF, lifts 5-6 days, 216 lbs, body recomp), tech, investing (watchlist: NVDA, TSM, PLTR, AMD, MSFT, GEV, VRT, BE, UNH, ISRG, LLY, AXSM), and world news. Be sharp, concise, highly personalized.`,
     quickPrompts:["Daily briefing","Plan my day","Connect the dots","What should I focus on?"],
     placeholder:"Ask me anything, Tris...",
   },
+  {
+    id:"news", label:"WORLD NEWS", icon:"🌐", color:"#fb923c", dim:"#fb923c20",
+    system:`You are a world news analyst briefing ${NAME}. Give concise, balanced summaries of current events and how they affect markets and everyday life. Use provided news context for real-time answers.`,
+    quickPrompts:["Top stories now","Market-moving news","Tech headlines","How does this affect me?"],
+    placeholder:"Ask about world events...",
+  },
+  {
+    id:"markets", label:"MARKETS", icon:"📈", color:"#38bdf8", dim:"#38bdf820",
+    system:`You are a sharp financial analyst advising ${NAME}. His watchlist: NVDA, TSM, PLTR, AMD, MSFT (AI/Tech), GEV, VRT, BE (Energy), UNH, ISRG, LLY, AXSM (Health). Give concise actionable insights. Not financial advice.`,
+    quickPrompts:["Analyze my watchlist","Best opportunity?","Market outlook","Biggest risks?"],
+    placeholder:"Ask about stocks, markets...",
+  },
+  {
+    id:"fitness", label:"FITNESS", icon:"⚡", color:"#00ff88", dim:"#00ff8820",
+    system:`You are an elite fitness and nutrition coach for ${NAME}. He runs MWF, lifts 5-6 days/week, weighs 216 lbs, body recomp goal. Split: legs/push/pull/shoulders/pull/push. Targets: 3300 kcal, 200g protein, 380g carbs, 90g fat. Proteins: chicken, fish, steak, shrimp (no eggs). Carbs: rice, potatoes, protein pasta. Snacks: Greek yogurt, peanut butter. Supplements: creatine 5g/day, D3+K2, magnesium glycinate. Be concise, expert, personalized.`,
+    quickPrompts:["Today's nutrition plan","Recovery tips","Pre-workout fuel","Supplement timing"],
+    placeholder:"Ask about training, nutrition...",
+  },
 ];
 
-// ── Utils ────────────────────────────────────────────────────────────────────
+// ── Utils ─────────────────────────────────────────────────────────────────────
 const fmt  = n => n >= 1000 ? `$${(n/1000).toFixed(1)}K` : `$${n?.toFixed(2) ?? "--"}`;
 const fmtP = n => `${n >= 0 ? "+" : ""}${n?.toFixed(2) ?? "--"}%`;
-const getTodayKey  = () => new Date().toISOString().split("T")[0];
-const getGreeting  = () => { const h=new Date().getHours(); return h<12?"Good morning":h<17?"Good afternoon":"Good evening"; };
-const loadMacros   = () => { try { const r=localStorage.getItem(`macros_${getTodayKey()}`); return r?JSON.parse(r):{kcal:0,protein:0,carbs:0,fat:0}; } catch { return {kcal:0,protein:0,carbs:0,fat:0}; }};
-const saveMacros   = m => { try { localStorage.setItem(`macros_${getTodayKey()}`,JSON.stringify(m)); } catch {} };
-const loadHistory  = id => { try { const r=localStorage.getItem(`chat_${id}`); return r?JSON.parse(r):[]; } catch { return []; }};
-const saveHistory  = (id,msgs) => { try { localStorage.setItem(`chat_${id}`,JSON.stringify(msgs.slice(-20))); } catch {} };
+const getTodayKey = () => new Date().toISOString().split("T")[0];
+const getGreeting = () => { const h=new Date().getHours(); return h<12?"GOOD MORNING":h<17?"GOOD AFTERNOON":"GOOD EVENING"; };
+const loadMacros  = () => { try { const r=localStorage.getItem(`macros_${getTodayKey()}`); return r?JSON.parse(r):{kcal:0,protein:0,carbs:0,fat:0}; } catch { return {kcal:0,protein:0,carbs:0,fat:0}; }};
+const saveMacros  = m => { try { localStorage.setItem(`macros_${getTodayKey()}`,JSON.stringify(m)); } catch {} };
+const loadHistory = id => { try { const r=localStorage.getItem(`chat_${id}`); return r?JSON.parse(r):[]; } catch { return []; }};
+const saveHistory = (id,msgs) => { try { localStorage.setItem(`chat_${id}`,JSON.stringify(msgs.slice(-20))); } catch {} };
 
-// ── API Calls via backend routes ─────────────────────────────────────────────
 async function askClaude(messages, system) {
   const res = await fetch('/api/claude', {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
+    method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:800, system, messages }),
   });
   const data = await res.json();
@@ -74,7 +72,7 @@ async function fetchStock(ticker) {
     const d = await r.json();
     if (d.results?.[0]) {
       const s = d.results[0];
-      return { price:s.c, change:s.c-s.o, changePct:((s.c-s.o)/s.o)*100, high:s.h, low:s.l, volume:s.v };
+      return { price:s.c, changePct:((s.c-s.o)/s.o)*100, high:s.h, low:s.l };
     }
     return null;
   } catch { return null; }
@@ -82,10 +80,7 @@ async function fetchStock(ticker) {
 
 async function fetchAllStocks() {
   const out = {};
-  await Promise.all(WATCHLIST.map(async s => {
-    const d = await fetchStock(s.ticker);
-    if (d) out[s.ticker] = d;
-  }));
+  await Promise.all(WATCHLIST.map(async s => { const d=await fetchStock(s.ticker); if(d) out[s.ticker]=d; }));
   return out;
 }
 
@@ -109,11 +104,50 @@ async function getWeather() {
   } catch { return null; }
 }
 
-// ── Macro Modal ──────────────────────────────────────────────────────────────
+// ── HUD Corner Brackets ───────────────────────────────────────────────────────
+function HUDBrackets({ color, size=12, thickness=2 }) {
+  const s = { position:"absolute", width:size, height:size, zIndex:5 };
+  const b = `${thickness}px solid ${color}`;
+  return (
+    <>
+      <div style={{...s, top:0, left:0, borderTop:b, borderLeft:b}}/>
+      <div style={{...s, top:0, right:0, borderTop:b, borderRight:b}}/>
+      <div style={{...s, bottom:0, left:0, borderBottom:b, borderLeft:b}}/>
+      <div style={{...s, bottom:0, right:0, borderBottom:b, borderRight:b}}/>
+    </>
+  );
+}
+
+// ── Animated Ring ─────────────────────────────────────────────────────────────
+function Ring({ pct, color, size=56, label, value }) {
+  const r = (size-8)/2;
+  const circ = 2*Math.PI*r;
+  const dash = (pct/100)*circ;
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+      <div style={{position:"relative",width:size,height:size}}>
+        <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#0d1a0d" strokeWidth={6}/>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={6}
+            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+            style={{filter:`drop-shadow(0 0 4px ${color})`}}/>
+        </svg>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <span style={{fontSize:11,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{pct}%</span>
+        </div>
+      </div>
+      <div style={{textAlign:"center"}}>
+        <div style={{fontSize:8,color,letterSpacing:2,opacity:0.7}}>{label}</div>
+        <div style={{fontSize:9,color:"#aaa"}}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Macro Modal ───────────────────────────────────────────────────────────────
 function MacroModal({ onClose }) {
   const [macros, setMacros] = useState(loadMacros());
-  const [form, setForm]     = useState({ kcal:"", protein:"", carbs:"", fat:"" });
-  const c = "#00ff88";
+  const [form, setForm] = useState({ kcal:"", protein:"", carbs:"", fat:"" });
 
   const add = () => {
     const u = { kcal:macros.kcal+(Number(form.kcal)||0), protein:macros.protein+(Number(form.protein)||0), carbs:macros.carbs+(Number(form.carbs)||0), fat:macros.fat+(Number(form.fat)||0) };
@@ -121,47 +155,43 @@ function MacroModal({ onClose }) {
   };
   const reset = () => { const e={kcal:0,protein:0,carbs:0,fat:0}; setMacros(e); saveMacros(e); };
 
-  const Bar = ({ label, cur, goal, color }) => {
-    const pct = Math.min((cur/goal)*100,100); const over = cur>goal;
-    return (
-      <div style={{marginBottom:10}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-          <span style={{fontSize:10,color:"#555",letterSpacing:2}}>{label}</span>
-          <span style={{fontSize:10,color:over?"#ff4444":color}}>{cur}<span style={{color:"#333"}}>/{goal}</span></span>
-        </div>
-        <div style={{height:4,background:"#0d0d1a",borderRadius:2,overflow:"hidden"}}>
-          <div style={{height:"100%",width:`${pct}%`,background:over?"#ff4444":color,borderRadius:2,transition:"width 0.4s",boxShadow:`0 0 8px ${over?"#ff444450":color+"50"}`}} />
-        </div>
-      </div>
-    );
-  };
+  const rings = [
+    { label:"KCAL", color:"#00ff88", cur:macros.kcal, goal:MACROS_GOAL.kcal },
+    { label:"PROTEIN", color:"#f472b6", cur:macros.protein, goal:MACROS_GOAL.protein },
+    { label:"CARBS", color:"#fbbf24", cur:macros.carbs, goal:MACROS_GOAL.carbs },
+    { label:"FAT", color:"#38bdf8", cur:macros.fat, goal:MACROS_GOAL.fat },
+  ];
 
   return (
-    <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-      <div style={{background:"#08081a",border:`1px solid ${c}30`,borderRadius:4,padding:24,width:320,boxShadow:`0 0 40px ${c}15`,position:"relative"}} onClick={e=>e.stopPropagation()}>
-        <div style={{position:"absolute",top:0,left:0,width:10,height:10,borderTop:`2px solid ${c}`,borderLeft:`2px solid ${c}`}} />
-        <div style={{position:"absolute",top:0,right:0,width:10,height:10,borderTop:`2px solid ${c}`,borderRight:`2px solid ${c}`}} />
-        <div style={{position:"absolute",bottom:0,left:0,width:10,height:10,borderBottom:`2px solid ${c}`,borderLeft:`2px solid ${c}`}} />
-        <div style={{position:"absolute",bottom:0,right:0,width:10,height:10,borderBottom:`2px solid ${c}`,borderRight:`2px solid ${c}`}} />
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-          <div style={{fontSize:9,letterSpacing:4,color:c}}>⚡ MACRO TRACKER</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:"#444",cursor:"pointer",fontSize:14}}>✕</button>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={onClose}>
+      <div style={{background:"linear-gradient(135deg,#050d10,#0a1628)",border:"1px solid #00ff8830",borderRadius:4,padding:28,width:360,position:"relative",boxShadow:"0 0 60px #00ff8815, inset 0 0 60px #00000040"}} onClick={e=>e.stopPropagation()}>
+        <HUDBrackets color="#00ff88" size={14}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+          <div>
+            <div style={{fontSize:8,letterSpacing:4,color:"#00ff88",marginBottom:2}}>⚡ NUTRITION TRACKER</div>
+            <div style={{fontSize:10,color:"#334",letterSpacing:2}}>{new Date().toDateString().toUpperCase()}</div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"1px solid #ffffff10",color:"#555",cursor:"pointer",fontSize:12,width:24,height:24,borderRadius:2,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
         </div>
-        <Bar label="CALORIES" cur={macros.kcal} goal={MACROS_GOAL.kcal} color={c} />
-        <Bar label="PROTEIN"  cur={macros.protein} goal={MACROS_GOAL.protein} color="#ff6b9d" />
-        <Bar label="CARBS"    cur={macros.carbs} goal={MACROS_GOAL.carbs} color="#ffaa00" />
-        <Bar label="FAT"      cur={macros.fat} goal={MACROS_GOAL.fat} color="#00c8ff" />
-        <div style={{borderTop:"1px solid #ffffff08",marginTop:16,paddingTop:16}}>
-          <div style={{fontSize:9,letterSpacing:3,color:"#444",marginBottom:8}}>LOG MEAL</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-around",marginBottom:24}}>
+          {rings.map(({label,color,cur,goal})=>(
+            <Ring key={label} pct={Math.min(Math.round((cur/goal)*100),100)} color={color} label={label} value={`${cur}/${goal}`} size={60}/>
+          ))}
+        </div>
+        <div style={{borderTop:"1px solid #ffffff08",paddingTop:20}}>
+          <div style={{fontSize:9,letterSpacing:3,color:"#334",marginBottom:10}}>LOG MEAL</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
             {["kcal","protein","carbs","fat"].map(k=>(
-              <input key={k} type="number" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={k.toUpperCase()}
-                style={{background:"#0d0d1a",border:"1px solid #1a1a2e",borderRadius:2,padding:"6px 8px",color:"#ccc",fontSize:11,fontFamily:"'Courier New',monospace",outline:"none"}} />
+              <div key={k} style={{position:"relative"}}>
+                <input type="number" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder="0"
+                  style={{width:"100%",background:"#0a1220",border:"1px solid #ffffff10",borderRadius:3,padding:"8px 10px",color:"#ccc",fontSize:11,fontFamily:"'Orbitron',monospace",outline:"none",boxSizing:"border-box"}}/>
+                <div style={{position:"absolute",top:2,right:6,fontSize:7,color:"#334",letterSpacing:1}}>{k.toUpperCase()}</div>
+              </div>
             ))}
           </div>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={add} style={{flex:1,padding:"8px",background:`${c}15`,border:`1px solid ${c}40`,borderRadius:2,color:c,fontSize:11,cursor:"pointer",fontFamily:"'Courier New',monospace",letterSpacing:2}}>+ ADD</button>
-            <button onClick={reset} style={{padding:"8px 12px",background:"#ff444410",border:"1px solid #ff444430",borderRadius:2,color:"#ff4444",fontSize:11,cursor:"pointer",fontFamily:"'Courier New',monospace"}}>RESET</button>
+            <button onClick={add} style={{flex:1,padding:"10px",background:"linear-gradient(135deg,#00ff8815,#00ff8808)",border:"1px solid #00ff8840",borderRadius:3,color:"#00ff88",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>+ LOG</button>
+            <button onClick={reset} style={{padding:"10px 16px",background:"#ff444410",border:"1px solid #ff444430",borderRadius:3,color:"#ff4444",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace"}}>CLR</button>
           </div>
         </div>
       </div>
@@ -169,103 +199,16 @@ function MacroModal({ onClose }) {
   );
 }
 
-// ── Stock Ticker ─────────────────────────────────────────────────────────────
-function StockTicker({ stocks, loading, lastUpdated, onRefresh }) {
-  const [filter, setFilter] = useState("ALL");
-  const sectors = ["ALL","AI","TECH","ENERGY","HEALTH"];
-  const filtered = filter==="ALL" ? WATCHLIST : WATCHLIST.filter(s=>s.sector===filter);
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-      <div style={{display:"flex",gap:4,padding:"6px 8px",borderBottom:"1px solid #ffffff06",flexShrink:0,alignItems:"center"}}>
-        {sectors.map(s=>(
-          <button key={s} onClick={()=>setFilter(s)} style={{padding:"2px 7px",fontSize:8,letterSpacing:2,cursor:"pointer",background:filter===s?`${s==="ALL"?"#ffffff":SECTOR_COLORS[s]}15`:"transparent",border:filter===s?`1px solid ${s==="ALL"?"#ffffff30":SECTOR_COLORS[s]+"40"}`:"1px solid transparent",borderRadius:2,color:filter===s?(s==="ALL"?"#ccc":SECTOR_COLORS[s]):"#333",fontFamily:"'Courier New',monospace",transition:"all 0.15s"}}>
-            {s}
-          </button>
-        ))}
-        <div style={{flex:1}}/>
-        <button onClick={onRefresh} style={{fontSize:8,color:"#2a2a3a",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Courier New',monospace"}}>
-          {loading?"···":"↻"}
-        </button>
-      </div>
-      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#1a1a2e transparent"}}>
-        {filtered.map(s=>{
-          const d=stocks[s.ticker]; const up=d?d.changePct>=0:null; const sc=SECTOR_COLORS[s.sector];
-          return (
-            <div key={s.ticker} style={{display:"grid",gridTemplateColumns:"6px 1fr auto auto",alignItems:"center",gap:8,padding:"6px 10px",borderBottom:"1px solid #ffffff04"}}>
-              <div style={{width:4,height:4,borderRadius:"50%",background:sc}}/>
-              <div>
-                <div style={{fontSize:11,fontWeight:"bold",color:"#ccc",letterSpacing:1}}>{s.ticker}</div>
-                <div style={{fontSize:8,color:"#333",letterSpacing:0.5}}>{s.name}</div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:11,color:"#bbb",letterSpacing:1}}>{d?fmt(d.price):"--"}</div>
-                <div style={{fontSize:8,color:"#2a2a3a"}}>{d?`H:${fmt(d.high)}`:"--"}</div>
-              </div>
-              <div style={{padding:"2px 6px",borderRadius:2,minWidth:52,textAlign:"center",background:d?(up?"#00ff8810":"#ff444410"):"#0d0d1a",border:d?`1px solid ${up?"#00ff8825":"#ff444425"}`:"1px solid #1a1a2e"}}>
-                <div style={{fontSize:9,fontWeight:"bold",color:d?(up?"#00ff88":"#ff4444"):"#2a2a3a"}}>{d?fmtP(d.changePct):"--"}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {lastUpdated&&<div style={{padding:"3px 10px",fontSize:7,color:"#1a1a2e",letterSpacing:2,borderTop:"1px solid #ffffff03",flexShrink:0}}>UPDATED {lastUpdated}</div>}
-    </div>
-  );
-}
-
-// ── News Feed ────────────────────────────────────────────────────────────────
-function NewsFeed({ articles, loading, onRefresh, onArticleClick }) {
-  const categories = ["TOP","TECH","MARKETS","HEALTH"];
-  const [cat, setCat] = useState("TOP");
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-      <div style={{display:"flex",gap:4,padding:"6px 8px",borderBottom:"1px solid #ffffff06",flexShrink:0,alignItems:"center"}}>
-        {categories.map(c=>(
-          <button key={c} onClick={()=>{setCat(c);onRefresh(c);}} style={{padding:"2px 7px",fontSize:8,letterSpacing:2,cursor:"pointer",background:cat===c?"#ff6b3515":"transparent",border:cat===c?"1px solid #ff6b3540":"1px solid transparent",borderRadius:2,color:cat===c?"#ff6b35":"#333",fontFamily:"'Courier New',monospace",transition:"all 0.15s"}}>
-            {c}
-          </button>
-        ))}
-        <div style={{flex:1}}/>
-        <button onClick={()=>onRefresh(cat)} style={{fontSize:8,color:"#2a2a3a",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Courier New',monospace"}}>{loading?"···":"↻"}</button>
-      </div>
-      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#1a1a2e transparent"}}>
-        {loading&&articles.length===0&&(
-          <div style={{padding:20,textAlign:"center",color:"#2a2a3a",fontSize:10,letterSpacing:3}}>LOADING FEED...</div>
-        )}
-        {articles.map((a,i)=>(
-          <div key={i} onClick={()=>onArticleClick(a)} style={{padding:"8px 10px",borderBottom:"1px solid #ffffff04",cursor:"pointer",transition:"background 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="#ff6b3508"}
-            onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-            <div style={{fontSize:10,color:"#bbb",lineHeight:1.4,marginBottom:3}}>{a.title}</div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <span style={{fontSize:8,color:"#333",letterSpacing:1}}>{a.source?.name}</span>
-              <span style={{fontSize:7,color:"#222"}}>·</span>
-              <span style={{fontSize:8,color:"#2a2a3a"}}>{new Date(a.publishedAt).toLocaleDateString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})}</span>
-            </div>
-          </div>
-        ))}
-        {!loading&&articles.length===0&&(
-          <div style={{padding:20,textAlign:"center",color:"#2a2a3a",fontSize:10,letterSpacing:3}}>NO ARTICLES FOUND</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Chat ─────────────────────────────────────────────────────────────────────
+// ── Chat Component ────────────────────────────────────────────────────────────
 function Chat({ panel, contextStr }) {
   const [messages, setMessages] = useState(()=>loadHistory(panel.id));
-  const [input, setInput]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [showQ, setShowQ]       = useState(true);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showQ, setShowQ] = useState(true);
   const endRef = useRef(null);
   const c = panel.color;
 
   useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages,loading]);
-
-  const fullSystem = panel.system + (contextStr?`\n\nLIVE CONTEXT:\n${contextStr}`:"");
 
   const send = async txt => {
     const msg = txt||input.trim(); if(!msg||loading) return;
@@ -275,12 +218,12 @@ function Chat({ panel, contextStr }) {
     setMessages(newMsgs); saveHistory(panel.id,newMsgs);
     setLoading(true);
     try {
-      const reply = await askClaude(newMsgs,fullSystem);
+      const fullSystem = panel.system + (contextStr?`\n\nLIVE CONTEXT:\n${contextStr}`:"");
+      const reply = await askClaude(newMsgs, fullSystem);
       const final = [...newMsgs,{role:"assistant",content:reply}];
       setMessages(final); saveHistory(panel.id,final);
     } catch {
-      const final=[...newMsgs,{role:"assistant",content:"Connection error. Try again."}];
-      setMessages(final);
+      setMessages([...newMsgs,{role:"assistant",content:"Connection error. Try again."}]);
     }
     setLoading(false);
   };
@@ -289,95 +232,218 @@ function Chat({ panel, contextStr }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-      <div style={{padding:"4px 10px",borderBottom:`1px solid ${c}10`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-        <span style={{fontSize:8,color:c,opacity:0.4,letterSpacing:3}}>AI ASSISTANT</span>
-        {messages.length>0&&<button onClick={clear} style={{background:"none",border:"none",color:"#222",cursor:"pointer",fontSize:8,letterSpacing:1,fontFamily:"'Courier New',monospace"}}>CLR</button>}
+      <div style={{padding:"4px 12px",borderBottom:`1px solid ${c}15`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,background:`${c}05`}}>
+        <span style={{fontSize:7,color:c,opacity:0.5,letterSpacing:4}}>AI INTERFACE</span>
+        {messages.length>0&&<button onClick={clear} style={{background:"none",border:"none",color:"#2a2a3a",cursor:"pointer",fontSize:8,letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>CLEAR</button>}
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"8px 10px",display:"flex",flexDirection:"column",gap:7,scrollbarWidth:"thin",scrollbarColor:`${c}15 transparent`,minHeight:0}}>
+      <div style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:8,scrollbarWidth:"thin",scrollbarColor:`${c}20 transparent`,minHeight:0}}>
         {messages.length===0&&showQ&&(
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-            <div style={{fontSize:8,color:c,opacity:0.35,letterSpacing:3,marginBottom:2}}>QUICK ACCESS</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{fontSize:7,color:c,opacity:0.4,letterSpacing:4,marginBottom:4}}>QUICK ACCESS</div>
             {panel.quickPrompts.map(q=>(
-              <button key={q} onClick={()=>send(q)} style={{textAlign:"left",padding:"6px 10px",background:`${c}07`,border:`1px solid ${c}15`,borderRadius:2,color:"#666",fontSize:11,cursor:"pointer",fontFamily:"'Courier New',monospace"}}
-                onMouseEnter={e=>{e.target.style.color=c;e.target.style.background=`${c}12`;}}
-                onMouseLeave={e=>{e.target.style.color="#666";e.target.style.background=`${c}07`;}}>
-                <span style={{color:c,marginRight:6}}>›</span>{q}
+              <button key={q} onClick={()=>send(q)}
+                style={{textAlign:"left",padding:"8px 12px",background:`${c}08`,border:`1px solid ${c}18`,borderRadius:3,color:"#667",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:10,transition:"all 0.2s",position:"relative",overflow:"hidden"}}
+                onMouseEnter={e=>{e.currentTarget.style.background=`${c}18`;e.currentTarget.style.color=c;e.currentTarget.style.borderColor=`${c}50`;}}
+                onMouseLeave={e=>{e.currentTarget.style.background=`${c}08`;e.currentTarget.style.color="#667";e.currentTarget.style.borderColor=`${c}18`;}}>
+                <span style={{color:c,marginRight:8,fontSize:12}}>›</span>{q}
               </button>
             ))}
           </div>
         )}
         {messages.map((m,i)=>(
-          <div key={i} style={{display:"flex",flexDirection:m.role==="user"?"row-reverse":"row",gap:6,animation:"slideIn 0.25s ease"}}>
-            <div style={{width:18,height:18,borderRadius:2,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:"bold",background:m.role==="user"?`${c}20`:"#111122",border:`1px solid ${m.role==="user"?c+"40":"#1e1e2e"}`,color:m.role==="user"?c:"#444",marginTop:2}}>{m.role==="user"?"U":"AI"}</div>
-            <div style={{maxWidth:"85%",padding:"7px 10px",borderRadius:m.role==="user"?"2px 8px 8px 8px":"8px 2px 8px 8px",background:m.role==="user"?`${c}10`:"#0c0c1a",border:`1px solid ${m.role==="user"?c+"20":"#1a1a2e"}`,fontSize:11,lineHeight:1.6,color:m.role==="user"?"#ccc":"#b0b0c8",whiteSpace:"pre-wrap"}}>{m.content}</div>
+          <div key={i} style={{display:"flex",flexDirection:m.role==="user"?"row-reverse":"row",gap:8,animation:"fadeUp 0.3s ease"}}>
+            <div style={{width:22,height:22,borderRadius:3,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,fontWeight:"bold",background:m.role==="user"?`${c}25`:"#0d1628",border:`1px solid ${m.role==="user"?c+"50":"#1e2d4a"}`,color:m.role==="user"?c:"#3a4a6a",marginTop:2,fontFamily:"'Orbitron',monospace"}}>
+              {m.role==="user"?"YOU":"AI"}
+            </div>
+            <div style={{maxWidth:"82%",padding:"8px 12px",borderRadius:m.role==="user"?"3px 12px 12px 12px":"12px 3px 12px 12px",background:m.role==="user"?`linear-gradient(135deg,${c}15,${c}08)`:"linear-gradient(135deg,#0d1628,#0a1220)",border:`1px solid ${m.role==="user"?c+"25":"#1e2d4a"}`,fontSize:11,lineHeight:1.7,color:m.role==="user"?"#ddd":"#a0b4cc",whiteSpace:"pre-wrap",boxShadow:m.role==="user"?`0 0 20px ${c}10`:"none"}}>
+              {m.content}
+            </div>
           </div>
         ))}
         {loading&&(
-          <div style={{display:"flex",gap:6}}>
-            <div style={{width:18,height:18,borderRadius:2,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,background:"#111122",border:"1px solid #1e1e2e",color:"#444"}}>AI</div>
-            <div style={{padding:"7px 12px",borderRadius:"8px 2px 8px 8px",background:"#0c0c1a",border:"1px solid #1a1a2e"}}>
-              <span style={{color:c,letterSpacing:3,animation:"pulse 1s infinite"}}>···</span>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{width:22,height:22,borderRadius:3,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7,background:"#0d1628",border:"1px solid #1e2d4a",color:"#3a4a6a",fontFamily:"'Orbitron',monospace"}}>AI</div>
+            <div style={{padding:"8px 14px",borderRadius:"12px 3px 12px 12px",background:"linear-gradient(135deg,#0d1628,#0a1220)",border:"1px solid #1e2d4a"}}>
+              <span style={{color:c,letterSpacing:6,animation:"pulse 1.2s infinite",fontSize:14}}>···</span>
             </div>
           </div>
         )}
         <div ref={endRef}/>
       </div>
-      <div style={{padding:"6px 8px",borderTop:`1px solid ${c}10`,display:"flex",gap:6,background:"#04040c",flexShrink:0}}>
+      <div style={{padding:"8px 10px",borderTop:`1px solid ${c}12`,display:"flex",gap:8,background:"#030810",flexShrink:0}}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send();}} placeholder={panel.placeholder}
-          style={{flex:1,background:`${c}07`,border:`1px solid ${c}18`,borderRadius:2,padding:"6px 10px",color:"#ddd",fontSize:11,fontFamily:"'Courier New',monospace",outline:"none"}}/>
-        <button onClick={()=>send()} disabled={loading||!input.trim()} style={{padding:"6px 12px",background:loading||!input.trim()?"#0a0a12":`${c}15`,border:`1px solid ${loading||!input.trim()?"#1a1a2e":c+"35"}`,borderRadius:2,color:loading||!input.trim()?"#222":c,cursor:loading||!input.trim()?"not-allowed":"pointer",fontSize:12,fontFamily:"'Courier New',monospace",transition:"all 0.15s"}}>→</button>
+          style={{flex:1,background:"#0a1220",border:`1px solid ${c}20`,borderRadius:3,padding:"8px 12px",color:"#ccc",fontSize:11,fontFamily:"'Orbitron',monospace",outline:"none",transition:"border-color 0.2s"}}
+          onFocus={e=>e.target.style.borderColor=`${c}60`}
+          onBlur={e=>e.target.style.borderColor=`${c}20`}/>
+        <button onClick={()=>send()} disabled={loading||!input.trim()}
+          style={{padding:"8px 16px",background:loading||!input.trim()?"#0a1220":`linear-gradient(135deg,${c}25,${c}10)`,border:`1px solid ${loading||!input.trim()?"#1e2d4a":c+"50"}`,borderRadius:3,color:loading||!input.trim()?"#2a3a4a":c,cursor:loading||!input.trim()?"not-allowed":"pointer",fontSize:14,transition:"all 0.2s",boxShadow:loading||!input.trim()?"none":`0 0 15px ${c}20`}}>
+          →
+        </button>
       </div>
     </div>
   );
 }
 
-// ── Panel Wrapper ────────────────────────────────────────────────────────────
+// ── Stock Ticker ──────────────────────────────────────────────────────────────
+function StockTicker({ stocks, loading, lastUpdated, onRefresh }) {
+  const [filter, setFilter] = useState("ALL");
+  const sectors = ["ALL","AI","TECH","ENERGY","HEALTH"];
+  const filtered = filter==="ALL" ? WATCHLIST : WATCHLIST.filter(s=>s.sector===filter);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
+      <div style={{display:"flex",gap:4,padding:"6px 10px",borderBottom:"1px solid #0d2040",flexShrink:0,alignItems:"center"}}>
+        {sectors.map(s=>{
+          const sc = s==="ALL"?"#38bdf8":SECTOR_COLORS[s];
+          return (
+            <button key={s} onClick={()=>setFilter(s)} style={{padding:"3px 8px",fontSize:7,letterSpacing:2,cursor:"pointer",background:filter===s?`${sc}20`:"transparent",border:filter===s?`1px solid ${sc}50`:"1px solid transparent",borderRadius:2,color:filter===s?sc:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+              {s}
+            </button>
+          );
+        })}
+        <div style={{flex:1}}/>
+        <button onClick={onRefresh} style={{fontSize:8,color:"#1a2a4a",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Orbitron',monospace",transition:"color 0.2s"}}
+          onMouseEnter={e=>e.target.style.color="#38bdf8"}
+          onMouseLeave={e=>e.target.style.color="#1a2a4a"}>
+          {loading?"···":"↻ SYNC"}
+        </button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+        {filtered.map((s,i)=>{
+          const d=stocks[s.ticker]; const up=d?d.changePct>=0:null; const sc=SECTOR_COLORS[s.sector];
+          return (
+            <div key={s.ticker} style={{display:"grid",gridTemplateColumns:"8px 1fr auto auto",alignItems:"center",gap:10,padding:"7px 12px",borderBottom:"1px solid #0a1828",transition:"background 0.15s",animation:`fadeUp 0.3s ease ${i*0.04}s both`}}
+              onMouseEnter={e=>e.currentTarget.style.background=`${sc}08`}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <div style={{width:3,height:24,borderRadius:2,background:sc,boxShadow:`0 0 8px ${sc}`,flexShrink:0}}/>
+              <div>
+                <div style={{fontSize:11,fontWeight:"bold",color:"#c8d8e8",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{s.ticker}</div>
+                <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:1}}>{s.name}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:12,color:"#a0c0e0",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{d?fmt(d.price):"—"}</div>
+                <div style={{fontSize:7,color:"#1a2a4a",fontFamily:"'Orbitron',monospace"}}>{d?`↑${fmt(d.high)}`:"—"}</div>
+              </div>
+              <div style={{padding:"3px 8px",borderRadius:2,minWidth:58,textAlign:"center",background:d?(up?"#00ff8812":"#ff444412"):"#0a1220",border:d?`1px solid ${up?"#00ff8830":"#ff444430"}`:"1px solid #0d2040",boxShadow:d&&up?`0 0 10px #00ff8815`:d&&!up?`0 0 10px #ff444415`:"none"}}>
+                <div style={{fontSize:9,fontWeight:"bold",color:d?(up?"#00ff88":"#ff4444"):"#1a2a4a",fontFamily:"'Orbitron',monospace"}}>{d?fmtP(d.changePct):"—"}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {lastUpdated&&<div style={{padding:"4px 12px",fontSize:7,color:"#0d1a30",letterSpacing:3,borderTop:"1px solid #080f1e",flexShrink:0,fontFamily:"'Orbitron',monospace"}}>LAST SYNC · {lastUpdated}</div>}
+    </div>
+  );
+}
+
+// ── News Feed ─────────────────────────────────────────────────────────────────
+function NewsFeed({ articles, loading, onRefresh, onArticleClick }) {
+  const [cat, setCat] = useState("TOP");
+  const categories = ["TOP","TECH","MARKETS","HEALTH"];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
+      <div style={{display:"flex",gap:4,padding:"6px 10px",borderBottom:"1px solid #1a1008",flexShrink:0,alignItems:"center"}}>
+        {categories.map(c=>(
+          <button key={c} onClick={()=>{setCat(c);onRefresh(c);}} style={{padding:"3px 8px",fontSize:7,letterSpacing:2,cursor:"pointer",background:cat===c?"#fb923c20":"transparent",border:cat===c?"1px solid #fb923c50":"1px solid transparent",borderRadius:2,color:cat===c?"#fb923c":"#2a2010",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+            {c}
+          </button>
+        ))}
+        <div style={{flex:1}}/>
+        <button onClick={()=>onRefresh(cat)} style={{fontSize:8,color:"#1a1008",background:"none",border:"none",cursor:"pointer",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}
+          onMouseEnter={e=>e.target.style.color="#fb923c"}
+          onMouseLeave={e=>e.target.style.color="#1a1008"}>
+          {loading?"···":"↻ SYNC"}
+        </button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#1a1008 transparent"}}>
+        {loading&&articles.length===0&&<div style={{padding:20,textAlign:"center",color:"#1a1008",fontSize:9,letterSpacing:4,fontFamily:"'Orbitron',monospace"}}>LOADING FEED...</div>}
+        {articles.map((a,i)=>(
+          <div key={i} onClick={()=>onArticleClick(a)}
+            style={{padding:"9px 12px",borderBottom:"1px solid #100a04",cursor:"pointer",transition:"all 0.15s",animation:`fadeUp 0.3s ease ${i*0.04}s both`,borderLeft:"2px solid transparent"}}
+            onMouseEnter={e=>{e.currentTarget.style.background="#fb923c08";e.currentTarget.style.borderLeftColor="#fb923c";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.borderLeftColor="transparent";}}>
+            <div style={{fontSize:10,color:"#b0a090",lineHeight:1.5,marginBottom:4}}>{a.title}</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:7,color:"#fb923c",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{a.source?.name?.toUpperCase()}</span>
+              <span style={{fontSize:7,color:"#1a1008"}}>·</span>
+              <span style={{fontSize:7,color:"#2a1a08",fontFamily:"'Orbitron',monospace"}}>{new Date(a.publishedAt).toLocaleDateString([],{month:"short",day:"numeric"})}</span>
+            </div>
+          </div>
+        ))}
+        {!loading&&articles.length===0&&<div style={{padding:20,textAlign:"center",color:"#1a1008",fontSize:9,letterSpacing:4,fontFamily:"'Orbitron',monospace"}}>NO FEED DATA</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────────
 function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   const c = cfg.color;
-  return (
-    <div style={{position:"relative",background:"#07070f",border:`1px solid ${c}18`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.4s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 40px ${c}15`:"none",cursor:isExpanded?"default":"pointer",minHeight:0}}
-      onClick={!isExpanded?onExpand:undefined}>
-      <div style={{position:"absolute",top:0,left:0,width:10,height:10,borderTop:`2px solid ${c}`,borderLeft:`2px solid ${c}`,zIndex:5}}/>
-      <div style={{position:"absolute",top:0,right:0,width:10,height:10,borderTop:`2px solid ${c}`,borderRight:`2px solid ${c}`,zIndex:5}}/>
-      <div style={{position:"absolute",bottom:0,left:0,width:10,height:10,borderBottom:`2px solid ${c}`,borderLeft:`2px solid ${c}`,zIndex:5}}/>
-      <div style={{position:"absolute",bottom:0,right:0,width:10,height:10,borderBottom:`2px solid ${c}`,borderRight:`2px solid ${c}`,zIndex:5}}/>
-      <div style={{position:"absolute",inset:0,pointerEvents:"none",background:`radial-gradient(ellipse 80% 50% at 50% 0%, ${c}04 0%, transparent 70%)`}}/>
+  const isMarkets = cfg.id==="markets";
+  const isNews = cfg.id==="news";
 
-      <div style={{padding:"8px 12px",borderBottom:`1px solid ${c}12`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:`${c}03`,zIndex:2}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:12}}>{cfg.icon}</span>
-          <span style={{fontSize:9,letterSpacing:4,color:c,fontWeight:"bold"}}>{cfg.label}</span>
-          {cfg.id==="markets"&&extraProps.stockLoading&&<span style={{fontSize:8,color:"#ffaa0060",letterSpacing:2}}>UPDATING</span>}
-          {cfg.id==="news"&&extraProps.newsLoading&&<span style={{fontSize:8,color:"#ff6b3560",letterSpacing:2}}>FETCHING</span>}
+  return (
+    <div style={{
+      position:"relative",
+      background:`linear-gradient(135deg, #04080f 0%, #060c18 50%, #040810 100%)`,
+      border:`1px solid ${c}25`,
+      display:"flex", flexDirection:"column",
+      overflow:"hidden",
+      transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",
+      boxShadow: isExpanded ? `0 0 60px ${c}20, inset 0 0 40px ${c}05` : `inset 0 0 30px #00000040`,
+      cursor: isExpanded?"default":"pointer",
+      minHeight:0,
+    }}
+      onClick={!isExpanded?onExpand:undefined}>
+
+      {/* Animated corner brackets */}
+      <HUDBrackets color={c} size={14} thickness={2}/>
+
+      {/* Grid bg texture */}
+      <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.03,
+        backgroundImage:`linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px)`,
+        backgroundSize:"40px 40px"}}/>
+
+      {/* Top glow */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${c}60,transparent)`,zIndex:4}}/>
+
+      {/* Header */}
+      <div style={{padding:"9px 14px",borderBottom:`1px solid ${c}18`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:`linear-gradient(90deg,${c}08,transparent)`,zIndex:2}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:28,height:28,borderRadius:3,background:`${c}15`,border:`1px solid ${c}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:`0 0 15px ${c}20`}}>
+            {cfg.icon}
+          </div>
+          <div>
+            <div style={{fontSize:9,letterSpacing:4,color:c,fontWeight:"bold",fontFamily:"'Orbitron',monospace"}}>{cfg.label}</div>
+            <div style={{fontSize:7,color:`${c}50`,letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>SYSTEM ACTIVE</div>
+          </div>
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          <div style={{width:4,height:4,borderRadius:"50%",background:c,animation:"blink 2s infinite"}}/>
-          <span style={{fontSize:7,color:c,opacity:0.35,letterSpacing:2}}>LIVE</span>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {isMarkets&&extraProps.stockLoading&&<span style={{fontSize:7,color:"#fbbf2480",letterSpacing:2,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>SYNCING</span>}
+          {isNews&&extraProps.newsLoading&&<span style={{fontSize:7,color:"#fb923c80",letterSpacing:2,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>FETCHING</span>}
+          <div style={{display:"flex",alignItems:"center",gap:4}}>
+            <div style={{width:5,height:5,borderRadius:"50%",background:c,boxShadow:`0 0 8px ${c}`,animation:"blink 2s infinite"}}/>
+            <span style={{fontSize:7,color:`${c}50`,letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>LIVE</span>
+          </div>
           {isExpanded
-            ?<button onClick={e=>{e.stopPropagation();onCollapse();}} style={{background:`${c}15`,border:`1px solid ${c}25`,color:c,width:18,height:18,borderRadius:2,cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-            :<button onClick={e=>{e.stopPropagation();onExpand();}} style={{background:`${c}15`,border:`1px solid ${c}25`,color:c,width:18,height:18,borderRadius:2,cursor:"pointer",fontSize:9,display:"flex",alignItems:"center",justifyContent:"center"}}>⤢</button>
+            ?<button onClick={e=>{e.stopPropagation();onCollapse();}} style={{background:`${c}15`,border:`1px solid ${c}30`,color:c,width:22,height:22,borderRadius:3,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 10px ${c}15`}}>✕</button>
+            :<button onClick={e=>{e.stopPropagation();onExpand();}} style={{background:`${c}15`,border:`1px solid ${c}30`,color:c,width:22,height:22,borderRadius:3,cursor:"pointer",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 0 10px ${c}15`}}>⤢</button>
           }
         </div>
       </div>
 
+      {/* Body */}
       <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0,zIndex:2,overflow:"hidden"}}>
-        {cfg.id==="markets" ? (
+        {isMarkets ? (
           <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
-            <div style={{borderBottom:"1px solid #ffffff06",overflow:"hidden"}}>
-              <StockTicker stocks={extraProps.stocks} loading={extraProps.stockLoading} lastUpdated={extraProps.stockUpdated} onRefresh={extraProps.onRefreshStocks}/>
-            </div>
-            <div style={{overflow:"hidden"}}>
-              <Chat panel={cfg} contextStr={extraProps.stockContext}/>
-            </div>
+            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}><StockTicker stocks={extraProps.stocks} loading={extraProps.stockLoading} lastUpdated={extraProps.stockUpdated} onRefresh={extraProps.onRefreshStocks}/></div>
+            <div style={{overflow:"hidden"}}><Chat panel={cfg} contextStr={extraProps.stockContext}/></div>
           </div>
-        ) : cfg.id==="news" ? (
+        ) : isNews ? (
           <div style={{flex:1,display:"grid",gridTemplateRows:"55% 45%",minHeight:0}}>
-            <div style={{borderBottom:"1px solid #ffffff06",overflow:"hidden"}}>
-              <NewsFeed articles={extraProps.articles} loading={extraProps.newsLoading} onRefresh={extraProps.onRefreshNews} onArticleClick={extraProps.onArticleClick}/>
-            </div>
-            <div style={{overflow:"hidden"}}>
-              <Chat panel={cfg} contextStr={extraProps.newsContext}/>
-            </div>
+            <div style={{borderBottom:`1px solid ${c}10`,overflow:"hidden"}}><NewsFeed articles={extraProps.articles} loading={extraProps.newsLoading} onRefresh={extraProps.onRefreshNews} onArticleClick={extraProps.onArticleClick}/></div>
+            <div style={{overflow:"hidden"}}><Chat panel={cfg} contextStr={extraProps.newsContext}/></div>
           </div>
         ) : (
           <Chat panel={cfg} contextStr=""/>
@@ -387,7 +453,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   );
 }
 
-// ── Main App ─────────────────────────────────────────────────────────────────
+// ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [time, setTime]           = useState(new Date());
   const [uptime, setUptime]       = useState(0);
@@ -395,20 +461,20 @@ export default function App() {
   const [weather, setWeather]     = useState(null);
   const [showMacros, setShowMacros] = useState(false);
   const [macroSnap, setMacroSnap] = useState(loadMacros());
-
-  const [stocks, setStocks]             = useState({});
+  const [stocks, setStocks]       = useState({});
   const [stockLoading, setStockLoading] = useState(false);
   const [stockUpdated, setStockUpdated] = useState(null);
-
-  const [articles, setArticles]       = useState([]);
+  const [articles, setArticles]   = useState([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsContext, setNewsContext] = useState("");
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [booting, setBooting]     = useState(true);
 
   const stockContext = Object.entries(stocks).map(([t,d])=>`${t}: $${d.price?.toFixed(2)} (${fmtP(d.changePct)})`).join(", ");
 
   useEffect(()=>{
     const t=setInterval(()=>{ setTime(new Date()); setUptime(u=>u+1); setMacroSnap(loadMacros()); },1000);
+    setTimeout(()=>setBooting(false), 1800);
     return()=>clearInterval(t);
   },[]);
 
@@ -426,13 +492,12 @@ export default function App() {
   const refreshNews = async (cat="TOP") => {
     setNewsLoading(true);
     let arts = [];
-    if (cat==="TOP") arts = await fetchNews("top");
-    else if (cat==="TECH") arts = await fetchNews("q","technology AI software");
-    else if (cat==="MARKETS") arts = await fetchNews("q","stock market investing finance");
-    else if (cat==="HEALTH") arts = await fetchNews("q","health medical biotech");
+    if(cat==="TOP") arts=await fetchNews("top");
+    else if(cat==="TECH") arts=await fetchNews("q","technology AI software");
+    else if(cat==="MARKETS") arts=await fetchNews("q","stock market investing finance");
+    else if(cat==="HEALTH") arts=await fetchNews("q","health medical biotech");
     setArticles(arts);
-    const ctx = arts.slice(0,6).map(a=>`- ${a.title} (${a.source?.name})`).join("\n");
-    setNewsContext(ctx);
+    setNewsContext(arts.slice(0,6).map(a=>`- ${a.title} (${a.source?.name})`).join("\n"));
     setNewsLoading(false);
   };
 
@@ -446,102 +511,131 @@ export default function App() {
   const kcalPct = Math.min(Math.round((macroSnap.kcal/MACROS_GOAL.kcal)*100),100);
   const protPct = Math.min(Math.round((macroSnap.protein/MACROS_GOAL.protein)*100),100);
 
-  const extraProps = {
-    stocks, stockLoading, stockUpdated, stockContext,
-    onRefreshStocks: refreshStocks,
-    articles, newsLoading, newsContext,
-    onRefreshNews: refreshNews,
-    onArticleClick: setSelectedArticle,
-  };
+  const extraProps = { stocks, stockLoading, stockUpdated, stockContext, onRefreshStocks:refreshStocks, articles, newsLoading, newsContext, onRefreshNews:refreshNews, onArticleClick:setSelectedArticle };
+
+  if (booting) return (
+    <div style={{height:"100vh",width:"100vw",background:"#02040a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Orbitron',monospace"}}>
+      <div style={{fontSize:8,letterSpacing:8,color:"#00ff8840",marginBottom:16,animation:"pulse 1s infinite"}}>INITIALIZING</div>
+      <div style={{fontSize:28,fontWeight:"bold",letterSpacing:6,color:"#00ff88",marginBottom:8,textShadow:"0 0 30px #00ff8860"}}>MISSION CTRL</div>
+      <div style={{fontSize:10,letterSpacing:4,color:"#334",marginBottom:32}}>PERSONAL COMMAND CENTER</div>
+      <div style={{width:200,height:2,background:"#0a1a0a",borderRadius:1,overflow:"hidden"}}>
+        <div style={{height:"100%",background:"linear-gradient(90deg,#00ff88,#38bdf8)",borderRadius:1,animation:"bootbar 1.8s ease forwards"}}/>
+      </div>
+      <style>{`@keyframes bootbar{from{width:0}to{width:100%}}`}</style>
+    </div>
+  );
 
   return (
-    <div style={{height:"100vh",width:"100vw",background:"#030308",color:"#e8e8f0",fontFamily:"'Courier New',monospace",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:100,background:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px)"}}/>
+    <div style={{height:"100vh",width:"100vw",background:"#02040a",color:"#e8e8f0",fontFamily:"'Orbitron',monospace",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+
+      {/* Scanlines */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:200,background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.015) 3px,rgba(0,0,0,0.015) 4px)"}}/>
+
+      {/* Global grid */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,opacity:0.02,backgroundImage:"linear-gradient(#00ff88 1px,transparent 1px),linear-gradient(90deg,#00ff88 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
 
       {/* TOP BAR */}
-      <div style={{flexShrink:0,padding:"6px 14px",borderBottom:"1px solid #0d0d1a",display:"flex",alignItems:"center",gap:12,background:"#03030c",zIndex:10,flexWrap:"nowrap",overflowX:"auto"}}>
-        <div style={{flexShrink:0}}>
-          <div style={{fontSize:8,letterSpacing:4,color:"#1a1a2e"}}>OPERATOR</div>
-          <div style={{fontSize:13,letterSpacing:2,fontWeight:"bold",whiteSpace:"nowrap"}}>
-            <span style={{color:"#333"}}>{getGreeting()}, </span>
-            <span style={{color:"#00ff88"}}>{NAME}</span>
+      <div style={{flexShrink:0,padding:"0 16px",height:52,borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:0,background:"linear-gradient(90deg,#02040a,#030810,#02040a)",zIndex:10,position:"relative",overflow:"hidden"}}>
+        {/* Bottom glow line */}
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#00ff8840,#38bdf840,transparent)"}}/>
+
+        {/* Logo */}
+        <div style={{flexShrink:0,paddingRight:16,borderRight:"1px solid #0a1828"}}>
+          <div style={{fontSize:7,letterSpacing:4,color:"#00ff8840"}}>SYSTEM</div>
+          <div style={{fontSize:14,fontWeight:"900",letterSpacing:3,color:"#00ff88",textShadow:"0 0 20px #00ff8840"}}>MISSION<span style={{color:"#38bdf8"}}>·</span>CTRL</div>
+        </div>
+
+        {/* Greeting */}
+        <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
+          <div style={{fontSize:7,letterSpacing:3,color:"#1a2a4a"}}>OPERATOR</div>
+          <div style={{fontSize:11,letterSpacing:2,fontWeight:"bold"}}>
+            <span style={{color:"#2a3a5a"}}>{getGreeting()}, </span>
+            <span style={{color:"#00ff88",textShadow:"0 0 15px #00ff8860"}}>{NAME}</span>
           </div>
         </div>
-        <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        <div style={{flexShrink:0}}>
-          <div style={{fontSize:7,letterSpacing:3,color:"#1a1a2e"}}>UPTIME</div>
-          <div style={{fontSize:11,color:"#00ff8880",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
+
+        {/* Uptime */}
+        <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
+          <div style={{fontSize:7,letterSpacing:3,color:"#1a2a4a"}}>UPTIME</div>
+          <div style={{fontSize:11,color:"#00ff8870",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
-        <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        <button onClick={()=>setShowMacros(true)} style={{background:"#00ff8806",border:"1px solid #00ff8815",borderRadius:2,padding:"3px 10px",cursor:"pointer",flexShrink:0}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:3}}>
-            <span style={{fontSize:7,letterSpacing:2,color:"#00ff8870"}}>⚡ MACROS</span>
-            <span style={{fontSize:7,color:"#1a1a2e"}}>{kcalPct}% kcal · {protPct}% PRO</span>
+
+        {/* Macro mini widget */}
+        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"4px 16px",borderRight:"1px solid #0a1828",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid #0a1828",textAlign:"left"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:4}}>
+            <span style={{fontSize:7,letterSpacing:3,color:"#00ff8870"}}>⚡ NUTRITION</span>
+            <span style={{fontSize:7,color:"#1a2a4a"}}>{kcalPct}% · {protPct}%P</span>
           </div>
-          <div style={{display:"flex",gap:3}}>
-            {[{c:"#00ff88",v:macroSnap.kcal,g:MACROS_GOAL.kcal},{c:"#ff6b9d",v:macroSnap.protein,g:MACROS_GOAL.protein},{c:"#ffaa00",v:macroSnap.carbs,g:MACROS_GOAL.carbs},{c:"#00c8ff",v:macroSnap.fat,g:MACROS_GOAL.fat}].map(({c,v,g},i)=>(
-              <div key={i} style={{width:28,height:3,background:"#0d0d1a",borderRadius:2,overflow:"hidden"}}>
-                <div style={{height:"100%",width:`${Math.min((v/g)*100,100)}%`,background:c,borderRadius:2}}/>
+          <div style={{display:"flex",gap:3,alignItems:"center"}}>
+            {[{c:"#00ff88",v:macroSnap.kcal,g:MACROS_GOAL.kcal},{c:"#f472b6",v:macroSnap.protein,g:MACROS_GOAL.protein},{c:"#fbbf24",v:macroSnap.carbs,g:MACROS_GOAL.carbs},{c:"#38bdf8",v:macroSnap.fat,g:MACROS_GOAL.fat}].map(({c,v,g},i)=>(
+              <div key={i} style={{width:32,height:4,background:"#0a1220",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${Math.min((v/g)*100,100)}%`,background:c,borderRadius:2,boxShadow:`0 0 4px ${c}`}}/>
               </div>
             ))}
           </div>
         </button>
-        <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        <div style={{display:"flex",gap:14,flex:1,justifyContent:"center"}}>
-          {PANELS_CFG.map(p=>(
-            <div key={p.id} style={{textAlign:"center",flexShrink:0}}>
-              <div style={{fontSize:8,color:p.color,opacity:0.5,letterSpacing:1,whiteSpace:"nowrap"}}>{p.icon} {p.label}</div>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginTop:1}}>
-                <div style={{width:3,height:3,borderRadius:"50%",background:p.color,animation:"blink 2s infinite"}}/>
-                <span style={{fontSize:7,color:"#1a1a2e",letterSpacing:1}}>LIVE</span>
+
+        {/* Panel status */}
+        <div style={{display:"flex",gap:0,flex:1,justifyContent:"center"}}>
+          {PANELS_CFG.map((p,i)=>(
+            <div key={p.id} style={{textAlign:"center",padding:"0 14px",borderRight:i<3?"1px solid #0a1828":"none"}}>
+              <div style={{fontSize:7,color:p.color,opacity:0.6,letterSpacing:2,whiteSpace:"nowrap",marginBottom:2}}>{p.icon} {p.label}</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                <div style={{width:4,height:4,borderRadius:"50%",background:p.color,boxShadow:`0 0 6px ${p.color}`,animation:"blink 2s infinite"}}/>
+                <span style={{fontSize:7,color:"#1a2a4a",letterSpacing:1}}>ONLINE</span>
               </div>
             </div>
           ))}
         </div>
-        <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        {weather?(
-          <div style={{textAlign:"center",flexShrink:0}}>
-            <div style={{fontSize:15}}>{weather.icon}</div>
-            <div style={{fontSize:9,color:"#555",letterSpacing:1}}>{weather.temp}°F</div>
+
+        {/* Weather */}
+        {weather&&(
+          <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid #0a1828",textAlign:"center"}}>
+            <div style={{fontSize:18}}>{weather.icon}</div>
+            <div style={{fontSize:9,color:"#38bdf8",letterSpacing:1}}>{weather.temp}°F</div>
           </div>
-        ):(
-          <div style={{fontSize:7,color:"#1a1a2e",letterSpacing:2,flexShrink:0}}>--</div>
         )}
-        <div style={{width:1,height:24,background:"#0d0d1a",flexShrink:0}}/>
-        <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontSize:15,fontWeight:"bold",letterSpacing:2,color:"#ccc",fontVariantNumeric:"tabular-nums"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
-          <div style={{fontSize:7,color:"#222",letterSpacing:2}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
+
+        {/* Clock */}
+        <div style={{flexShrink:0,padding:"0 0 0 16px",borderLeft:"1px solid #0a1828",textAlign:"right"}}>
+          <div style={{fontSize:16,fontWeight:"bold",letterSpacing:2,color:"#c8d8e8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px #38bdf840"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
+          <div style={{fontSize:7,color:"#1a2a4a",letterSpacing:2}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
         </div>
       </div>
 
       {/* GRID */}
-      <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:1,padding:1,background:"#08081a",minHeight:0,overflow:"hidden"}}>
+      <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#010308",minHeight:0,overflow:"hidden",zIndex:1}}>
         {PANELS_CFG.map(cfg=>{
           if(expanded&&expanded!==cfg.id) return null;
-          return (
-            <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>
-          );
+          return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
         })}
       </div>
 
-      {/* BOTTOM BAR */}
-      <div style={{flexShrink:0,padding:"4px 14px",borderTop:"1px solid #0a0a14",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#03030c"}}>
-        <div style={{fontSize:7,color:"#111",letterSpacing:3}}>{expanded?`◈ FOCUSED: ${expanded.toUpperCase()} — ✕ TO RETURN`:"◈ CLICK PANEL TO FOCUS · ⤢ EXPAND · MACROS BAR TO LOG"}</div>
-        <div style={{display:"flex",gap:10}}>
-          {["SYS OK","AI READY","STOCKS LIVE","NEWS LIVE"].map(s=><span key={s} style={{fontSize:7,color:"#111",letterSpacing:2}}>{s}</span>)}
+      {/* BOTTOM STATUS BAR */}
+      <div style={{flexShrink:0,padding:"4px 16px",borderTop:"1px solid #0a1828",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#02040a",zIndex:10}}>
+        <div style={{fontSize:7,color:"#0d1a30",letterSpacing:3}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK NUTRITION TO LOG MACROS"}</div>
+        <div style={{display:"flex",gap:12}}>
+          {[["SYS","#00ff88"],["AI","#c084fc"],["MKT","#38bdf8"],["NEWS","#fb923c"]].map(([label,color])=>(
+            <div key={label} style={{display:"flex",alignItems:"center",gap:3}}>
+              <div style={{width:4,height:4,borderRadius:"50%",background:color,boxShadow:`0 0 5px ${color}`,animation:"blink 2s infinite"}}/>
+              <span style={{fontSize:7,color:"#0d1a30",letterSpacing:2}}>{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Article Modal */}
       {selectedArticle&&(
-        <div style={{position:"fixed",inset:0,background:"#000000dd",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setSelectedArticle(null)}>
-          <div style={{background:"#08081a",border:"1px solid #ff6b3530",borderRadius:4,padding:24,width:420,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",boxShadow:"0 0 40px #ff6b3515"}} onClick={e=>e.stopPropagation()}>
-            <div style={{fontSize:8,color:"#ff6b35",letterSpacing:3,marginBottom:10}}>🌐 ARTICLE</div>
-            <div style={{fontSize:13,color:"#ddd",lineHeight:1.5,marginBottom:12}}>{selectedArticle.title}</div>
-            <div style={{fontSize:11,color:"#666",lineHeight:1.6,marginBottom:16}}>{selectedArticle.description}</div>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={()=>setSelectedArticle(null)}>
+          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",boxShadow:"0 0 60px #fb923c10",position:"relative"}} onClick={e=>e.stopPropagation()}>
+            <HUDBrackets color="#fb923c" size={12}/>
+            <div style={{fontSize:7,color:"#fb923c",letterSpacing:4,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>🌐 INTEL REPORT</div>
+            <div style={{fontSize:13,color:"#c0b0a0",lineHeight:1.6,marginBottom:12}}>{selectedArticle.title}</div>
+            <div style={{fontSize:11,color:"#5a4a3a",lineHeight:1.7,marginBottom:20}}>{selectedArticle.description}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{fontSize:8,color:"#333"}}>{selectedArticle.source?.name}</span>
-              <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#ff6b35",textDecoration:"none",letterSpacing:2,border:"1px solid #ff6b3530",padding:"4px 10px",borderRadius:2}}>READ FULL →</a>
+              <span style={{fontSize:7,color:"#2a1a08",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{selectedArticle.source?.name?.toUpperCase()}</span>
+              <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#fb923c",textDecoration:"none",letterSpacing:2,border:"1px solid #fb923c40",padding:"6px 14px",borderRadius:3,fontFamily:"'Orbitron',monospace",boxShadow:"0 0 15px #fb923c15"}}>FULL REPORT →</a>
             </div>
           </div>
         </div>
@@ -551,14 +645,15 @@ export default function App() {
 
       <style>{`
         @keyframes blink{0%,100%{opacity:0.2}50%{opacity:1}}
-        @keyframes slideIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes pulse{0%,100%{opacity:0.2}50%{opacity:1}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:2px;height:2px;}
         ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:#111;border-radius:2px;}
-        input::placeholder{color:#222;}
+        ::-webkit-scrollbar-thumb{background:#0d1a30;border-radius:2px;}
+        input::placeholder{color:#1a2a4a;}
         a{color:inherit;}
+        button{font-family:'Orbitron',monospace;}
       `}</style>
     </div>
   );
