@@ -1479,99 +1479,225 @@ Respond ONLY with valid JSON, no markdown:
   );
 }
 
-// ── Top Picks Section (MLB) ───────────────────────────────────────────────────
-// ── Top Picks Section ────────────────────────────────────────────────────────
+
+// ── Top Picks Section (MLB) — Live Data ──────────────────────────────────────
 function TopPicksSection({ games, gamesLoading, C }) {
-  const [picks, setPicks]     = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [picks, setPicks]       = useState(null);
+  const [loading, setLoading]   = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [status, setStatus]     = useState("");
 
   const generatePicks = async () => {
     if (!games.length) return;
     setLoading(true); setPicks(null);
 
-    // Build game summary for AI
-    const gameSummary = games.slice(0,8).map(g => {
-      const away = g.teams?.away;
-      const home = g.teams?.home;
-      return `${away?.team?.name} (SP: ${away?.probablePitcher?.fullName||"TBD"}) @ ${home?.team?.name} (SP: ${home?.probablePitcher?.fullName||"TBD"})`;
-    }).join("\n");
+    try {
+      // ── Step 1: Get lineups + live game data ──────────────────────────────
+      setStatus("Fetching today's lineups...");
+      const lineupsRes = await fetch(`/api/mlb?type=lineups`);
+      const lineupsData = await lineupsRes.json();
+      const todayGames = lineupsData.dates?.[0]?.games || [];
 
-    const prompt = `You are an elite baseball prop betting analyst. Based on today's MLB matchups, give me your TOP PICKS for each category. Be specific with player names and reasoning.
+      // ── Step 2: Get injuries ──────────────────────────────────────────────
+      setStatus("Checking injury report...");
+      let injuryText = "";
+      try {
+        const injRes = await fetch(`/api/mlb?type=injuries`);
+        const injData = await injRes.json();
+        const recentInjuries = (injData.transactions || [])
+          .slice(0, 30)
+          .map(t => `${t.player?.fullName || "Unknown"} (${t.fromTeam?.name || "?"}) - ${t.typeDesc || t.type || "IL"}`)
+          .join("\n");
+        injuryText = recentInjuries || "No recent injury transactions found";
+      } catch { injuryText = "Injury data unavailable"; }
 
-TODAY'S GAMES:
-${gameSummary}
+      // ── Step 3: For each game, get lineup + pitcher stats ─────────────────
+      setStatus("Loading lineups and pitcher stats...");
+      const gameContexts = [];
 
-Respond ONLY with valid JSON in this exact format, no markdown, no extra text:
+      for (const game of todayGames.slice(0, 8)) {
+        const gamePk = game.gamePk;
+        const away = game.teams?.away;
+        const home = game.teams?.home;
+        const awayTeam = away?.team?.name || "Away";
+        const homeTeam = home?.team?.name || "Home";
+        const awayPitcher = away?.probablePitcher;
+        const homePitcher = home?.probablePitcher;
+
+        let gameCtx = `\n📍 ${awayTeam} @ ${homeTeam}`;
+        gameCtx += `\n  Away SP: ${awayPitcher?.fullName || "TBD"}`;
+        gameCtx += `\n  Home SP: ${homePitcher?.fullName || "TBD"}`;
+
+        // Get pitcher recent stats
+        if (awayPitcher?.id) {
+          try {
+            const pr = await fetch(`/api/mlb?type=pitcherstats&playerId=${awayPitcher.id}`);
+            const pd = await pr.json();
+            const logs = pd.stats?.[0]?.splits?.slice(0, 5) || [];
+            if (logs.length) {
+              const recent = logs.map(s => {
+                const st = s.stat || {};
+                return `${s.date?.slice(5)||"?"}: ${st.inningsPitched||0}IP ${st.strikeOuts||0}K ${st.earnedRuns||0}ER`;
+              }).join(", ");
+              gameCtx += `\n  Away SP last 5: ${recent}`;
+              const avgK = (logs.reduce((sum,s)=>sum+(s.stat?.strikeOuts||0),0)/logs.length).toFixed(1);
+              const avgER = (logs.reduce((sum,s)=>sum+(s.stat?.earnedRuns||0),0)/logs.length).toFixed(1);
+              gameCtx += ` | Avg: ${avgK}K, ${avgER}ER per start`;
+            }
+          } catch {}
+        }
+
+        if (homePitcher?.id) {
+          try {
+            const pr = await fetch(`/api/mlb?type=pitcherstats&playerId=${homePitcher.id}`);
+            const pd = await pr.json();
+            const logs = pd.stats?.[0]?.splits?.slice(0, 5) || [];
+            if (logs.length) {
+              const recent = logs.map(s => {
+                const st = s.stat || {};
+                return `${s.date?.slice(5)||"?"}: ${st.inningsPitched||0}IP ${st.strikeOuts||0}K ${st.earnedRuns||0}ER`;
+              }).join(", ");
+              gameCtx += `\n  Home SP last 5: ${recent}`;
+              const avgK = (logs.reduce((sum,s)=>sum+(s.stat?.strikeOuts||0),0)/logs.length).toFixed(1);
+              const avgER = (logs.reduce((sum,s)=>sum+(s.stat?.earnedRuns||0),0)/logs.length).toFixed(1);
+              gameCtx += ` | Avg: ${avgK}K, ${avgER}ER per start`;
+            }
+          } catch {}
+        }
+
+        // Get lineup if available
+        try {
+          const feedRes = await fetch(`/api/mlb?type=gamefeed&gamePk=${gamePk}`);
+          const feedData = await feedRes.json();
+          const awayLineup = feedData.liveData?.boxscore?.teams?.away?.battingOrder || [];
+          const homeLineup = feedData.liveData?.boxscore?.teams?.home?.battingOrder || [];
+          const awayPlayers = feedData.liveData?.boxscore?.teams?.away?.players || {};
+          const homePlayers = feedData.liveData?.boxscore?.teams?.home?.players || {};
+
+          if (awayLineup.length > 0) {
+            const awayNames = awayLineup.slice(0,9).map(id => {
+              const p = awayPlayers[`ID${id}`];
+              return p?.person?.fullName || `ID${id}`;
+            }).join(", ");
+            gameCtx += `\n  Away lineup: ${awayNames}`;
+          }
+
+          if (homeLineup.length > 0) {
+            const homeNames = homeLineup.slice(0,9).map(id => {
+              const p = homePlayers[`ID${id}`];
+              return p?.person?.fullName || `ID${id}`;
+            }).join(", ");
+            gameCtx += `\n  Home lineup: ${homeNames}`;
+          }
+
+          // Get recent batting stats for top 4 hitters each team
+          const topAwayIds = awayLineup.slice(0, 4);
+          const topHomeIds = homeLineup.slice(0, 4);
+          const allIds = [...topAwayIds, ...topHomeIds].filter(Boolean);
+
+          if (allIds.length > 0) {
+            gameCtx += `\n  Recent batting stats (last 14 days):`;
+            for (const playerId of allIds.slice(0, 6)) {
+              try {
+                const pRes = await fetch(`/api/mlb?type=playerstats&playerId=${playerId}`);
+                const pData = await pRes.json();
+                const stats = pData.stats?.[0]?.splits?.[0]?.stat;
+                const name = awayPlayers[`ID${playerId}`]?.person?.fullName ||
+                             homePlayers[`ID${playerId}`]?.person?.fullName ||
+                             `Player ${playerId}`;
+                if (stats) {
+                  gameCtx += `\n    ${name}: .${String(stats.avg||".000").replace(".","")} AVG, ${stats.homeRuns||0}HR, ${stats.hits||0}H, ${stats.totalBases||0}TB, ${stats.doubles||0}2B in ${stats.plateAppearances||0}PA`;
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+
+        gameContexts.push(gameCtx);
+      }
+
+      // ── Step 4: Build prompt with all real data ───────────────────────────
+      setStatus("Generating AI picks from live data...");
+
+      const prompt = `You are an elite MLB prop betting analyst with access to today's real data.
+
+TODAY'S GAMES WITH LIVE DATA:
+${gameContexts.join("\n")}
+
+RECENT IL/INJURY TRANSACTIONS:
+${injuryText}
+
+Based on this REAL live data (actual lineups, actual pitcher recent form, actual 14-day batting stats), generate today's top prop picks. Only recommend players who appear in today's confirmed lineups. Factor in pitcher matchup quality, recent hot/cold streaks, and handedness where relevant.
+
+Respond ONLY with valid JSON, no markdown:
 {
-  "homeRuns": [
-    {"rank":1,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+150","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":2,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+200","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":3,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+180","reason":"Brief reason","confidence":"MED"},
-    {"rank":4,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+220","reason":"Brief reason","confidence":"MED"},
-    {"rank":5,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+175","reason":"Brief reason","confidence":"MED"}
+  "homeRuns":[
+    {"rank":1,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+180","reason":"specific data-driven reason referencing actual recent stats","confidence":"HIGH"},
+    {"rank":2,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+220","reason":"specific reason","confidence":"HIGH"},
+    {"rank":3,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+200","reason":"specific reason","confidence":"MED"},
+    {"rank":4,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+250","reason":"specific reason","confidence":"MED"},
+    {"rank":5,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+175","reason":"specific reason","confidence":"MED"}
   ],
-  "hits": [
-    {"rank":1,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-120","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":2,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-110","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":3,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-115","reason":"Brief reason","confidence":"MED"},
-    {"rank":4,"player":"Player Name","team":"Team","line":"0.5","pick":"OVER","odds":"-180","reason":"Brief reason","confidence":"MED"},
-    {"rank":5,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-105","reason":"Brief reason","confidence":"MED"}
+  "hits":[
+    {"rank":1,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-120","reason":"specific data-driven reason","confidence":"HIGH"},
+    {"rank":2,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-115","reason":"specific reason","confidence":"HIGH"},
+    {"rank":3,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-110","reason":"specific reason","confidence":"MED"},
+    {"rank":4,"player":"REAL Player Name","team":"Team","line":"0.5","pick":"OVER","odds":"-180","reason":"specific reason","confidence":"MED"},
+    {"rank":5,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-105","reason":"specific reason","confidence":"MED"}
   ],
-  "totalBases": [
-    {"rank":1,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-130","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":2,"player":"Player Name","team":"Team","line":"2.5","pick":"OVER","odds":"+110","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":3,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-125","reason":"Brief reason","confidence":"MED"},
-    {"rank":4,"player":"Player Name","team":"Team","line":"2.5","pick":"OVER","odds":"+105","reason":"Brief reason","confidence":"MED"},
-    {"rank":5,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-115","reason":"Brief reason","confidence":"MED"}
+  "totalBases":[
+    {"rank":1,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-130","reason":"specific data-driven reason","confidence":"HIGH"},
+    {"rank":2,"player":"REAL Player Name","team":"Team","line":"2.5","pick":"OVER","odds":"+110","reason":"specific reason","confidence":"HIGH"},
+    {"rank":3,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-125","reason":"specific reason","confidence":"MED"},
+    {"rank":4,"player":"REAL Player Name","team":"Team","line":"2.5","pick":"OVER","odds":"+105","reason":"specific reason","confidence":"MED"},
+    {"rank":5,"player":"REAL Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-115","reason":"specific reason","confidence":"MED"}
   ],
-  "doubles": [
-    {"rank":1,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+220","reason":"Brief reason","confidence":"MED"},
-    {"rank":2,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+250","reason":"Brief reason","confidence":"MED"},
-    {"rank":3,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+230","reason":"Brief reason","confidence":"MED"},
-    {"rank":4,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+260","reason":"Brief reason","confidence":"LOW"},
-    {"rank":5,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+210","reason":"Brief reason","confidence":"LOW"}
+  "doubles":[
+    {"rank":1,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+220","reason":"specific data-driven reason","confidence":"MED"},
+    {"rank":2,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+250","reason":"specific reason","confidence":"MED"},
+    {"rank":3,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+230","reason":"specific reason","confidence":"MED"},
+    {"rank":4,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+260","reason":"specific reason","confidence":"LOW"},
+    {"rank":5,"player":"REAL Player Name","team":"Team","matchup":"vs Pitcher Name","odds":"+210","reason":"specific reason","confidence":"LOW"}
   ],
-  "strikeouts": [
-    {"rank":1,"player":"Player Name","team":"Team","line":"6.5","pick":"OVER","odds":"-115","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":2,"player":"Player Name","team":"Team","line":"5.5","pick":"OVER","odds":"-130","reason":"Brief reason","confidence":"HIGH"},
-    {"rank":3,"player":"Player Name","team":"Team","line":"7.5","pick":"OVER","odds":"+105","reason":"Brief reason","confidence":"MED"},
-    {"rank":4,"player":"Player Name","team":"Team","line":"5.5","pick":"OVER","odds":"-120","reason":"Brief reason","confidence":"MED"},
-    {"rank":5,"player":"Player Name","team":"Team","line":"6.5","pick":"OVER","odds":"-110","reason":"Brief reason","confidence":"MED"}
+  "strikeouts":[
+    {"rank":1,"player":"REAL Pitcher Name","team":"Team","line":"6.5","pick":"OVER","odds":"-115","reason":"specific data referencing actual recent K numbers","confidence":"HIGH"},
+    {"rank":2,"player":"REAL Pitcher Name","team":"Team","line":"5.5","pick":"OVER","odds":"-130","reason":"specific reason","confidence":"HIGH"},
+    {"rank":3,"player":"REAL Pitcher Name","team":"Team","line":"7.5","pick":"OVER","odds":"+105","reason":"specific reason","confidence":"MED"},
+    {"rank":4,"player":"REAL Pitcher Name","team":"Team","line":"5.5","pick":"OVER","odds":"-120","reason":"specific reason","confidence":"MED"},
+    {"rank":5,"player":"REAL Pitcher Name","team":"Team","line":"6.5","pick":"OVER","odds":"-110","reason":"specific reason","confidence":"MED"}
   ]
 }`;
 
-    try {
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:1500,
-          system:"You are an expert MLB prop betting analyst. Always respond with valid JSON only, no markdown formatting.",
+          model:"claude-sonnet-4-20250514", max_tokens:2000,
+          system:"You are an expert MLB prop betting analyst. You have been given REAL live data including actual lineups, actual pitcher recent form, and actual batting stats from the last 14 days. Generate picks based ONLY on the real data provided. Always respond with valid JSON only, no markdown.",
           messages:[{role:"user",content:prompt}]
         }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
-      const cleaned = text.replace(/```json|```/g,"").trim();
-      const parsed = JSON.parse(cleaned);
+      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
       setPicks(parsed);
       setGenerated(true);
     } catch(e) {
       console.error(e);
       setPicks(null);
     }
+    setStatus("");
     setLoading(false);
   };
 
   const CONF_COLORS = { HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35" };
 
-  const PickCard = ({ title, icon, color, items, type }) => (
+  const PickCard = ({ title, icon, color, items }) => (
     <div style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
       <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{icon} {title}</div>
-        <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>AI PICKS</div>
+        <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>LIVE DATA PICKS</div>
       </div>
-      {(!items||items.length===0) && <div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks</div>}
+      {(!items||items.length===0)&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks</div>}
       {items?.map((p,i)=>(
         <div key={i} style={{padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s"}}
           onMouseEnter={e=>e.currentTarget.style.background=`${color}06`}
@@ -1589,7 +1715,7 @@ Respond ONLY with valid JSON in this exact format, no markdown, no extra text:
               <div style={{fontSize:8,color:CONF_COLORS[p.confidence]||"#555",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{p.confidence}</div>
             </div>
           </div>
-          <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.4,paddingLeft:28}}>{p.reason}</div>
+          <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5,paddingLeft:28}}>{p.reason}</div>
         </div>
       ))}
     </div>
@@ -1597,41 +1723,41 @@ Respond ONLY with valid JSON in this exact format, no markdown, no extra text:
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Generate button */}
       <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily Prop Picks</div>
-          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Based on today's matchups — HR, Hits, Total Bases, Doubles, Strikeouts</div>
+          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily MLB Picks — Live Data</div>
+          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Real lineups · Recent form · Injury report · 14-day stats</div>
         </div>
         <button onClick={generatePicks} disabled={loading||gamesLoading||!games.length}
-          style={{padding:"10px 20px",background:loading||gamesLoading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||gamesLoading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||gamesLoading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||gamesLoading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap"}}>
-          {loading?"ANALYZING···":generated?"🔄 REGENERATE":"⚾ GENERATE PICKS"}
+          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap"}}>
+          {loading?"LOADING···":generated?"🔄 REGENERATE":"⚾ GENERATE PICKS"}
         </button>
       </div>
 
-      {/* Content */}
       <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
         {loading && (
           <div style={{padding:60,textAlign:"center"}}>
-            <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>ANALYZING TODAY'S MATCHUPS···</div>
-            <div style={{fontSize:11,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>AI is reviewing pitching matchups, recent form, and trends</div>
+            <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:16}}>ANALYZING···</div>
+            <div style={{fontSize:12,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:8}}>{status}</div>
+            <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Fetching real lineups, pitcher stats, batting history, and injuries</div>
           </div>
         )}
-        {!loading && !picks && !gamesLoading && (
+        {!loading && !picks && (
           <div style={{padding:60,textAlign:"center"}}>
             <div style={{fontSize:32,marginBottom:12}}>⚾</div>
-            <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:6}}>{games.length} games loaded for today</div>
-            <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Click GENERATE PICKS for AI-powered prop recommendations</div>
+            <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:6}}>{games.length} games today</div>
+            <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",marginBottom:4}}>Click GENERATE PICKS to fetch real lineups, injury reports,</div>
+            <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>pitcher recent form, and 14-day batting stats before generating picks</div>
           </div>
         )}
         {!loading && picks && (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <PickCard title="HOME RUNS"    icon="🏠" color="#f97316" items={picks.homeRuns}   type="hr"/>
-            <PickCard title="HITS"         icon="🎯" color="#38bdf8" items={picks.hits}       type="hits"/>
-            <PickCard title="TOTAL BASES"  icon="💥" color="#c084fc" items={picks.totalBases} type="tb"/>
-            <PickCard title="DOUBLES"      icon="⚡" color="#fbbf24" items={picks.doubles}    type="2b"/>
+            <PickCard title="HOME RUNS"   icon="🏠" color="#f97316" items={picks.homeRuns}/>
+            <PickCard title="HITS"        icon="🎯" color="#38bdf8" items={picks.hits}/>
+            <PickCard title="TOTAL BASES" icon="💥" color="#c084fc" items={picks.totalBases}/>
+            <PickCard title="DOUBLES"     icon="⚡" color="#fbbf24" items={picks.doubles}/>
             <div style={{gridColumn:"1/-1"}}>
-              <PickCard title="PITCHER STRIKEOUTS" icon="🔥" color="#00ff88" items={picks.strikeouts} type="k"/>
+              <PickCard title="PITCHER STRIKEOUTS" icon="🔥" color="#00ff88" items={picks.strikeouts}/>
             </div>
           </div>
         )}
@@ -1639,7 +1765,6 @@ Respond ONLY with valid JSON in this exact format, no markdown, no extra text:
     </div>
   );
 }
-
 
 // ── Sports Tab (MLB + NBA combined) ──────────────────────────────────────────
 function SportsTab() {
