@@ -2,6 +2,8 @@ export default async function handler(req, res) {
   const today = new Date().toISOString().split('T')[0];
   const start14 = new Date(Date.now()-14*24*60*60*1000).toISOString().split('T')[0];
   const PITCHERS = ['P','SP','RP','CL'];
+  const BDL_KEY = process.env.BALLDONTLIE_API_KEY;
+  const BDL = 'https://api.balldontlie.io/v1';
   const results = {
     mlb: { pitchers:{}, batters:{}, gamesCount:0 },
     nba: { players:{}, gamesCount:0 },
@@ -9,6 +11,7 @@ export default async function handler(req, res) {
     errors: []
   };
 
+  // ── MLB Stats ────────────────────────────────────────────────────────────────
   try {
     const schedRes = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=probablePitcher,team`);
     const schedData = await schedRes.json();
@@ -30,11 +33,7 @@ export default async function handler(req, res) {
         const logs = d.stats?.[0]?.splits?.slice(0,5)||[];
         if (logs.length) {
           results.mlb.pitchers[id] = {
-            logs: logs.map(l=>({
-              date: l.date, opponent: l.opponent?.name,
-              ip: l.stat?.inningsPitched, k: l.stat?.strikeOuts,
-              er: l.stat?.earnedRuns, h: l.stat?.hits, bb: l.stat?.baseOnBalls,
-            })),
+            logs: logs.map(l=>({ date:l.date, opponent:l.opponent?.name, ip:l.stat?.inningsPitched, k:l.stat?.strikeOuts, er:l.stat?.earnedRuns, h:l.stat?.hits, bb:l.stat?.baseOnBalls })),
             avgK:  (logs.reduce((s,l)=>s+(l.stat?.strikeOuts||0),0)/logs.length).toFixed(1),
             avgIP: (logs.reduce((s,l)=>s+(parseFloat(l.stat?.inningsPitched)||0),0)/logs.length).toFixed(1),
             avgER: (logs.reduce((s,l)=>s+(l.stat?.earnedRuns||0),0)/logs.length).toFixed(1),
@@ -65,10 +64,11 @@ export default async function handler(req, res) {
             }
           } catch {}
         }
-      } catch(e) { results.errors.push(`Team ${teamId}: ${e.message}`); }
+      } catch(e) { results.errors.push(`MLB team ${teamId}: ${e.message}`); }
     }
   } catch(e) { results.errors.push(`MLB: ${e.message}`); }
 
+  // ── NBA Stats via BallDontLie ────────────────────────────────────────────────
   try {
     const todayFmt = today.replace(/-/g,'');
     const scoreRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${todayFmt}`);
@@ -76,50 +76,68 @@ export default async function handler(req, res) {
     const events = scoreData.events||[];
     results.nba.gamesCount = events.length;
 
+    // Get all team IDs playing today
     const teamIds = [...new Set(events.flatMap(e=>
       e.competitions?.[0]?.competitors?.map(c=>c.team?.id)||[]
     ).filter(Boolean))];
 
+    // Get rosters for each team and collect player names
+    const allPlayers = [];
     for (const teamId of teamIds) {
       try {
         const rRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`);
         const rData = await rRes.json();
-        const players = (rData.athletes||[]).flatMap(g=>(g.items||[g])).filter(p=>p.id&&p.fullName).slice(0,12);
+        const players = (rData.athletes||[]).flatMap(g=>(g.items||[g])).filter(p=>p.id&&(p.fullName||p.displayName)).slice(0,10);
+        players.forEach(p => allPlayers.push({ espnId: p.id, name: p.fullName||p.displayName, teamId }));
+      } catch {}
+    }
 
-        for (const player of players) {
-          try {
-            const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/athletes/${player.id}/gamelog?season=2025`);
-            const d = await r.json();
-            const categories = d.categories||[];
-            const evts = d.events||{};
-            const labels = categories.map(c=>c.abbreviation||c.name);
-            const gameKeys = Object.keys(evts).slice(-10);
+    // Fetch stats from BallDontLie for each player
+    const season_yr = new Date().getFullYear();
+    for (const player of allPlayers.slice(0, 60)) {
+      try {
+        // Search player in BDL
+        const searchRes = await fetch(
+          `${BDL}/players?search=${encodeURIComponent(player.name)}&per_page=3`,
+          { headers: { 'Authorization': BDL_KEY } }
+        );
+        const searchData = await searchRes.json();
+        const bdlPlayer = searchData.data?.[0];
+        if (!bdlPlayer) continue;
 
-            if (gameKeys.length>0) {
-              const games = gameKeys.map(key=>{
-                const ev = evts[key];
-                const stats = ev?.stats||[];
-                const gs = {};
-                labels.forEach((l,i)=>{ gs[l]=stats[i]; });
-                return gs;
-              }).filter(g=>Object.keys(g).length>0);
+        // Get recent games
+        const statsRes = await fetch(
+          `${BDL}/stats?player_ids[]=${bdlPlayer.id}&seasons[]=${season_yr}&per_page=10`,
+          { headers: { 'Authorization': BDL_KEY } }
+        );
+        const statsData = await statsRes.json();
+        const games = statsData.data||[];
 
-              const avg = f => {
-                const vals = games.map(g=>parseFloat(g[f])||0);
-                return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '0';
-              };
-
-              results.nba.players[player.id] = {
-                name: player.fullName, teamId,
-                gamesPlayed: games.length,
-                avgPTS: avg('PTS'), avgREB: avg('REB'), avgAST: avg('AST'),
-                avg3PM: avg('3PM'), avgSTL: avg('STL'), avgBLK: avg('BLK'),
-                avgMIN: avg('MIN'), cachedAt: new Date().toISOString(),
-              };
-            }
-          } catch {}
+        if (games.length > 0) {
+          const avg = f => {
+            const vals = games.map(g=>parseFloat(g[f])||0);
+            return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):'0';
+          };
+          results.nba.players[player.espnId] = {
+            name: player.name,
+            bdlId: bdlPlayer.id,
+            teamId: player.teamId,
+            gamesPlayed: games.length,
+            avgPTS: avg('pts'),
+            avgREB: avg('reb'),
+            avgAST: avg('ast'),
+            avg3PM: avg('fg3m'),
+            avgSTL: avg('stl'),
+            avgBLK: avg('blk'),
+            avgMIN: avg('min'),
+            last5: games.slice(0,5).map(g=>({
+              date: g.game?.date?.split('T')[0],
+              pts: g.pts, reb: g.reb, ast: g.ast, fg3m: g.fg3m,
+            })),
+            cachedAt: new Date().toISOString(),
+          };
         }
-      } catch(e) { results.errors.push(`NBA team ${teamId}: ${e.message}`); }
+      } catch {}
     }
   } catch(e) { results.errors.push(`NBA: ${e.message}`); }
 
