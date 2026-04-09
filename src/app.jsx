@@ -1510,27 +1510,40 @@ function NBAPicksSection({ games, gamesLoading, C }) {
         if (allInj.length) gameCtx += `\n  INJURIES: ${allInj.join(" | ")}`;
 
         const topPlayers = [...awayRoster.slice(0,5), ...homeRoster.slice(0,5)];
-        const ids = topPlayers.map(p=>p.id).filter(Boolean);
-        if (ids.length) {
-          log(`Loading last 10 game stats for ${awayName} & ${homeName}...`);
+        const playerNames = topPlayers.map(p=>p.name).filter(Boolean);
+
+        if (playerNames.length) {
+          log(`Fetching real stats for ${awayName} & ${homeName} via BallDontLie...`);
           try {
             const cachedPlayers = cachedStats?.nba?.players || {};
-            const hasCached = ids.some(id => cachedPlayers[id]);
-            let bData = {};
+            const hasCached = topPlayers.some(p => cachedPlayers[p.id]);
+            let statsContext = "";
+
             if (hasCached) {
-              ids.forEach(id => { if(cachedPlayers[id]) bData[id] = cachedPlayers[id]; });
               log(`✅ Using cached NBA stats`);
+              for (const p of topPlayers) {
+                const st = cachedPlayers[p.id];
+                const team = awayRoster.find(r=>r.id===p.id) ? awayName : homeName;
+                if (st?.gamesPlayed>0) statsContext += `\n    ${p.name}(${team}): ${st.avgPTS}PTS ${st.avgREB}REB ${st.avgAST}AST ${st.avg3PM}3PM in ${st.avgMIN}MIN over last ${st.gamesPlayed}G`;
+              }
             } else {
-              const bRes = await fetch(`/api/nba?type=batchlogs&athleteId=${ids.join(",")}`);
-              bData = await bRes.json();
+              // Use BallDontLie for accurate stats
+              const bRes = await fetch(`/api/nba?type=playerrecentstats&playerName=${encodeURIComponent(playerNames.join("|"))}`);
+              const bData = await bRes.json();
+              for (const p of topPlayers) {
+                const st = bData[p.name];
+                const team = awayRoster.find(r=>r.id===p.id) ? awayName : homeName;
+                if (st?.gamesPlayed>0) {
+                  statsContext += `\n    ${st.fullName}(${team}, ${st.position}): ${st.avgPTS}PTS ${st.avgREB}REB ${st.avgAST}AST ${st.avg3PM}3PM ${st.avgSTL}STL in ${st.avgMIN}MIN over last ${st.gamesPlayed}G`;
+                  if (st.last5?.length) {
+                    statsContext += ` | Last 5: ${st.last5.map(g=>`${g.pts}/${g.reb}/${g.ast}`).join(", ")}`;
+                  }
+                }
+              }
             }
-            gameCtx += `\n  Last 10 game averages:`;
-            for (const p of topPlayers) {
-              const st = bData[p.id];
-              const team = awayRoster.find(r=>r.id===p.id) ? awayName : homeName;
-              if (st?.gamesPlayed>0) gameCtx += `\n    ${p.name}(${team}): ${st.avgPTS}PTS ${st.avgREB}REB ${st.avgAST}AST ${st.avg3PM}3PM in ${st.avgMIN}MIN`;
-            }
-          } catch {}
+
+            if (statsContext) gameCtx += `\n  Last 10 game averages (BallDontLie):${statsContext}`;
+          } catch(e) { console.error('NBA stats error:', e); }
         }
         gameContexts.push(gameCtx);
       }
