@@ -1380,6 +1380,106 @@ function JobsTab() {
 }
 
 
+
+// ── NBA Picks ─────────────────────────────────────────────────────────────────
+function NBAPicksSection({ games, gamesLoading, C }) {
+  const [picks, setPicks]     = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  const generatePicks = async () => {
+    if (!games.length) return;
+    setLoading(true); setPicks(null);
+    const gameSummary = games.slice(0,8).map(g => {
+      const comp = g.competitions?.[0];
+      const away = comp?.competitors?.find(c=>c.homeAway==="away");
+      const home = comp?.competitors?.find(c=>c.homeAway==="home");
+      const time = comp?.date ? new Date(comp.date).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
+      return `${away?.team?.displayName||"Away"} @ ${home?.team?.displayName||"Home"} (${time})`;
+    }).join("\n");
+
+    const prompt = `You are an elite NBA prop betting analyst. Based on today's NBA games, give TOP PICKS for each category using real NBA player names.
+
+TODAY'S GAMES:\n${gameSummary}
+
+Respond ONLY with valid JSON, no markdown:
+{"points":[{"rank":1,"player":"Name","team":"Team","line":"24.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"22.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"18.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"15.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"20.5","pick":"UNDER","odds":"-110","reason":"reason","confidence":"MED"}],"rebounds":[{"rank":1,"player":"Name","team":"Team","line":"9.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"7.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"11.5","pick":"OVER","odds":"+105","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"6.5","pick":"OVER","odds":"-125","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"8.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"MED"}],"assists":[{"rank":1,"player":"Name","team":"Team","line":"7.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"6.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"5.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"4.5","pick":"OVER","odds":"-130","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"8.5","pick":"OVER","odds":"+110","reason":"reason","confidence":"MED"}],"threes":[{"rank":1,"player":"Name","team":"Team","line":"2.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"1.5","pick":"OVER","odds":"-150","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"2.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"3.5","pick":"OVER","odds":"+120","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"1.5","pick":"OVER","odds":"-140","reason":"reason","confidence":"MED"}],"pra":[{"rank":1,"player":"Name","team":"Team","line":"34.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"28.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"42.5","pick":"OVER","odds":"+105","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"31.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"25.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"MED"}],"doubleDouble":[{"rank":1,"player":"Name","team":"Team","matchup":"vs Team","odds":"-130","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","matchup":"vs Team","odds":"-120","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","matchup":"vs Team","odds":"-110","reason":"reason","confidence":"MED"}]}`;
+
+    try {
+      const res = await fetch('/api/claude', {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1500, system:"You are an expert NBA prop betting analyst. Always respond with valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
+      });
+      const data = await res.json();
+      const text = data.content?.map(b=>b.text||"").join("")||"{}";
+      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      setPicks(parsed); setGenerated(true);
+    } catch { setPicks(null); }
+    setLoading(false);
+  };
+
+  const CONF_COLORS = { HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35" };
+  const PickCard = ({ title, icon, color, items }) => (
+    <div style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
+      <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between"}}>
+        <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{icon} {title}</div>
+        <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>AI PICKS</div>
+      </div>
+      {(!items||items.length===0)&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks</div>}
+      {items?.map((p,i)=>(
+        <div key={i} style={{padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s"}}
+          onMouseEnter={e=>e.currentTarget.style.background=`${color}06`}
+          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+            <div style={{width:20,height:20,borderRadius:"50%",background:`${color}20`,border:`1px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontSize:9,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.rank}</span>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{p.player}</div>
+              <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.team} · {p.matchup||`${p.pick} ${p.line}`}</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:12,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.odds}</div>
+              <div style={{fontSize:8,color:CONF_COLORS[p.confidence]||"#555",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{p.confidence}</div>
+            </div>
+          </div>
+          <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.4,paddingLeft:28}}>{p.reason}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily NBA Picks</div>
+          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Points · Rebounds · Assists · 3PM · PRA · Double-Double</div>
+        </div>
+        <button onClick={generatePicks} disabled={loading||gamesLoading||!games.length}
+          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap"}}>
+          {loading?"ANALYZING···":generated?"🔄 REGENERATE":"🏀 GENERATE PICKS"}
+        </button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+        {loading&&<div style={{padding:60,textAlign:"center"}}><div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>ANALYZING TODAY'S MATCHUPS···</div><div style={{fontSize:11,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>AI is reviewing matchups, pace, defensive ratings, and trends</div></div>}
+        {!loading&&!picks&&<div style={{padding:60,textAlign:"center"}}><div style={{fontSize:32,marginBottom:12}}>🏀</div><div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:6}}>{games.length} games today</div><div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Click GENERATE PICKS for AI-powered NBA prop recommendations</div></div>}
+        {!loading&&picks&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <PickCard title="POINTS"        icon="🏀" color={C}       items={picks.points}/>
+            <PickCard title="REBOUNDS"      icon="💪" color="#38bdf8" items={picks.rebounds}/>
+            <PickCard title="ASSISTS"       icon="🎯" color="#00ff88" items={picks.assists}/>
+            <PickCard title="3-POINTERS"    icon="🌐" color="#fbbf24" items={picks.threes}/>
+            <PickCard title="PRA"           icon="⭐" color="#c084fc" items={picks.pra}/>
+            <PickCard title="DOUBLE-DOUBLE" icon="🔥" color="#f97316" items={picks.doubleDouble}/>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Top Picks Section (MLB) ───────────────────────────────────────────────────
 // ── Top Picks Section ────────────────────────────────────────────────────────
 function TopPicksSection({ games, gamesLoading, C }) {
   const [picks, setPicks]     = useState(null);
@@ -1540,104 +1640,119 @@ Respond ONLY with valid JSON in this exact format, no markdown, no extra text:
   );
 }
 
-// ── Sports Tab ────────────────────────────────────────────────────────────────
-function SportsTab() {
-  const [section, setSection]       = useState("TODAY");
-  const [games, setGames]           = useState([]);
-  const [gamesLoading, setGamesLoading] = useState(false);
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [props, setProps]           = useState([]);
-  const [propsLoading, setPropsLoading] = useState(false);
-  const [topPlayers, setTopPlayers] = useState({ hr:[], hits:[], tb:[] });
-  const [topLoading, setTopLoading] = useState(false);
-  const [aiInsight, setAiInsight]   = useState("");
-  const [aiLoading, setAiLoading]   = useState(false);
 
-  const C = "#f97316";
+// ── Sports Tab (MLB + NBA combined) ──────────────────────────────────────────
+function SportsTab() {
+  const [sport, setSport]           = useState("MLB");
+  const [section, setSection]       = useState("TODAY");
+
+  // MLB state
+  const [mlbGames, setMlbGames]     = useState([]);
+  const [mlbLoading, setMlbLoading] = useState(false);
+  const [selectedMlbGame, setSelectedMlbGame] = useState(null);
+  const [mlbAiInsight, setMlbAiInsight] = useState("");
+  const [mlbAiLoading, setMlbAiLoading] = useState(false);
+  const [mlbProps, setMlbProps]     = useState([]);
+  const [mlbPropsLoading, setMlbPropsLoading] = useState(false);
+
+  // NBA state
+  const [nbaGames, setNbaGames]     = useState([]);
+  const [nbaLoading, setNbaLoading] = useState(false);
+  const [selectedNbaGame, setSelectedNbaGame] = useState(null);
+  const [nbaAiInsight, setNbaAiInsight] = useState("");
+  const [nbaAiLoading, setNbaAiLoading] = useState(false);
+  const [nbaProps, setNbaProps]     = useState([]);
+  const [nbaPropsLoading, setNbaPropsLoading] = useState(false);
+
+  const MLB_C = "#f97316";
+  const NBA_C = "#e11d48";
+  const C = sport === "MLB" ? MLB_C : NBA_C;
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
-    fetchGames();
-    fetchTopPlayers();
-  }, []);
+    if (sport === "MLB") fetchMlbGames();
+    else fetchNbaGames();
+  }, [sport]);
 
-  const fetchGames = async () => {
-    setGamesLoading(true);
+  // ── MLB Fetches ──
+  const fetchMlbGames = async () => {
+    setMlbLoading(true);
     try {
       const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=probablePitcher(stats),team`);
       const d = await r.json();
-      const dates = d.dates || [];
-      const allGames = dates.length > 0 ? dates[0].games || [] : [];
-      setGames(allGames);
-    } catch { setGames([]); }
-    setGamesLoading(false);
+      setMlbGames(d.dates?.[0]?.games || []);
+    } catch { setMlbGames([]); }
+    setMlbLoading(false);
   };
 
-  const fetchProps = async () => {
-    setPropsLoading(true);
+  const fetchMlbProps = async () => {
+    setMlbPropsLoading(true);
     try {
       const r = await fetch(`/api/odds?sport=baseball_mlb&market=batter_hits,batter_home_runs,batter_total_bases`);
       const d = await r.json();
-      setProps(Array.isArray(d) ? d : []);
-    } catch { setProps([]); }
-    setPropsLoading(false);
+      setMlbProps(Array.isArray(d) ? d : []);
+    } catch { setMlbProps([]); }
+    setMlbPropsLoading(false);
   };
 
-  const fetchTopPlayers = async () => {
-    setTopLoading(true);
-    try {
-      // Get HR leaders
-      const hrRes = await fetch(`https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=homeRuns&season=2025&sportId=1&limit=5`);
-      const hrData = await hrRes.json();
-      // Get hits leaders
-      const hitsRes = await fetch(`https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=hits&season=2025&sportId=1&limit=5`);
-      const hitsData = await hitsRes.json();
-      // Get total bases leaders
-      const tbRes = await fetch(`https://statsapi.mlb.com/api/v1/stats/leaders?leaderCategories=totalBases&season=2025&sportId=1&limit=5`);
-      const tbData = await tbRes.json();
-
-      setTopPlayers({
-        hr:   hrData.leagueLeaders?.[0]?.leaders   || [],
-        hits: hitsData.leagueLeaders?.[0]?.leaders  || [],
-        tb:   tbData.leagueLeaders?.[0]?.leaders    || [],
-      });
-    } catch { setTopPlayers({ hr:[], hits:[], tb:[] }); }
-    setTopLoading(false);
-  };
-
-  const getAiInsight = async (game) => {
-    setAiLoading(true); setAiInsight("");
+  const getMlbAiInsight = async (game) => {
+    setMlbAiLoading(true); setMlbAiInsight("");
     const away = game.teams?.away;
     const home = game.teams?.home;
-    const awayPitcher = away?.probablePitcher?.fullName || "TBD";
-    const homePitcher = home?.probablePitcher?.fullName || "TBD";
-    const awayTeam = away?.team?.name || "Away";
-    const homeTeam = home?.team?.name || "Home";
+    const prompt = `You are an elite baseball prop betting analyst. Give a concise prop breakdown for:
+${away?.team?.name} (SP: ${away?.probablePitcher?.fullName||"TBD"}) @ ${home?.team?.name} (SP: ${home?.probablePitcher?.fullName||"TBD"})
 
-    const prompt = `You are a baseball analytics expert and prop betting analyst. Give a concise prop betting breakdown for this MLB game:
-
-${awayTeam} (${awayPitcher}) @ ${homeTeam} (${homePitcher})
-
-Provide:
-1. Top 3 player prop bets you like for this game (hits, HRs, strikeouts, total bases) with brief reasoning
-2. Which pitcher to target for strikeout props
-3. Best over/under pick for total runs
-4. One contrarian pick
-
-Be specific, concise, and analytical. Format clearly.`;
-
+Provide: Top 3 player props you like, best strikeout prop, best over/under total, one contrarian pick. Be specific and concise.`;
     try {
-      const res = await fetch('/api/claude', {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:600, system:"You are an expert baseball analyst and prop betting specialist.", messages:[{role:"user",content:prompt}] }),
-      });
+      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:600, system:"You are an expert baseball analyst and prop betting specialist.", messages:[{role:"user",content:prompt}] }) });
       const data = await res.json();
-      setAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
-    } catch { setAiInsight("Connection error."); }
-    setAiLoading(false);
+      setMlbAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
+    } catch { setMlbAiInsight("Connection error."); }
+    setMlbAiLoading(false);
   };
 
-  const inputStyle = {background:"#0a1220",border:"1px solid #1a2a40",borderRadius:3,padding:"6px 10px",color:"#c8d8f0",fontSize:12,fontFamily:"'Inter',sans-serif",outline:"none"};
+  // ── NBA Fetches ──
+  const fetchNbaGames = async () => {
+    setNbaLoading(true);
+    try {
+      const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today.replace(/-/g,"")}`);
+      const d = await r.json();
+      setNbaGames(d.events || []);
+    } catch { setNbaGames([]); }
+    setNbaLoading(false);
+  };
+
+  const fetchNbaProps = async () => {
+    setNbaPropsLoading(true);
+    try {
+      const r = await fetch(`/api/odds?sport=basketball_nba&market=player_points,player_rebounds,player_assists`);
+      const d = await r.json();
+      setNbaProps(Array.isArray(d) ? d : []);
+    } catch { setNbaProps([]); }
+    setNbaPropsLoading(false);
+  };
+
+  const getNbaAiInsight = async (game) => {
+    setNbaAiLoading(true); setNbaAiInsight("");
+    const comp = game.competitions?.[0];
+    const away = comp?.competitors?.find(c=>c.homeAway==="away");
+    const home = comp?.competitors?.find(c=>c.homeAway==="home");
+    const prompt = `You are an elite NBA prop betting analyst. Give a prop breakdown for:
+${away?.team?.displayName||"Away"} (${away?.records?.[0]?.summary||""}) @ ${home?.team?.displayName||"Home"} (${home?.records?.[0]?.summary||""})
+
+Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to target, best defensive fade, game total pick, one longshot. Be specific.`;
+    try {
+      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:700, system:"You are an expert NBA analyst and prop betting specialist.", messages:[{role:"user",content:prompt}] }) });
+      const data = await res.json();
+      setNbaAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
+    } catch { setNbaAiInsight("Connection error."); }
+    setNbaAiLoading(false);
+  };
+
+  const games    = sport==="MLB" ? mlbGames    : nbaGames;
+  const loading  = sport==="MLB" ? mlbLoading  : nbaLoading;
+  const props    = sport==="MLB" ? mlbProps    : nbaProps;
+  const propsLoading = sport==="MLB" ? mlbPropsLoading : nbaPropsLoading;
 
   const StatBadge = ({label,val,color="#c8d8f0"}) => (
     <div style={{textAlign:"center",background:"#050d18",border:"1px solid #0d2040",borderRadius:3,padding:"6px 10px",minWidth:52}}>
@@ -1647,11 +1762,7 @@ Be specific, concise, and analytical. Format clearly.`;
   );
 
   const PitcherCard = ({pitcher, side}) => {
-    if (!pitcher) return (
-      <div style={{flex:1,background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:10,textAlign:"center"}}>
-        <div style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>TBD</div>
-      </div>
-    );
+    if (!pitcher) return <div style={{flex:1,background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>TBD</div></div>;
     const stats = pitcher.stats?.[0]?.stats || {};
     return (
       <div style={{flex:1,background:"#0a1220",border:`1px solid ${C}20`,borderRadius:3,padding:10}}>
@@ -1667,28 +1778,68 @@ Be specific, concise, and analytical. Format clearly.`;
     );
   };
 
+  const PropsPanel = ({propsList, propLoading, color}) => (
+    <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+      {propLoading&&<div style={{padding:30,textAlign:"center",color,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING PROPS...</div>}
+      {!propLoading&&propsList.length===0&&<div style={{textAlign:"center",padding:40}}><div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>No props available right now.</div><div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Props are typically available a few hours before game time.</div></div>}
+      {propsList.map((game,i)=>(
+        <div key={game.id||i} style={{background:"#0a1220",border:`1px solid ${color}15`,borderRadius:4,padding:14,marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{game.away_team} @ {game.home_team}</div>
+            <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>{new Date(game.commence_time).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
+          </div>
+          {game.bookmakers?.slice(0,1).map(bm=>(
+            <div key={bm.key}>
+              {bm.markets?.map(mkt=>(
+                <div key={mkt.key} style={{marginBottom:8}}>
+                  <div style={{fontSize:8,color:`${color}70`,letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:6}}>{mkt.key.replace("batter_","").replace("player_","").replace(/_/g," ").toUpperCase()}</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {mkt.outcomes?.slice(0,8).map((o,j)=>(
+                      <div key={j} style={{background:"#050d18",border:`1px solid ${o.name==="Over"?"#00ff8825":"#ff444425"}`,borderRadius:3,padding:"6px 10px",minWidth:90}}>
+                        <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif",marginBottom:2}}>{o.description||o.name}</div>
+                        <div style={{fontSize:11,color:o.name==="Over"?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{o.name} {o.point} <span style={{fontSize:9}}>{o.price>0?"+":""}{o.price}</span></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",background:"#010308",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
 
-      {/* Header */}
-      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#100808)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      {/* Header with sport selector */}
+      <div style={{flexShrink:0,padding:"10px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#100808)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:9,letterSpacing:4,color:`${C}60`,fontFamily:"'Orbitron',monospace",marginBottom:2}}>⚾ SPORTS MODULE</div>
-          <div style={{fontSize:20,fontWeight:"900",letterSpacing:3,color:C,fontFamily:"'Orbitron',monospace",textShadow:`0 0 20px ${C}40`}}>PROP COMMAND</div>
+          <div style={{fontSize:9,letterSpacing:4,color:`${C}60`,fontFamily:"'Orbitron',monospace",marginBottom:2}}>🏟️ SPORTS MODULE</div>
+          <div style={{fontSize:18,fontWeight:"900",letterSpacing:3,color:C,fontFamily:"'Orbitron',monospace",textShadow:`0 0 20px ${C}40`}}>PROP COMMAND</div>
         </div>
-        <div style={{display:"flex",gap:16,alignItems:"center"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {/* Sport toggle */}
+          <div style={{display:"flex",background:"#0a1220",border:"1px solid #1a2a40",borderRadius:4,overflow:"hidden"}}>
+            {[{id:"MLB",icon:"⚾",color:MLB_C},{id:"NBA",icon:"🏀",color:NBA_C}].map(s=>(
+              <button key={s.id} onClick={()=>{setSport(s.id);setSection("TODAY");}} style={{padding:"8px 20px",background:sport===s.id?`${s.color}20`:"transparent",border:"none",borderRight:s.id==="MLB"?"1px solid #1a2a40":"none",color:sport===s.id?s.color:"#3a5070",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2,transition:"all 0.2s",display:"flex",alignItems:"center",gap:6}}>
+                <span>{s.icon}</span><span>{s.id}</span>
+              </button>
+            ))}
+          </div>
           <div style={{textAlign:"center"}}>
             <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:2}}>TODAY</div>
             <div style={{fontSize:16,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace"}}>{games.length} GAMES</div>
           </div>
-          <button onClick={()=>{fetchGames();fetchTopPlayers();}} style={{padding:"6px 14px",background:`${C}15`,border:`1px solid ${C}40`,borderRadius:3,color:C,fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>↻ REFRESH</button>
+          <button onClick={()=>sport==="MLB"?fetchMlbGames():fetchNbaGames()} style={{padding:"6px 14px",background:`${C}15`,border:`1px solid ${C}40`,borderRadius:3,color:C,fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>↻ REFRESH</button>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Section tabs */}
       <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
-        {["TODAY","PROPS","TOP PLAYERS"].map(s=>(
-          <button key={s} onClick={()=>{setSection(s);if(s==="PROPS")fetchProps();}} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?`${C}10`:"transparent",border:"none",borderBottom:section===s?`2px solid ${C}`:"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+        {["TODAY","PROPS","TOP PICKS"].map(s=>(
+          <button key={s} onClick={()=>{setSection(s);if(s==="PROPS"){sport==="MLB"?fetchMlbProps():fetchNbaProps();}}} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?`${C}10`:"transparent",border:"none",borderBottom:section===s?`2px solid ${C}`:"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {s}
           </button>
         ))}
@@ -1696,36 +1847,34 @@ Be specific, concise, and analytical. Format clearly.`;
 
       <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
 
-        {/* ── TODAY'S GAMES ── */}
-        {section==="TODAY" && (
+        {/* ── TODAY — MLB ── */}
+        {section==="TODAY" && sport==="MLB" && (
           <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
-            {/* Game list */}
             <div style={{width:"42%",borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
-              {gamesLoading && <div style={{padding:30,textAlign:"center",color:C,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING GAMES...</div>}
-              {!gamesLoading && games.length===0 && <div style={{padding:30,textAlign:"center",color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No games scheduled today.</div>}
-              {games.map((game,i)=>{
-                const away = game.teams?.away;
-                const home = game.teams?.home;
-                const isSelected = selectedGame?.gamePk===game.gamePk;
-                const status = game.status?.abstractGameState;
-                const gameTime = new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+              {mlbLoading&&<div style={{padding:30,textAlign:"center",color:C,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING GAMES...</div>}
+              {!mlbLoading&&mlbGames.length===0&&<div style={{padding:30,textAlign:"center",color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No MLB games today.</div>}
+              {mlbGames.map((game,i)=>{
+                const away=game.teams?.away; const home=game.teams?.home;
+                const isSelected=selectedMlbGame?.gamePk===game.gamePk;
+                const status=game.status?.abstractGameState;
+                const gameTime=new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
                 return (
-                  <div key={game.gamePk} onClick={()=>{setSelectedGame(game);setAiInsight("");}}
+                  <div key={game.gamePk} onClick={()=>{setSelectedMlbGame(game);setMlbAiInsight("");}}
                     style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:isSelected?`${C}08`:"transparent",borderLeft:`3px solid ${isSelected?C:"transparent"}`}}
                     onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background="#0a1220";}}
                     onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                       <span style={{fontSize:9,color:status==="Live"?"#00ff88":status==="Final"?"#555":C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{status==="Live"?"🔴 LIVE":status==="Final"?"FINAL":gameTime}</span>
                       {game.venue?.name&&<span style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{game.venue.name}</span>}
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                       <div style={{flex:1}}>
-                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{away?.team?.abbreviation||"—"} <span style={{fontSize:10,color:"#4a6080"}}>({away?.team?.name})</span></div>
+                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{away?.team?.abbreviation} <span style={{fontSize:10,color:"#4a6080"}}>({away?.team?.name})</span></div>
                         <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>SP: {away?.probablePitcher?.fullName||"TBD"}</div>
                       </div>
                       <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
                       <div style={{flex:1,textAlign:"right"}}>
-                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{home?.team?.abbreviation||"—"} <span style={{fontSize:10,color:"#4a6080"}}>({home?.team?.name})</span></div>
+                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{home?.team?.abbreviation} <span style={{fontSize:10,color:"#4a6080"}}>({home?.team?.name})</span></div>
                         <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>SP: {home?.probablePitcher?.fullName||"TBD"}</div>
                       </div>
                     </div>
@@ -1733,44 +1882,33 @@ Be specific, concise, and analytical. Format clearly.`;
                 );
               })}
             </div>
-
-            {/* Game detail + AI */}
             <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-              {!selectedGame ? (
-                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#1a2a4a",fontFamily:"'Inter',sans-serif",fontSize:13,textAlign:"center",padding:20}}>
-                  <div><div style={{fontSize:32,marginBottom:12}}>⚾</div><div style={{color:"#2a3a55"}}>Select a game to see pitcher details<br/>and get AI prop analysis</div></div>
-                </div>
-              ) : (
+              {!selectedMlbGame?(
+                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",padding:20}}><div><div style={{fontSize:32,marginBottom:12}}>⚾</div><div style={{color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>Select a game to see pitcher details<br/>and get AI prop analysis</div></div></div>
+              ):(
                 <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                  {/* Pitcher matchup */}
                   <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#02040a"}}>
                     <div style={{fontSize:9,color:`${C}60`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>PITCHER MATCHUP</div>
                     <div style={{display:"flex",gap:10,marginBottom:12}}>
-                      <PitcherCard pitcher={selectedGame.teams?.away?.probablePitcher} side="AWAY"/>
+                      <PitcherCard pitcher={selectedMlbGame.teams?.away?.probablePitcher} side="AWAY"/>
                       <div style={{display:"flex",alignItems:"center",fontSize:16,color:"#2a3a55",fontFamily:"'Orbitron',monospace",flexShrink:0}}>VS</div>
-                      <PitcherCard pitcher={selectedGame.teams?.home?.probablePitcher} side="HOME"/>
+                      <PitcherCard pitcher={selectedMlbGame.teams?.home?.probablePitcher} side="HOME"/>
                     </div>
-                    <button onClick={()=>getAiInsight(selectedGame)} disabled={aiLoading} style={{width:"100%",padding:"10px",background:aiLoading?`#0a1220`:`${C}15`,border:`1px solid ${aiLoading?"#1a2a40":C+"40"}`,borderRadius:3,color:aiLoading?"#2a3a5a":C,fontSize:10,cursor:aiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
-                      {aiLoading?"ANALYZING···":"🤖 GET AI PROP ANALYSIS"}
+                    <button onClick={()=>getMlbAiInsight(selectedMlbGame)} disabled={mlbAiLoading} style={{width:"100%",padding:"10px",background:mlbAiLoading?"#0a1220":`${C}15`,border:`1px solid ${mlbAiLoading?"#1a2a40":C+"40"}`,borderRadius:3,color:mlbAiLoading?"#2a3a5a":C,fontSize:10,cursor:mlbAiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
+                      {mlbAiLoading?"ANALYZING···":"🤖 GET AI PROP ANALYSIS"}
                     </button>
                   </div>
-                  {/* AI insight */}
                   <div style={{flex:1,overflowY:"auto",padding:14,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
-                    {aiLoading ? (
-                      <div style={{textAlign:"center",padding:30,color:C,letterSpacing:4,fontSize:14,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>ANALYZING MATCHUP···</div>
-                    ) : aiInsight ? (
+                    {mlbAiLoading?<div style={{textAlign:"center",padding:30,color:C,letterSpacing:4,fontSize:14,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>ANALYZING MATCHUP···</div>
+                    :mlbAiInsight?(
                       <div>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
                           <div style={{fontSize:9,color:C,letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>🤖 AI PROP ANALYSIS</div>
-                          <button onClick={()=>navigator.clipboard?.writeText(aiInsight)} style={{fontSize:9,color:"#3a5070",background:"#0d1828",border:"1px solid #1a2a40",borderRadius:2,cursor:"pointer",padding:"3px 10px",fontFamily:"'Orbitron',monospace"}}>COPY</button>
+                          <button onClick={()=>navigator.clipboard?.writeText(mlbAiInsight)} style={{fontSize:9,color:"#3a5070",background:"#0d1828",border:"1px solid #1a2a40",borderRadius:2,cursor:"pointer",padding:"3px 10px",fontFamily:"'Orbitron',monospace"}}>COPY</button>
                         </div>
-                        <div style={{fontSize:13,color:"#b0c4d8",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{aiInsight}</div>
+                        <div style={{fontSize:13,color:"#b0c4d8",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{mlbAiInsight}</div>
                       </div>
-                    ) : (
-                      <div style={{color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:12,textAlign:"center",padding:20}}>
-                        Click "GET AI PROP ANALYSIS" for today's best prop picks for this matchup
-                      </div>
-                    )}
+                    ):<div style={{color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:12,textAlign:"center",padding:20}}>Click "GET AI PROP ANALYSIS" for today's best prop picks for this matchup</div>}
                   </div>
                 </div>
               )}
@@ -1778,48 +1916,108 @@ Be specific, concise, and analytical. Format clearly.`;
           </div>
         )}
 
-        {/* ── PROPS ── */}
-        {section==="PROPS" && (
-          <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
-            {propsLoading && <div style={{padding:30,textAlign:"center",color:C,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING PROPS...</div>}
-            {!propsLoading && props.length===0 && (
-              <div style={{textAlign:"center",padding:40}}>
-                <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>No props data available right now.</div>
-                <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Props are typically available a few hours before game time.</div>
-              </div>
-            )}
-            {props.map((game,i)=>(
-              <div key={game.id||i} style={{background:"#0a1220",border:`1px solid ${C}15`,borderRadius:4,padding:14,marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{game.away_team} @ {game.home_team}</div>
-                  <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>{new Date(game.commence_time).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
-                </div>
-                {game.bookmakers?.slice(0,1).map(bm=>(
-                  <div key={bm.key}>
-                    {bm.markets?.map(mkt=>(
-                      <div key={mkt.key} style={{marginBottom:8}}>
-                        <div style={{fontSize:8,color:`${C}70`,letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:6}}>{mkt.key.replace("batter_","").replace(/_/g," ").toUpperCase()}</div>
-                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                          {mkt.outcomes?.slice(0,6).map((o,j)=>(
-                            <div key={j} style={{background:"#050d18",border:`1px solid ${o.name==="Over"?"#00ff8825":"#ff444425"}`,borderRadius:3,padding:"6px 10px",minWidth:80}}>
-                              <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif",marginBottom:2}}>{o.description||o.name}</div>
-                              <div style={{fontSize:11,color:o.name==="Over"?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{o.name} {o.point} <span style={{fontSize:9}}>{o.price>0?"+":""}{o.price}</span></div>
-                            </div>
-                          ))}
+        {/* ── TODAY — NBA ── */}
+        {section==="TODAY" && sport==="NBA" && (
+          <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+            <div style={{width:"40%",borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+              {nbaLoading&&<div style={{padding:30,textAlign:"center",color:NBA_C,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING GAMES...</div>}
+              {!nbaLoading&&nbaGames.length===0&&<div style={{padding:30,textAlign:"center",color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No NBA games today.</div>}
+              {nbaGames.map((game,i)=>{
+                const comp=game.competitions?.[0];
+                const away=comp?.competitors?.find(c=>c.homeAway==="away");
+                const home=comp?.competitors?.find(c=>c.homeAway==="home");
+                const isSelected=selectedNbaGame?.id===game.id;
+                const isLive=comp?.status?.type?.state==="in";
+                const isFinal=comp?.status?.type?.state==="post";
+                const gameTime=comp?.date?new Date(comp.date).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";
+                return (
+                  <div key={game.id} onClick={()=>{setSelectedNbaGame(game);setNbaAiInsight("");}}
+                    style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:isSelected?`${NBA_C}08`:"transparent",borderLeft:`3px solid ${isSelected?NBA_C:"transparent"}`}}
+                    onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background="#0a1220";}}
+                    onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{fontSize:9,color:isLive?"#00ff88":isFinal?"#555":NBA_C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{isLive?"🔴 LIVE":isFinal?"FINAL":gameTime}</span>
+                      {isLive&&<span style={{fontSize:9,color:"#00ff88",fontFamily:"'Orbitron',monospace"}}>{comp?.status?.displayClock} · Q{comp?.status?.period}</span>}
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                          {away?.team?.logo&&<img src={away.team.logo} style={{width:20,height:20,objectFit:"contain"}} alt=""/>}
+                          <span style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{away?.team?.abbreviation}</span>
+                          <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{away?.records?.[0]?.summary}</span>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          {home?.team?.logo&&<img src={home.team.logo} style={{width:20,height:20,objectFit:"contain"}} alt=""/>}
+                          <span style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{home?.team?.abbreviation}</span>
+                          <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{home?.records?.[0]?.summary}</span>
                         </div>
                       </div>
-                    ))}
+                      {(isLive||isFinal)&&(
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:18,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.score}</div>
+                          <div style={{fontSize:18,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.score}</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            ))}
+                );
+              })}
+            </div>
+            <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+              {!selectedNbaGame?(
+                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",padding:20}}><div><div style={{fontSize:32,marginBottom:12}}>🏀</div><div style={{color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>Select a game to see details<br/>and get AI prop analysis</div></div></div>
+              ):(()=>{
+                const comp=selectedNbaGame.competitions?.[0];
+                const away=comp?.competitors?.find(c=>c.homeAway==="away");
+                const home=comp?.competitors?.find(c=>c.homeAway==="home");
+                const isLive=comp?.status?.type?.state==="in";
+                return (
+                  <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+                    <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+                      <div style={{display:"flex",gap:10,marginBottom:12}}>
+                        {[away,home].map((team,i)=>(
+                          <div key={i} style={{flex:1,background:"#0a1220",border:`1px solid ${NBA_C}20`,borderRadius:3,padding:10}}>
+                            <div style={{fontSize:8,color:`${NBA_C}60`,letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:6}}>{i===0?"AWAY":"HOME"}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                              {team?.team?.logo&&<img src={team.team.logo} style={{width:24,height:24,objectFit:"contain"}} alt=""/>}
+                              <div>
+                                <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{team?.team?.displayName}</div>
+                                <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{team?.records?.[0]?.summary}</div>
+                              </div>
+                            </div>
+                            {isLive&&<div style={{fontSize:22,fontWeight:"bold",color:"#00ff88",fontFamily:"'Orbitron',monospace"}}>{team?.score}</div>}
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={()=>getNbaAiInsight(selectedNbaGame)} disabled={nbaAiLoading} style={{width:"100%",padding:"10px",background:nbaAiLoading?"#0a1220":`${NBA_C}15`,border:`1px solid ${nbaAiLoading?"#1a2a40":NBA_C+"40"}`,borderRadius:3,color:nbaAiLoading?"#2a3a5a":NBA_C,fontSize:10,cursor:nbaAiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
+                        {nbaAiLoading?"ANALYZING···":"🤖 GET AI PROP ANALYSIS"}
+                      </button>
+                    </div>
+                    <div style={{flex:1,overflowY:"auto",padding:14,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+                      {nbaAiLoading?<div style={{textAlign:"center",padding:30,color:NBA_C,letterSpacing:4,fontSize:14,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>ANALYZING MATCHUP···</div>
+                      :nbaAiInsight?(
+                        <div>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                            <div style={{fontSize:9,color:NBA_C,letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>🤖 AI PROP ANALYSIS</div>
+                            <button onClick={()=>navigator.clipboard?.writeText(nbaAiInsight)} style={{fontSize:9,color:"#3a5070",background:"#0d1828",border:"1px solid #1a2a40",borderRadius:2,cursor:"pointer",padding:"3px 10px",fontFamily:"'Orbitron',monospace"}}>COPY</button>
+                          </div>
+                          <div style={{fontSize:13,color:"#b0c4d8",lineHeight:1.9,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{nbaAiInsight}</div>
+                        </div>
+                      ):<div style={{color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:12,textAlign:"center",padding:20}}>Click "GET AI PROP ANALYSIS" for today's best prop picks</div>}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         )}
 
-        {/* ── TOP PLAYERS ── */}
-        {section==="TOP PLAYERS" && (
-          <TopPicksSection games={games} gamesLoading={gamesLoading} C={C}/>
-        )}
+        {/* ── PROPS ── */}
+        {section==="PROPS" && <PropsPanel propsList={props} propLoading={propsLoading} color={C}/>}
+
+        {/* ── TOP PICKS ── */}
+        {section==="TOP PICKS" && sport==="MLB" && <TopPicksSection games={mlbGames} gamesLoading={mlbLoading} C={MLB_C}/>}
+        {section==="TOP PICKS" && sport==="NBA" && <NBAPicksSection games={nbaGames} gamesLoading={nbaLoading} C={NBA_C}/>}
 
       </div>
     </div>
