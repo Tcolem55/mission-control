@@ -1383,6 +1383,40 @@ function JobsTab() {
 
 
 
+
+// ── Cache helpers — reads from cron job endpoints ────────────────────────────
+async function fetchCachedInjuries() {
+  try {
+    const r = await fetch('/api/injury-monitor');
+    const d = await r.json();
+    return d.data || null;
+  } catch { return null; }
+}
+
+async function fetchCachedRosters() {
+  try {
+    const r = await fetch('/api/roster-sync');
+    const d = await r.json();
+    return d.data || null;
+  } catch { return null; }
+}
+
+async function fetchCachedStats() {
+  try {
+    const r = await fetch('/api/stats-cache');
+    const d = await r.json();
+    return d.data || null;
+  } catch { return null; }
+}
+
+async function fetchCachedLineups() {
+  try {
+    const r = await fetch('/api/lineup-tracker');
+    const d = await r.json();
+    return d.data || null;
+  } catch { return null; }
+}
+
 // ── NBA Picks — Active Roster + Real Stats + Team Parlay ─────────────────────
 function NBAPicksSection({ games, gamesLoading, C }) {
   const [picks, setPicks]         = useState(null);
@@ -1414,6 +1448,15 @@ function NBAPicksSection({ games, gamesLoading, C }) {
     setLoading(true); setPicks(null); setDataLog([]);
     try {
       const gameContexts = [];
+
+      // Try cache first
+      log("Checking cached data from cron jobs...");
+      const [cachedInjuries, cachedRosters, cachedStats] = await Promise.all([
+        fetchCachedInjuries(), fetchCachedRosters(), fetchCachedStats(),
+      ]);
+      const usingCache = !!(cachedStats?.nba && Object.keys(cachedStats.nba.players||{}).length > 0);
+      log(usingCache ? "✅ Cache loaded — fast mode!" : "⚡ No cache — fetching live...");
+
       for (const game of games.slice(0,6)) {
         const comp    = game.competitions?.[0];
         const away    = comp?.competitors?.find(c=>c.homeAway==="away");
@@ -1422,6 +1465,8 @@ function NBAPicksSection({ games, gamesLoading, C }) {
         const homeName = home?.team?.displayName || "Home";
         const awayId   = away?.team?.id;
         const homeId   = home?.team?.id;
+        const awayAbbr = away?.team?.abbreviation;
+        const homeAbbr = home?.team?.abbreviation;
         const awayRec  = away?.records?.[0]?.summary || "";
         const homeRec  = home?.records?.[0]?.summary || "";
         const tipTime  = comp?.date ? new Date(comp.date).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
@@ -1431,17 +1476,32 @@ function NBAPicksSection({ games, gamesLoading, C }) {
 
         let awayRoster=[], homeRoster=[], awayInjuries=[], homeInjuries=[];
         try {
-          const [aRR,hRR,aIR,hIR] = await Promise.all([
-            fetch(`/api/nba?type=roster&teamId=${awayId}`),
-            fetch(`/api/nba?type=roster&teamId=${homeId}`),
-            fetch(`/api/nba?type=injuries&teamId=${awayId}`),
-            fetch(`/api/nba?type=injuries&teamId=${homeId}`),
-          ]);
-          const [aRD,hRD,aID,hID] = await Promise.all([aRR.json(),hRR.json(),aIR.json(),hIR.json()]);
-          awayRoster   = (aRD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
-          homeRoster   = (hRD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
-          awayInjuries = (aID.injuries||[]);
-          homeInjuries = (hID.injuries||[]);
+          // Use cached rosters if available
+          if (cachedRosters?.nba?.[awayAbbr]?.roster) {
+            awayRoster = cachedRosters.nba[awayAbbr].roster.filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+          }
+          if (cachedRosters?.nba?.[homeAbbr]?.roster) {
+            homeRoster = cachedRosters.nba[homeAbbr].roster.filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+          }
+          // Use cached injuries
+          if (cachedInjuries?.nba?.length > 0) {
+            awayInjuries = cachedInjuries.nba.filter(i=>i.teamAbbr===awayAbbr);
+            homeInjuries = cachedInjuries.nba.filter(i=>i.teamAbbr===homeAbbr);
+          }
+          // Fall back to live if no cache
+          if (!awayRoster.length || !homeRoster.length) {
+            const [aRR,hRR,aIR,hIR] = await Promise.all([
+              fetch(`/api/nba?type=roster&teamId=${awayId}`),
+              fetch(`/api/nba?type=roster&teamId=${homeId}`),
+              fetch(`/api/nba?type=injuries&teamId=${awayId}`),
+              fetch(`/api/nba?type=injuries&teamId=${homeId}`),
+            ]);
+            const [aRD,hRD,aID,hID] = await Promise.all([aRR.json(),hRR.json(),aIR.json(),hIR.json()]);
+            if (!awayRoster.length) awayRoster = (aRD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+            if (!homeRoster.length) homeRoster  = (hRD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+            if (!awayInjuries.length) awayInjuries = (aID.injuries||[]);
+            if (!homeInjuries.length) homeInjuries = (hID.injuries||[]);
+          }
         } catch {}
 
         if (awayRoster.length) gameCtx += `\n  ${awayName} active: ${awayRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
@@ -1452,10 +1512,18 @@ function NBAPicksSection({ games, gamesLoading, C }) {
         const topPlayers = [...awayRoster.slice(0,5), ...homeRoster.slice(0,5)];
         const ids = topPlayers.map(p=>p.id).filter(Boolean);
         if (ids.length) {
-          log(`Fetching last 10 game stats for ${awayName} & ${homeName}...`);
+          log(`Loading last 10 game stats for ${awayName} & ${homeName}...`);
           try {
-            const bRes = await fetch(`/api/nba?type=batchlogs&athleteId=${ids.join(",")}`);
-            const bData = await bRes.json();
+            const cachedPlayers = cachedStats?.nba?.players || {};
+            const hasCached = ids.some(id => cachedPlayers[id]);
+            let bData = {};
+            if (hasCached) {
+              ids.forEach(id => { if(cachedPlayers[id]) bData[id] = cachedPlayers[id]; });
+              log(`✅ Using cached NBA stats`);
+            } else {
+              const bRes = await fetch(`/api/nba?type=batchlogs&athleteId=${ids.join(",")}`);
+              bData = await bRes.json();
+            }
             gameCtx += `\n  Last 10 game averages:`;
             for (const p of topPlayers) {
               const st = bData[p.id];
@@ -1811,22 +1879,40 @@ function TopPicksSection({ games, gamesLoading, C }) {
     try {
       const gameContexts = [];
 
-      // ── Step 1: Get injuries ──────────────────────────────────────────────
+      // ── Step 1: Try cache first, fall back to live fetch ─────────────────
+      log("Checking cached data from cron jobs...");
+      const [cachedInjuries, cachedRosters, cachedStats, cachedLineups] = await Promise.all([
+        fetchCachedInjuries(),
+        fetchCachedRosters(),
+        fetchCachedStats(),
+        fetchCachedLineups(),
+      ]);
+
+      const usingCache = !!(cachedStats?.mlb && Object.keys(cachedStats.mlb.batters||{}).length > 0);
+      log(usingCache ? "✅ Using cached data — fast mode!" : "⚡ No cache found — fetching live data...");
+
+      // ── Step 2: Get injuries ──────────────────────────────────────────────
       log("Checking injury/IL report...");
       let injuredPlayers = [];
       try {
-        const injRes = await fetch(`/api/mlb?type=injuries`);
-        const injData = await injRes.json();
-        injuredPlayers = (injData.transactions || [])
-          .slice(0, 50)
-          .map(t => t.player?.fullName)
-          .filter(Boolean);
+        // Use cached injuries if available
+        if (cachedInjuries?.mlb?.length > 0) {
+          injuredPlayers = cachedInjuries.mlb
+            .filter(i=>['Out','Doubtful'].includes(i.status))
+            .map(i=>i.player).filter(Boolean);
+          log(`✅ Cached: ${cachedInjuries.mlb.length} MLB injuries loaded`);
+        } else {
+          const injRes = await fetch(`/api/injury-monitor`);
+          const injData = await injRes.json();
+          injuredPlayers = (injData.data?.mlbTransactions || [])
+            .slice(0, 50).map(t => t.player).filter(Boolean);
+        }
       } catch {}
       const injuryNote = injuredPlayers.length > 0
         ? `Players recently placed on IL (do NOT recommend these players): ${injuredPlayers.slice(0,20).join(", ")}`
         : "No recent IL transactions found";
 
-      // ── Step 2: For each game pull active rosters + pitcher stats ─────────
+      // ── Step 3: For each game pull active rosters + pitcher stats ─────────
       for (const game of games.slice(0, 6)) {
         const gamePk = game.gamePk;
         const away = game.teams?.away;
@@ -1860,26 +1946,37 @@ function TopPicksSection({ games, gamesLoading, C }) {
           } catch {}
         }
 
-        // Get active rosters (guaranteed current)
+        // Get active rosters — use cache if available
         const awayTeamId = away?.team?.id;
         const homeTeamId = home?.team?.id;
+        const awayAbbr   = away?.team?.abbreviation;
+        const homeAbbr   = home?.team?.abbreviation;
+        const PITCHERS   = ['P','SP','RP','CL'];
 
         let awayHitters = [];
         let homeHitters = [];
 
-        if (awayTeamId) {
+        // Try cache first
+        if (cachedRosters?.mlb?.[awayAbbr]?.roster) {
+          awayHitters = cachedRosters.mlb[awayAbbr].roster
+            .filter(p=>!p.isPitcher)
+            .map(p=>({id:p.id, name:p.name, pos:p.position}));
+        } else if (awayTeamId) {
           try {
             const r = await fetch(`/api/mlb?type=roster&teamId=${awayTeamId}`);
             const d = await r.json();
-            const PITCHERS = ['P','SP','RP','CL'];
             awayHitters = (d.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation}));
           } catch {}
         }
-        if (homeTeamId) {
+
+        if (cachedRosters?.mlb?.[homeAbbr]?.roster) {
+          homeHitters = cachedRosters.mlb[homeAbbr].roster
+            .filter(p=>!p.isPitcher)
+            .map(p=>({id:p.id, name:p.name, pos:p.position}));
+        } else if (homeTeamId) {
           try {
             const r = await fetch(`/api/mlb?type=roster&teamId=${homeTeamId}`);
             const d = await r.json();
-            const PITCHERS = ['P','SP','RP','CL'];
             homeHitters = (d.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation}));
           } catch {}
         }
@@ -1916,18 +2013,35 @@ function TopPicksSection({ games, gamesLoading, C }) {
         const hitterIds = allHitters.map(p=>p.id).filter(Boolean);
 
         if (hitterIds.length > 0) {
-          log(`Fetching 14-day stats for ${awayTeam} & ${homeTeam} hitters...`);
+          log(`Loading 14-day stats for ${awayTeam} & ${homeTeam}...`);
           try {
-            const batchRes = await fetch(`/api/mlb?type=batchbatting&playerId=${hitterIds.join(",")}`);
-            const batchData = await batchRes.json();
+            // Use cached batter stats if available
+            const cachedBatters = cachedStats?.mlb?.batters || {};
+            const hasCachedStats = hitterIds.some(id => cachedBatters[id]);
+
+            let batchData = {};
+            if (hasCachedStats) {
+              // Use cache
+              hitterIds.forEach(id => { if(cachedBatters[id]) batchData[id] = cachedBatters[id]; });
+              log(`✅ Using cached batting stats for ${awayTeam} & ${homeTeam}`);
+            } else {
+              // Fall back to live fetch
+              const batchRes = await fetch(`/api/mlb?type=batchbatting&playerId=${hitterIds.join(",")}`);
+              batchData = await batchRes.json();
+            }
+
             gameCtx += `\n  14-day batting stats:`;
             for (const hitter of allHitters) {
               const st = batchData[hitter.id];
               const team = awayLineup.find(p=>p.id===hitter.id) ? awayTeam : homeTeam;
-              if (st && st.plateAppearances > 0) {
-                gameCtx += `\n    ${hitter.name} (${team}): .${String(st.avg||"000").replace(".","").padStart(3,"0")} AVG, ${st.hits||0}H, ${st.homeRuns||0}HR, ${st.doubles||0}2B, ${st.totalBases||0}TB, ${st.strikeOuts||0}K in ${st.plateAppearances||0}PA`;
-              } else if (st) {
-                gameCtx += `\n    ${hitter.name} (${team}): Limited recent data`;
+              if (st && (st.plateAppearances > 0 || st.pa > 0)) {
+                const avg = st.avg || "---";
+                const hits = st.hits || st.h || 0;
+                const hr = st.homeRuns || st.hr || 0;
+                const doubles = st.doubles || 0;
+                const tb = st.totalBases || st.tb || 0;
+                const pa = st.plateAppearances || st.pa || 0;
+                gameCtx += `\n    ${hitter.name} (${team}): ${avg} AVG, ${hits}H, ${hr}HR, ${doubles}2B, ${tb}TB in ${pa}PA`;
               }
             }
           } catch {}
