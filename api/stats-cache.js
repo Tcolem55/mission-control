@@ -1,0 +1,135 @@
+export default async function handler(req, res) {
+  const today = new Date().toISOString().split('T')[0];
+  const start14 = new Date(Date.now()-14*24*60*60*1000).toISOString().split('T')[0];
+  const PITCHERS = ['P','SP','RP','CL'];
+  const results = {
+    mlb: { pitchers:{}, batters:{}, gamesCount:0 },
+    nba: { players:{}, gamesCount:0 },
+    timestamp: new Date().toISOString(),
+    errors: []
+  };
+
+  try {
+    const schedRes = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=probablePitcher,team`);
+    const schedData = await schedRes.json();
+    const games = schedData.dates?.[0]?.games||[];
+    results.mlb.gamesCount = games.length;
+
+    const pitcherIds = [], teamIds = [];
+    for (const game of games) {
+      if (game.teams?.away?.probablePitcher?.id) pitcherIds.push(game.teams.away.probablePitcher.id);
+      if (game.teams?.home?.probablePitcher?.id) pitcherIds.push(game.teams.home.probablePitcher.id);
+      if (game.teams?.away?.team?.id) teamIds.push(game.teams.away.team.id);
+      if (game.teams?.home?.team?.id) teamIds.push(game.teams.home.team.id);
+    }
+
+    for (const id of [...new Set(pitcherIds)]) {
+      try {
+        const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=pitching&season=2025&limit=5`);
+        const d = await r.json();
+        const logs = d.stats?.[0]?.splits?.slice(0,5)||[];
+        if (logs.length) {
+          results.mlb.pitchers[id] = {
+            logs: logs.map(l=>({
+              date: l.date, opponent: l.opponent?.name,
+              ip: l.stat?.inningsPitched, k: l.stat?.strikeOuts,
+              er: l.stat?.earnedRuns, h: l.stat?.hits, bb: l.stat?.baseOnBalls,
+            })),
+            avgK:  (logs.reduce((s,l)=>s+(l.stat?.strikeOuts||0),0)/logs.length).toFixed(1),
+            avgIP: (logs.reduce((s,l)=>s+(parseFloat(l.stat?.inningsPitched)||0),0)/logs.length).toFixed(1),
+            avgER: (logs.reduce((s,l)=>s+(l.stat?.earnedRuns||0),0)/logs.length).toFixed(1),
+            cachedAt: new Date().toISOString(),
+          };
+        }
+      } catch(e) { results.errors.push(`Pitcher ${id}: ${e.message}`); }
+    }
+
+    for (const teamId of [...new Set(teamIds)]) {
+      try {
+        const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=2025`);
+        const rData = await rRes.json();
+        const hitters = (rData.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).slice(0,9);
+        for (const hitter of hitters) {
+          try {
+            const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.person?.id}/stats?stats=byDateRange&group=hitting&startDate=${start14}&endDate=${today}&season=2025`);
+            const d = await r.json();
+            const stat = d.stats?.[0]?.splits?.[0]?.stat;
+            if (stat) {
+              results.mlb.batters[hitter.person?.id] = {
+                name: hitter.person?.fullName, team: teamId,
+                avg: stat.avg, hits: stat.hits, hr: stat.homeRuns,
+                doubles: stat.doubles, tb: stat.totalBases,
+                pa: stat.plateAppearances, k: stat.strikeOuts,
+                cachedAt: new Date().toISOString(),
+              };
+            }
+          } catch {}
+        }
+      } catch(e) { results.errors.push(`Team ${teamId}: ${e.message}`); }
+    }
+  } catch(e) { results.errors.push(`MLB: ${e.message}`); }
+
+  try {
+    const todayFmt = today.replace(/-/g,'');
+    const scoreRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${todayFmt}`);
+    const scoreData = await scoreRes.json();
+    const events = scoreData.events||[];
+    results.nba.gamesCount = events.length;
+
+    const teamIds = [...new Set(events.flatMap(e=>
+      e.competitions?.[0]?.competitors?.map(c=>c.team?.id)||[]
+    ).filter(Boolean))];
+
+    for (const teamId of teamIds) {
+      try {
+        const rRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`);
+        const rData = await rRes.json();
+        const players = (rData.athletes||[]).flatMap(g=>(g.items||[g])).filter(p=>p.id&&p.fullName).slice(0,12);
+
+        for (const player of players) {
+          try {
+            const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/athletes/${player.id}/gamelog?season=2025`);
+            const d = await r.json();
+            const categories = d.categories||[];
+            const evts = d.events||{};
+            const labels = categories.map(c=>c.abbreviation||c.name);
+            const gameKeys = Object.keys(evts).slice(-10);
+
+            if (gameKeys.length>0) {
+              const games = gameKeys.map(key=>{
+                const ev = evts[key];
+                const stats = ev?.stats||[];
+                const gs = {};
+                labels.forEach((l,i)=>{ gs[l]=stats[i]; });
+                return gs;
+              }).filter(g=>Object.keys(g).length>0);
+
+              const avg = f => {
+                const vals = games.map(g=>parseFloat(g[f])||0);
+                return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '0';
+              };
+
+              results.nba.players[player.id] = {
+                name: player.fullName, teamId,
+                gamesPlayed: games.length,
+                avgPTS: avg('PTS'), avgREB: avg('REB'), avgAST: avg('AST'),
+                avg3PM: avg('3PM'), avgSTL: avg('STL'), avgBLK: avg('BLK'),
+                avgMIN: avg('MIN'), cachedAt: new Date().toISOString(),
+              };
+            }
+          } catch {}
+        }
+      } catch(e) { results.errors.push(`NBA team ${teamId}: ${e.message}`); }
+    }
+  } catch(e) { results.errors.push(`NBA: ${e.message}`); }
+
+  return res.status(200).json({
+    success: true,
+    mlbPitchers: Object.keys(results.mlb.pitchers).length,
+    mlbBatters: Object.keys(results.mlb.batters).length,
+    nbaPlayers: Object.keys(results.nba.players).length,
+    errors: results.errors.length,
+    timestamp: results.timestamp,
+    data: results
+  });
+}
