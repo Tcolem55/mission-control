@@ -1381,51 +1381,196 @@ function JobsTab() {
 
 
 
-// ── NBA Picks ─────────────────────────────────────────────────────────────────
+
+// ── NBA Picks — Active Roster + Real Stats ────────────────────────────────────
 function NBAPicksSection({ games, gamesLoading, C }) {
   const [picks, setPicks]     = useState(null);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [status, setStatus]   = useState("");
+  const [dataLog, setDataLog] = useState([]);
+
+  const log = (msg) => { setStatus(msg); setDataLog(prev=>[...prev, msg]); };
 
   const generatePicks = async () => {
     if (!games.length) return;
-    setLoading(true); setPicks(null);
-    const gameSummary = games.slice(0,8).map(g => {
-      const comp = g.competitions?.[0];
-      const away = comp?.competitors?.find(c=>c.homeAway==="away");
-      const home = comp?.competitors?.find(c=>c.homeAway==="home");
-      const time = comp?.date ? new Date(comp.date).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
-      return `${away?.team?.displayName||"Away"} @ ${home?.team?.displayName||"Home"} (${time})`;
-    }).join("\n");
-
-    const prompt = `You are an elite NBA prop betting analyst. Based on today's NBA games, give TOP PICKS for each category using real NBA player names.
-
-TODAY'S GAMES:\n${gameSummary}
-
-Respond ONLY with valid JSON, no markdown:
-{"points":[{"rank":1,"player":"Name","team":"Team","line":"24.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"22.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"18.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"15.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"20.5","pick":"UNDER","odds":"-110","reason":"reason","confidence":"MED"}],"rebounds":[{"rank":1,"player":"Name","team":"Team","line":"9.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"7.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"11.5","pick":"OVER","odds":"+105","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"6.5","pick":"OVER","odds":"-125","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"8.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"MED"}],"assists":[{"rank":1,"player":"Name","team":"Team","line":"7.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"6.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"5.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"4.5","pick":"OVER","odds":"-130","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"8.5","pick":"OVER","odds":"+110","reason":"reason","confidence":"MED"}],"threes":[{"rank":1,"player":"Name","team":"Team","line":"2.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"1.5","pick":"OVER","odds":"-150","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"2.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"3.5","pick":"OVER","odds":"+120","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"1.5","pick":"OVER","odds":"-140","reason":"reason","confidence":"MED"}],"pra":[{"rank":1,"player":"Name","team":"Team","line":"34.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","line":"28.5","pick":"OVER","odds":"-110","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","line":"42.5","pick":"OVER","odds":"+105","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","line":"31.5","pick":"OVER","odds":"-120","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","line":"25.5","pick":"OVER","odds":"-115","reason":"reason","confidence":"MED"}],"doubleDouble":[{"rank":1,"player":"Name","team":"Team","matchup":"vs Team","odds":"-130","reason":"reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","matchup":"vs Team","odds":"-120","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","matchup":"vs Team","odds":"-110","reason":"reason","confidence":"MED"}]}`;
+    setLoading(true); setPicks(null); setDataLog([]);
 
     try {
+      const gameContexts = [];
+
+      for (const game of games.slice(0, 6)) {
+        const comp      = game.competitions?.[0];
+        const away      = comp?.competitors?.find(c=>c.homeAway==="away");
+        const home      = comp?.competitors?.find(c=>c.homeAway==="home");
+        const awayName  = away?.team?.displayName || "Away";
+        const homeName  = home?.team?.displayName || "Home";
+        const awayId    = away?.team?.id;
+        const homeId    = home?.team?.id;
+        const awayRec   = away?.records?.[0]?.summary || "";
+        const homeRec   = home?.records?.[0]?.summary || "";
+        const tipTime   = comp?.date ? new Date(comp.date).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
+
+        log(`Loading ${awayName} @ ${homeName}...`);
+
+        let gameCtx = `\n🏀 ${awayName} (${awayRec}) @ ${homeName} (${homeRec}) — ${tipTime}`;
+
+        // Fetch rosters + injuries for both teams in parallel
+        let awayRoster = [], homeRoster = [], awayInjuries = [], homeInjuries = [];
+        try {
+          const [awayRRes, homeRRes, awayIRes, homeIRes] = await Promise.all([
+            fetch(`/api/nba?type=roster&teamId=${awayId}`),
+            fetch(`/api/nba?type=roster&teamId=${homeId}`),
+            fetch(`/api/nba?type=injuries&teamId=${awayId}`),
+            fetch(`/api/nba?type=injuries&teamId=${homeId}`),
+          ]);
+          const [awayRD, homeRD, awayID, homeID] = await Promise.all([
+            awayRRes.json(), homeRRes.json(), awayIRes.json(), homeIRes.json()
+          ]);
+
+          awayRoster    = (awayRD.roster   || []).filter(p=>p.status==="active"||!p.injuryStatus);
+          homeRoster    = (homeRD.roster   || []).filter(p=>p.status==="active"||!p.injuryStatus);
+          awayInjuries  = (awayID.injuries || []);
+          homeInjuries  = (homeID.injuries || []);
+        } catch {}
+
+        // List out and active players
+        if (awayRoster.length > 0) {
+          gameCtx += `\n  ${awayName} active roster: ${awayRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
+        }
+        if (homeRoster.length > 0) {
+          gameCtx += `\n  ${homeName} active roster: ${homeRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
+        }
+
+        // Injury report
+        const allInjuries = [
+          ...awayInjuries.map(i=>`${i.player} (${awayName}): ${i.status} — ${i.detail}`),
+          ...homeInjuries.map(i=>`${i.player} (${homeName}): ${i.status} — ${i.detail}`),
+        ];
+        if (allInjuries.length > 0) {
+          gameCtx += `\n  INJURIES/QUESTIONABLE: ${allInjuries.join(" | ")}`;
+        }
+
+        // Get last 10 game stats for top players from each team
+        const topAway = awayRoster.filter(p=>["PG","SG","SF","PF","C"].includes(p.position)).slice(0,6);
+        const topHome = homeRoster.filter(p=>["PG","SG","SF","PF","C"].includes(p.position)).slice(0,6);
+        const allPlayers = [...topAway, ...topHome];
+        const playerIds  = allPlayers.map(p=>p.id).filter(Boolean);
+
+        if (playerIds.length > 0) {
+          log(`Fetching last 10 game stats for ${awayName} & ${homeName} players...`);
+          try {
+            const batchRes = await fetch(`/api/nba?type=batchlogs&athleteId=${playerIds.join(",")}`);
+            const batchData = await batchRes.json();
+            gameCtx += `\n  Last 10 games avg stats:`;
+            for (const player of allPlayers) {
+              const st = batchData[player.id];
+              const team = topAway.find(p=>p.id===player.id) ? awayName : homeName;
+              if (st && st.gamesPlayed > 0) {
+                gameCtx += `\n    ${player.name} (${team}, ${player.position}): ${st.avgPTS}PTS ${st.avgREB}REB ${st.avgAST}AST ${st.avg3PM}3PM ${st.avgSTL}STL ${st.avgBLK}BLK in ${st.avgMIN}MIN over last ${st.gamesPlayed}G`;
+              }
+            }
+          } catch {}
+        }
+
+        gameContexts.push(gameCtx);
+      }
+
+      // Build prompt with all real data
+      log("Sending real roster and stats data to AI...");
+
+      const prompt = `You are an elite NBA prop betting analyst. You have been given REAL current data:
+- Active rosters for every team playing today (current as of today)
+- Injury/questionable reports per team
+- Actual last 10 game averages for each player (PTS, REB, AST, 3PM, STL, BLK, MIN)
+
+CRITICAL RULES:
+1. Only recommend players explicitly listed in the data below
+2. Do NOT use any player not mentioned in the data
+3. Do NOT guess team rosters from memory — only use what is provided
+4. Reference actual stats in your reasoning (e.g. "averaging 28.4 PTS over last 10 games")
+5. Skip any player listed as Out or doubtful in injuries
+
+TODAY'S REAL NBA DATA:
+${gameContexts.join("\n")}
+
+Generate today's top 5 picks per category using ONLY players listed above with real stats.
+
+Respond ONLY with valid JSON, no markdown:
+{
+  "points":[
+    {"rank":1,"player":"Exact Name From Data","team":"Team Name","line":"28.5","pick":"OVER","odds":"-115","reason":"Averaging X.X PTS over last 10 games, favorable matchup vs Y","confidence":"HIGH"},
+    {"rank":2,"player":"Exact Name From Data","team":"Team Name","line":"24.5","pick":"OVER","odds":"-110","reason":"Specific stat-based reason from data","confidence":"HIGH"},
+    {"rank":3,"player":"Exact Name From Data","team":"Team Name","line":"22.5","pick":"OVER","odds":"-120","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":4,"player":"Exact Name From Data","team":"Team Name","line":"18.5","pick":"OVER","odds":"-115","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":5,"player":"Exact Name From Data","team":"Team Name","line":"20.5","pick":"UNDER","odds":"-110","reason":"Specific stat-based reason","confidence":"MED"}
+  ],
+  "rebounds":[
+    {"rank":1,"player":"Exact Name From Data","team":"Team Name","line":"9.5","pick":"OVER","odds":"-120","reason":"Averaging X.X REB over last 10 games","confidence":"HIGH"},
+    {"rank":2,"player":"Exact Name From Data","team":"Team Name","line":"7.5","pick":"OVER","odds":"-115","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":3,"player":"Exact Name From Data","team":"Team Name","line":"11.5","pick":"OVER","odds":"+105","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":4,"player":"Exact Name From Data","team":"Team Name","line":"6.5","pick":"OVER","odds":"-125","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":5,"player":"Exact Name From Data","team":"Team Name","line":"8.5","pick":"OVER","odds":"-110","reason":"Specific stat-based reason","confidence":"MED"}
+  ],
+  "assists":[
+    {"rank":1,"player":"Exact Name From Data","team":"Team Name","line":"7.5","pick":"OVER","odds":"-115","reason":"Averaging X.X AST over last 10 games","confidence":"HIGH"},
+    {"rank":2,"player":"Exact Name From Data","team":"Team Name","line":"6.5","pick":"OVER","odds":"-120","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":3,"player":"Exact Name From Data","team":"Team Name","line":"5.5","pick":"OVER","odds":"-110","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":4,"player":"Exact Name From Data","team":"Team Name","line":"4.5","pick":"OVER","odds":"-130","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":5,"player":"Exact Name From Data","team":"Team Name","line":"8.5","pick":"OVER","odds":"+110","reason":"Specific stat-based reason","confidence":"MED"}
+  ],
+  "threes":[
+    {"rank":1,"player":"Exact Name From Data","team":"Team Name","line":"2.5","pick":"OVER","odds":"-110","reason":"Averaging X.X 3PM over last 10 games","confidence":"HIGH"},
+    {"rank":2,"player":"Exact Name From Data","team":"Team Name","line":"1.5","pick":"OVER","odds":"-150","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":3,"player":"Exact Name From Data","team":"Team Name","line":"2.5","pick":"OVER","odds":"-115","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":4,"player":"Exact Name From Data","team":"Team Name","line":"3.5","pick":"OVER","odds":"+120","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":5,"player":"Exact Name From Data","team":"Team Name","line":"1.5","pick":"OVER","odds":"-140","reason":"Specific stat-based reason","confidence":"MED"}
+  ],
+  "pra":[
+    {"rank":1,"player":"Exact Name From Data","team":"Team Name","line":"38.5","pick":"OVER","odds":"-115","reason":"PTS+REB+AST avg from data e.g. 28.4+9.2+7.1=44.7 combined","confidence":"HIGH"},
+    {"rank":2,"player":"Exact Name From Data","team":"Team Name","line":"32.5","pick":"OVER","odds":"-110","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":3,"player":"Exact Name From Data","team":"Team Name","line":"28.5","pick":"OVER","odds":"-120","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":4,"player":"Exact Name From Data","team":"Team Name","line":"42.5","pick":"OVER","odds":"+105","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":5,"player":"Exact Name From Data","team":"Team Name","line":"25.5","pick":"OVER","odds":"-115","reason":"Specific stat-based reason","confidence":"MED"}
+  ],
+  "doubleDouble":[
+    {"rank":1,"player":"Exact Name From Data","team":"Team Name","matchup":"vs Team","odds":"-140","reason":"Averaging X.X PTS and X.X REB — double-double in Y of last 10","confidence":"HIGH"},
+    {"rank":2,"player":"Exact Name From Data","team":"Team Name","matchup":"vs Team","odds":"-130","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":3,"player":"Exact Name From Data","team":"Team Name","matchup":"vs Team","odds":"-115","reason":"Specific stat-based reason","confidence":"MED"}
+  ]
+}`;
+
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1500, system:"You are an expert NBA prop betting analyst. Always respond with valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514", max_tokens:2000,
+          system:"You are an expert NBA prop betting analyst. You have been given REAL current roster and stats data. ONLY recommend players explicitly listed in the data provided. Never use players from memory. Always respond with valid JSON only, no markdown.",
+          messages:[{role:"user",content:prompt}]
+        }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
       const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
-      setPicks(parsed); setGenerated(true);
-    } catch { setPicks(null); }
+      setPicks(parsed);
+      setGenerated(true);
+
+    } catch(e) {
+      console.error(e);
+      setPicks(null);
+    }
+    setStatus("");
     setLoading(false);
   };
 
   const CONF_COLORS = { HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35" };
+
   const PickCard = ({ title, icon, color, items }) => (
     <div style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
-      <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between"}}>
+      <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{icon} {title}</div>
-        <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>AI PICKS</div>
+        <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>ACTIVE ROSTER · REAL STATS</div>
       </div>
-      {(!items||items.length===0)&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks</div>}
+      {(!items||items.length===0)&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks generated</div>}
       {items?.map((p,i)=>(
         <div key={i} style={{padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s"}}
           onMouseEnter={e=>e.currentTarget.style.background=`${color}06`}
@@ -1443,7 +1588,7 @@ Respond ONLY with valid JSON, no markdown:
               <div style={{fontSize:8,color:CONF_COLORS[p.confidence]||"#555",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{p.confidence}</div>
             </div>
           </div>
-          <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.4,paddingLeft:28}}>{p.reason}</div>
+          <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5,paddingLeft:28}}>{p.reason}</div>
         </div>
       ))}
     </div>
@@ -1451,20 +1596,41 @@ Respond ONLY with valid JSON, no markdown:
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
         <div>
-          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily NBA Picks</div>
-          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Points · Rebounds · Assists · 3PM · PRA · Double-Double</div>
+          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily NBA Picks — Real Data</div>
+          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Current active rosters · Injury report · Last 10 game averages per player</div>
         </div>
         <button onClick={generatePicks} disabled={loading||gamesLoading||!games.length}
-          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap"}}>
-          {loading?"ANALYZING···":generated?"🔄 REGENERATE":"🏀 GENERATE PICKS"}
+          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap",flexShrink:0}}>
+          {loading?"LOADING···":generated?"🔄 REGENERATE":"🏀 GENERATE PICKS"}
         </button>
       </div>
+
       <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
-        {loading&&<div style={{padding:60,textAlign:"center"}}><div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>ANALYZING TODAY'S MATCHUPS···</div><div style={{fontSize:11,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>AI is reviewing matchups, pace, defensive ratings, and trends</div></div>}
-        {!loading&&!picks&&<div style={{padding:60,textAlign:"center"}}><div style={{fontSize:32,marginBottom:12}}>🏀</div><div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:6}}>{games.length} games today</div><div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Click GENERATE PICKS for AI-powered NBA prop recommendations</div></div>}
-        {!loading&&picks&&(
+        {loading && (
+          <div style={{padding:40,textAlign:"center"}}>
+            <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:16}}>LOADING REAL DATA···</div>
+            <div style={{fontSize:12,color:"#38bdf8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>{status}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"center",maxHeight:120,overflowY:"auto"}}>
+              {dataLog.map((l,i)=><div key={i} style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>)}
+            </div>
+          </div>
+        )}
+        {!loading && !picks && (
+          <div style={{padding:60,textAlign:"center"}}>
+            <div style={{fontSize:32,marginBottom:12}}>🏀</div>
+            <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>{games.length} games today</div>
+            <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",lineHeight:1.8}}>
+              Clicking GENERATE PICKS will:<br/>
+              ✓ Pull current active rosters for each team<br/>
+              ✓ Check injury/questionable report per team<br/>
+              ✓ Fetch last 10 game averages per player<br/>
+              ✓ Generate picks from real data only — no guessing
+            </div>
+          </div>
+        )}
+        {!loading && picks && (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
             <PickCard title="POINTS"        icon="🏀" color={C}       items={picks.points}/>
             <PickCard title="REBOUNDS"      icon="💪" color="#38bdf8" items={picks.rebounds}/>
@@ -1478,8 +1644,6 @@ Respond ONLY with valid JSON, no markdown:
     </div>
   );
 }
-
-
 
 // ── Top Picks Section (MLB) — Active Roster + Live Stats ─────────────────────
 function TopPicksSection({ games, gamesLoading, C }) {
