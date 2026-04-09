@@ -1061,6 +1061,325 @@ function FinanceTab() {
   );
 }
 
+
+// ── Jobs Tab ──────────────────────────────────────────────────────────────────
+const RESUME = `Tristen Coleman | Data Analyst I | City of Virginia Beach – Health and Human Services | 2022–Present
+- Led business discovery across 50+ legacy Microsoft Access databases
+- Designed executive Power BI dashboards for CIP budget tracking
+- Performed end-to-end systems analysis for COTS solutioning
+- Developed Oracle DA2 reporting solutions
+- Built survey analytics for DBHDS Mart Committee and VA Food Pantry
+- Administered SharePoint sites across departments
+- Participated in Agile Sprint planning and stakeholder sessions
+Skills: Power BI (Certified), Tableau (Certified), SQL, Python, JavaScript, MS Office (Certified), SharePoint, Oracle DA2, Business Analytics, Systems Analysis, Data Mapping, COTS Solutioning
+Education: M.S. Computer Science (Candidate) – UNC Charlotte | B.S. Computer Information Systems – Livingstone College
+Certifications: Power BI, Tableau, Microsoft Office Specialist`;
+
+const JOB_PRESETS = [
+  { label:"Data Analyst",    query:"Data Analyst",                          icon:"📊" },
+  { label:"Systems Analyst", query:"Systems Analyst",                       icon:"🖥️" },
+  { label:"BI Developer",    query:"Business Intelligence Developer Power BI", icon:"📈" },
+  { label:"Health IT",       query:"Health IT Data Analyst",                icon:"🏥" },
+  { label:"AI/ML Analyst",   query:"AI Data Analyst Machine Learning",      icon:"🤖" },
+  { label:"Sr. Analyst",     query:"Senior Data Analyst",                   icon:"⭐" },
+];
+
+const loadJobs   = () => { try { return JSON.parse(localStorage.getItem("jobs_applied")||"[]"); } catch { return []; }};
+const saveJobs   = j  => { try { localStorage.setItem("jobs_applied",JSON.stringify(j)); } catch {} };
+const loadResume = () => { try { return localStorage.getItem("master_resume")||RESUME; } catch { return RESUME; }};
+const saveResumeFn = r => { try { localStorage.setItem("master_resume",r); } catch {} };
+
+const STATUS_COLORS_J = { Saved:"#c084fc", Applied:"#38bdf8", Interview:"#fbbf24", Offer:"#00ff88", Rejected:"#ff4444" };
+const STATUSES_J = ["Saved","Applied","Interview","Offer","Rejected"];
+
+function JobsTab() {
+  const [section, setSection]       = useState("SEARCH");
+  const [jobs, setJobs]             = useState(loadJobs());
+  const [resume, setResume]         = useState(loadResume());
+  const [editingResume, setEditingResume] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLocation, setSearchLocation] = useState("United States");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedJob, setSelectedJob] = useState(null);
+
+  // AI state
+  const [aiResult, setAiResult]   = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMode, setAiMode]       = useState("SCORE");
+
+  const C = "#c084fc";
+  const inputStyle  = { width:"100%", background:"#0a1220", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
+  const labelStyle  = { fontSize:10, color:"#3a5070", fontFamily:"'Inter',sans-serif", marginBottom:4, display:"block" };
+
+  const searchJobs = async (query) => {
+    const q = query || searchQuery;
+    if (!q) return;
+    setSearchLoading(true); setSearchResults([]); setSelectedJob(null); setAiResult("");
+    try {
+      const params = new URLSearchParams({ query: q, location: searchLocation });
+      const r = await fetch(`/api/jobs?${params}`);
+      const d = await r.json();
+      setSearchResults(d.data || []);
+    } catch { setSearchResults([]); }
+    setSearchLoading(false);
+  };
+
+  const runAI = async (mode, job) => {
+    const j = job || selectedJob;
+    if (!j) return;
+    setAiLoading(true); setAiMode(mode); setAiResult("");
+    const desc = j.job_description || j.job_title;
+    const prompts = {
+      SCORE:  `Analyze how well this resume matches the job. Give a match score out of 100, list the top 5 matching skills, list the top 3 gaps, and give 3 specific recommendations. Be concise.\n\nJOB: ${j.job_title} at ${j.employer_name}\nDESCRIPTION: ${desc?.slice(0,2000)}\n\nRESUME:\n${resume}`,
+      RESUME: `Tailor this resume for the job below. Keep real experience but optimize language and keywords for ATS. Output only the tailored resume text.\n\nJOB: ${j.job_title} at ${j.employer_name}\nDESCRIPTION: ${desc?.slice(0,2000)}\n\nMASTER RESUME:\n${resume}`,
+      COVER:  `Write a compelling 3-paragraph cover letter for ${NAME} (Tris) applying to this job. Be specific and professional.\n\nJOB: ${j.job_title} at ${j.employer_name}\nDESCRIPTION: ${desc?.slice(0,1500)}\n\nRESUME:\n${resume}`,
+    };
+    try {
+      const res = await fetch('/api/claude', {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1200, system:"You are an expert career coach and resume writer.", messages:[{role:"user",content:prompts[mode]}] }),
+      });
+      const data = await res.json();
+      setAiResult(data.content?.map(b=>b.text||"").join("")||"No response.");
+    } catch { setAiResult("Connection error. Try again."); }
+    setAiLoading(false);
+  };
+
+  const saveToTracker = (job) => {
+    const updated = [...jobs, { id:Date.now(), title:job.job_title, company:job.employer_name, status:"Saved", url:job.job_apply_link||"", date:new Date().toLocaleDateString(), notes:"" }];
+    setJobs(updated); saveJobs(updated);
+  };
+
+  const updateStatus = (id, status) => { const u=jobs.map(j=>j.id===id?{...j,status}:j); setJobs(u); saveJobs(u); };
+  const deleteJob    = (id)         => { const u=jobs.filter(j=>j.id!==id); setJobs(u); saveJobs(u); };
+  const counts = STATUSES_J.reduce((acc,s)=>({...acc,[s]:jobs.filter(j=>j.status===s).length}),{});
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#010308",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
+
+      {/* Header */}
+      <div style={{flexShrink:0,padding:"14px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#0c0818)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:4,color:"#c084fc60",fontFamily:"'Orbitron',monospace",marginBottom:2}}>💼 JOBS MODULE</div>
+          <div style={{fontSize:20,fontWeight:"900",letterSpacing:3,color:"#c084fc",fontFamily:"'Orbitron',monospace",textShadow:"0 0 20px #c084fc40"}}>CAREER COMMAND</div>
+        </div>
+        <div style={{display:"flex",gap:20}}>
+          {[{label:"TRACKED",val:jobs.length},{label:"APPLIED",val:counts.Applied||0},{label:"INTERVIEWS",val:counts.Interview||0},{label:"OFFERS",val:counts.Offer||0}].map(({label,val})=>(
+            <div key={label} style={{textAlign:"center"}}>
+              <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:2}}>{label}</div>
+              <div style={{fontSize:18,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace"}}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section tabs */}
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+        {["SEARCH","TRACKER","RESUME"].map(s=>(
+          <button key={s} onClick={()=>setSection(s)} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?"#c084fc10":"transparent",border:"none",borderBottom:section===s?"2px solid #c084fc":"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+
+        {/* ── SEARCH ── */}
+        {section==="SEARCH" && (
+          <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+
+            {/* Left: search + results */}
+            <div style={{width:"45%",display:"flex",flexDirection:"column",borderRight:"1px solid #0a1828",overflow:"hidden"}}>
+              {/* Search bar */}
+              <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&searchJobs()} placeholder="Job title, keywords..." style={{...inputStyle,flex:1}}/>
+                  <input value={searchLocation} onChange={e=>setSearchLocation(e.target.value)} placeholder="Location" style={{...inputStyle,width:130}}/>
+                  <button onClick={()=>searchJobs()} disabled={searchLoading||!searchQuery} style={{padding:"8px 14px",background:searchLoading||!searchQuery?"#0a1220":"#c084fc15",border:`1px solid ${searchLoading||!searchQuery?"#1a2a40":"#c084fc40"}`,borderRadius:3,color:searchLoading||!searchQuery?"#2a3a5a":C,cursor:searchLoading||!searchQuery?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,whiteSpace:"nowrap",transition:"all 0.2s"}}>
+                    {searchLoading?"···":"🔍 SEARCH"}
+                  </button>
+                </div>
+                {/* Quick presets */}
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {JOB_PRESETS.map(p=>(
+                    <button key={p.label} onClick={()=>{setSearchQuery(p.query);searchJobs(p.query);}} style={{padding:"4px 10px",background:"#0a1220",border:"1px solid #1a2a40",borderRadius:20,color:"#4a6080",fontSize:10,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all 0.2s",display:"flex",alignItems:"center",gap:4}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor="#c084fc40";e.currentTarget.style.color=C;}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a2a40";e.currentTarget.style.color="#4a6080";}}>
+                      {p.icon} {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Results */}
+              <div style={{flex:1,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+                {searchLoading && <div style={{padding:30,textAlign:"center",color:C,letterSpacing:4,fontSize:13,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>SEARCHING...</div>}
+                {!searchLoading && searchResults.length===0 && (
+                  <div style={{padding:30,textAlign:"center",color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>
+                    {searchQuery?"No results found. Try different keywords.":"Choose a preset or search for a role above."}
+                  </div>
+                )}
+                {searchResults.map((job,i)=>{
+                  const isSelected = selectedJob?.job_id===job.job_id;
+                  return (
+                    <div key={job.job_id||i} onClick={()=>{setSelectedJob(job);setAiResult("");}}
+                      style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:isSelected?"#c084fc0a":"transparent",borderLeft:`3px solid ${isSelected?C:"transparent"}`}}
+                      onMouseEnter={e=>{if(!isSelected){e.currentTarget.style.background="#0a1220";}}}
+                      onMouseLeave={e=>{if(!isSelected){e.currentTarget.style.background="transparent";}}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
+                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.3}}>{job.job_title}</div>
+                        {job.job_is_remote&&<span style={{fontSize:8,color:"#00ff88",background:"#00ff8810",border:"1px solid #00ff8825",padding:"2px 6px",borderRadius:10,whiteSpace:"nowrap",fontFamily:"'Orbitron',monospace",flexShrink:0}}>REMOTE</span>}
+                      </div>
+                      <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",marginBottom:4}}>{job.employer_name}</div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                        {job.job_city&&<span style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{job.job_city}{job.job_state?`, ${job.job_state}`:""}</span>}
+                        {job.job_employment_type&&<span style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>· {job.job_employment_type}</span>}
+                        {job.job_min_salary&&<span style={{fontSize:10,color:"#fbbf24",fontFamily:"'Orbitron',monospace"}}>· ${(job.job_min_salary/1000).toFixed(0)}K{job.job_max_salary?`-$${(job.job_max_salary/1000).toFixed(0)}K`:""}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: job detail + AI */}
+            <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+              {!selectedJob ? (
+                <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:"#1a2a4a",fontFamily:"'Inter',sans-serif",fontSize:13,textAlign:"center",padding:20}}>
+                  <div>
+                    <div style={{fontSize:32,marginBottom:12}}>💼</div>
+                    <div style={{color:"#2a3a55"}}>Select a job from the list to see details<br/>and generate your tailored application</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+                  {/* Job detail header */}
+                  <div style={{flexShrink:0,padding:"14px 16px",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                      <div>
+                        <div style={{fontSize:15,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600",marginBottom:3}}>{selectedJob.job_title}</div>
+                        <div style={{fontSize:12,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{selectedJob.employer_name}{selectedJob.job_city?` · ${selectedJob.job_city}`:""}</div>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <button onClick={()=>saveToTracker(selectedJob)} style={{padding:"6px 12px",background:"#c084fc15",border:"1px solid #c084fc40",borderRadius:3,color:C,fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>+ TRACK</button>
+                        {selectedJob.job_apply_link&&<a href={selectedJob.job_apply_link} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:"#00ff8815",border:"1px solid #00ff8840",borderRadius:3,color:"#00ff88",fontSize:9,textDecoration:"none",fontFamily:"'Orbitron',monospace",letterSpacing:1,display:"flex",alignItems:"center"}}>APPLY →</a>}
+                      </div>
+                    </div>
+                    {/* AI action buttons */}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                      {[
+                        {mode:"SCORE",  label:"📊 SCORE MY FIT",    color:"#38bdf8"},
+                        {mode:"RESUME", label:"📄 TAILOR RESUME",   color:C},
+                        {mode:"COVER",  label:"✉️ COVER LETTER",    color:"#00ff88"},
+                      ].map(({mode,label,color})=>(
+                        <button key={mode} onClick={()=>runAI(mode)} disabled={aiLoading} style={{padding:"8px",background:aiLoading?"#0a1220":`${color}12`,border:`1px solid ${aiLoading?"#1a2a40":color+"35"}`,borderRadius:3,color:aiLoading?"#2a3a5a":color,fontSize:10,cursor:aiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1,transition:"all 0.2s"}}>
+                          {aiLoading&&aiMode===mode?"···":label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* AI result or job description */}
+                  <div style={{flex:1,overflowY:"auto",padding:14,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+                    {aiLoading ? (
+                      <div style={{textAlign:"center",padding:30,color:C,letterSpacing:4,fontSize:14,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>···</div>
+                    ) : aiResult ? (
+                      <div>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                          <div style={{fontSize:9,color:aiMode==="SCORE"?"#38bdf8":aiMode==="RESUME"?C:"#00ff88",letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>
+                            {aiMode==="SCORE"?"📊 FIT SCORE":aiMode==="RESUME"?"📄 TAILORED RESUME":"✉️ COVER LETTER"}
+                          </div>
+                          <div style={{display:"flex",gap:6}}>
+                            <button onClick={()=>navigator.clipboard?.writeText(aiResult)} style={{fontSize:9,color:"#3a5070",background:"#0d1828",border:"1px solid #1a2a40",borderRadius:2,cursor:"pointer",padding:"3px 10px",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>COPY</button>
+                            <button onClick={()=>setAiResult("")} style={{fontSize:9,color:"#3a5070",background:"#0d1828",border:"1px solid #1a2a40",borderRadius:2,cursor:"pointer",padding:"3px 10px",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>CLEAR</button>
+                          </div>
+                        </div>
+                        <div style={{fontSize:13,color:"#b0c4d8",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>{aiResult}</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{fontSize:9,color:"#2a3a55",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>JOB DESCRIPTION</div>
+                        <div style={{fontSize:12,color:"#7a8a9a",lineHeight:1.8,fontFamily:"'Inter',sans-serif",whiteSpace:"pre-wrap"}}>
+                          {selectedJob.job_description?.slice(0,2000)||"No description available."}
+                          {selectedJob.job_description?.length>2000&&"..."}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── TRACKER ── */}
+        {section==="TRACKER" && (
+          <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
+              {STATUSES_J.map(s=>(
+                <div key={s} style={{background:"#0a1220",border:`1px solid ${STATUS_COLORS_J[s]}25`,borderRadius:3,padding:"10px 8px",textAlign:"center"}}>
+                  <div style={{fontSize:20,fontWeight:"bold",color:STATUS_COLORS_J[s],fontFamily:"'Orbitron',monospace"}}>{counts[s]||0}</div>
+                  <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>{s}</div>
+                </div>
+              ))}
+            </div>
+            {jobs.length===0 && <div style={{textAlign:"center",padding:40,color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No jobs tracked yet. Search and click + TRACK on jobs you're interested in.</div>}
+            {jobs.map(j=>(
+              <div key={j.id} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:8,transition:"border-color 0.2s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#c084fc25"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#0d2040"}>
+                <div style={{display:"flex",alignItems:"center",gap:12,flex:1,minWidth:0}}>
+                  <div style={{width:4,height:40,borderRadius:2,background:STATUS_COLORS_J[j.status]||"#555",boxShadow:`0 0 8px ${STATUS_COLORS_J[j.status]||"#555"}60`,flexShrink:0}}/>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:14,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",marginBottom:2}}>{j.title}</div>
+                    <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{j.company}{j.date?` · ${j.date}`:""}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  {j.url&&<a href={j.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:C,textDecoration:"none",border:"1px solid #c084fc30",padding:"3px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>APPLY</a>}
+                  <select value={j.status} onChange={e=>updateStatus(j.id,e.target.value)} style={{background:"#050d18",border:`1px solid ${STATUS_COLORS_J[j.status]||"#333"}40`,borderRadius:2,color:STATUS_COLORS_J[j.status]||"#aaa",fontSize:10,cursor:"pointer",padding:"4px 6px",fontFamily:"'Orbitron',monospace",outline:"none"}}>
+                    {STATUSES_J.map(s=><option key={s} style={{background:"#050d18"}}>{s}</option>)}
+                  </select>
+                  <button onClick={()=>deleteJob(j.id)} style={{background:"#ff444410",border:"1px solid #ff444430",borderRadius:2,color:"#ff4444",fontSize:10,cursor:"pointer",padding:"4px 8px",fontFamily:"'Orbitron',monospace"}}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── RESUME ── */}
+        {section==="RESUME" && (
+          <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div>
+                <div style={{fontSize:9,color:"#c084fc60",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:2}}>MASTER RESUME</div>
+                <div style={{fontSize:13,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>AI uses this to tailor every resume and cover letter automatically.</div>
+              </div>
+              <button onClick={()=>setEditingResume(e=>!e)} style={{padding:"8px 16px",background:"#c084fc15",border:"1px solid #c084fc40",borderRadius:3,color:C,fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>
+                {editingResume?"✓ DONE":"✏️ EDIT"}
+              </button>
+            </div>
+            {editingResume ? (
+              <textarea value={resume} onChange={e=>{setResume(e.target.value);saveResumeFn(e.target.value);}} rows={24}
+                style={{...inputStyle,resize:"vertical",lineHeight:1.7,fontSize:12}}/>
+            ) : (
+              <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:16,fontSize:12,color:"#8a9ab0",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>
+                {resume}
+              </div>
+            )}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [time, setTime]           = useState(new Date());
@@ -1263,7 +1582,7 @@ export default function App() {
       )}
 
       {activeTab==="FINANCE" && <FinanceTab />}
-      {activeTab==="JOBS" && <ComingSoon tab="JOBS" color="#c084fc" icon="💼" features={["Job Finder","Resume Auto-Tailor","Application Tracker","Cover Letter AI"]}/>}
+      {activeTab==="JOBS" && <JobsTab />}
       {activeTab==="HEALTH" && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
       {activeTab==="TRAVEL" && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
 
