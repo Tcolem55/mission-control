@@ -1380,6 +1380,166 @@ function JobsTab() {
 }
 
 
+// ── Top Picks Section ────────────────────────────────────────────────────────
+function TopPicksSection({ games, gamesLoading, C }) {
+  const [picks, setPicks]     = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  const generatePicks = async () => {
+    if (!games.length) return;
+    setLoading(true); setPicks(null);
+
+    // Build game summary for AI
+    const gameSummary = games.slice(0,8).map(g => {
+      const away = g.teams?.away;
+      const home = g.teams?.home;
+      return `${away?.team?.name} (SP: ${away?.probablePitcher?.fullName||"TBD"}) @ ${home?.team?.name} (SP: ${home?.probablePitcher?.fullName||"TBD"})`;
+    }).join("\n");
+
+    const prompt = `You are an elite baseball prop betting analyst. Based on today's MLB matchups, give me your TOP PICKS for each category. Be specific with player names and reasoning.
+
+TODAY'S GAMES:
+${gameSummary}
+
+Respond ONLY with valid JSON in this exact format, no markdown, no extra text:
+{
+  "homeRuns": [
+    {"rank":1,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+150","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":2,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+200","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":3,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+180","reason":"Brief reason","confidence":"MED"},
+    {"rank":4,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+220","reason":"Brief reason","confidence":"MED"},
+    {"rank":5,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+175","reason":"Brief reason","confidence":"MED"}
+  ],
+  "hits": [
+    {"rank":1,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-120","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":2,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-110","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":3,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-115","reason":"Brief reason","confidence":"MED"},
+    {"rank":4,"player":"Player Name","team":"Team","line":"0.5","pick":"OVER","odds":"-180","reason":"Brief reason","confidence":"MED"},
+    {"rank":5,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-105","reason":"Brief reason","confidence":"MED"}
+  ],
+  "totalBases": [
+    {"rank":1,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-130","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":2,"player":"Player Name","team":"Team","line":"2.5","pick":"OVER","odds":"+110","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":3,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-125","reason":"Brief reason","confidence":"MED"},
+    {"rank":4,"player":"Player Name","team":"Team","line":"2.5","pick":"OVER","odds":"+105","reason":"Brief reason","confidence":"MED"},
+    {"rank":5,"player":"Player Name","team":"Team","line":"1.5","pick":"OVER","odds":"-115","reason":"Brief reason","confidence":"MED"}
+  ],
+  "doubles": [
+    {"rank":1,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+220","reason":"Brief reason","confidence":"MED"},
+    {"rank":2,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+250","reason":"Brief reason","confidence":"MED"},
+    {"rank":3,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+230","reason":"Brief reason","confidence":"MED"},
+    {"rank":4,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+260","reason":"Brief reason","confidence":"LOW"},
+    {"rank":5,"player":"Player Name","team":"Team","matchup":"vs Pitcher","odds":"+210","reason":"Brief reason","confidence":"LOW"}
+  ],
+  "strikeouts": [
+    {"rank":1,"player":"Player Name","team":"Team","line":"6.5","pick":"OVER","odds":"-115","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":2,"player":"Player Name","team":"Team","line":"5.5","pick":"OVER","odds":"-130","reason":"Brief reason","confidence":"HIGH"},
+    {"rank":3,"player":"Player Name","team":"Team","line":"7.5","pick":"OVER","odds":"+105","reason":"Brief reason","confidence":"MED"},
+    {"rank":4,"player":"Player Name","team":"Team","line":"5.5","pick":"OVER","odds":"-120","reason":"Brief reason","confidence":"MED"},
+    {"rank":5,"player":"Player Name","team":"Team","line":"6.5","pick":"OVER","odds":"-110","reason":"Brief reason","confidence":"MED"}
+  ]
+}`;
+
+    try {
+      const res = await fetch('/api/claude', {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514", max_tokens:1500,
+          system:"You are an expert MLB prop betting analyst. Always respond with valid JSON only, no markdown formatting.",
+          messages:[{role:"user",content:prompt}]
+        }),
+      });
+      const data = await res.json();
+      const text = data.content?.map(b=>b.text||"").join("")||"{}";
+      const cleaned = text.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(cleaned);
+      setPicks(parsed);
+      setGenerated(true);
+    } catch(e) {
+      console.error(e);
+      setPicks(null);
+    }
+    setLoading(false);
+  };
+
+  const CONF_COLORS = { HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35" };
+
+  const PickCard = ({ title, icon, color, items, type }) => (
+    <div style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
+      <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{icon} {title}</div>
+        <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>AI PICKS</div>
+      </div>
+      {(!items||items.length===0) && <div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks</div>}
+      {items?.map((p,i)=>(
+        <div key={i} style={{padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s"}}
+          onMouseEnter={e=>e.currentTarget.style.background=`${color}06`}
+          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+            <div style={{width:20,height:20,borderRadius:"50%",background:`${color}20`,border:`1px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{fontSize:9,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.rank}</span>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{p.player}</div>
+              <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.team} · {p.matchup||`${p.pick} ${p.line}`}</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:12,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.odds}</div>
+              <div style={{fontSize:8,color:CONF_COLORS[p.confidence]||"#555",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{p.confidence}</div>
+            </div>
+          </div>
+          <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.4,paddingLeft:28}}>{p.reason}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Generate button */}
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily Prop Picks</div>
+          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Based on today's matchups — HR, Hits, Total Bases, Doubles, Strikeouts</div>
+        </div>
+        <button onClick={generatePicks} disabled={loading||gamesLoading||!games.length}
+          style={{padding:"10px 20px",background:loading||gamesLoading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||gamesLoading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||gamesLoading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||gamesLoading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap"}}>
+          {loading?"ANALYZING···":generated?"🔄 REGENERATE":"⚾ GENERATE PICKS"}
+        </button>
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+        {loading && (
+          <div style={{padding:60,textAlign:"center"}}>
+            <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>ANALYZING TODAY'S MATCHUPS···</div>
+            <div style={{fontSize:11,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>AI is reviewing pitching matchups, recent form, and trends</div>
+          </div>
+        )}
+        {!loading && !picks && !gamesLoading && (
+          <div style={{padding:60,textAlign:"center"}}>
+            <div style={{fontSize:32,marginBottom:12}}>⚾</div>
+            <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:6}}>{games.length} games loaded for today</div>
+            <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Click GENERATE PICKS for AI-powered prop recommendations</div>
+          </div>
+        )}
+        {!loading && picks && (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <PickCard title="HOME RUNS"    icon="🏠" color="#f97316" items={picks.homeRuns}   type="hr"/>
+            <PickCard title="HITS"         icon="🎯" color="#38bdf8" items={picks.hits}       type="hits"/>
+            <PickCard title="TOTAL BASES"  icon="💥" color="#c084fc" items={picks.totalBases} type="tb"/>
+            <PickCard title="DOUBLES"      icon="⚡" color="#fbbf24" items={picks.doubles}    type="2b"/>
+            <div style={{gridColumn:"1/-1"}}>
+              <PickCard title="PITCHER STRIKEOUTS" icon="🔥" color="#00ff88" items={picks.strikeouts} type="k"/>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Sports Tab ────────────────────────────────────────────────────────────────
 function SportsTab() {
   const [section, setSection]       = useState("TODAY");
@@ -1658,40 +1818,7 @@ Be specific, concise, and analytical. Format clearly.`;
 
         {/* ── TOP PLAYERS ── */}
         {section==="TOP PLAYERS" && (
-          <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
-            {topLoading && <div style={{padding:30,textAlign:"center",color:C,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING LEADERS...</div>}
-            {!topLoading && (
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
-                {[
-                  {title:"🏠 HOME RUN LEADERS", key:"hr",  color:"#f97316", stat:"HR",  players:topPlayers.hr},
-                  {title:"🎯 HITS LEADERS",      key:"hits",color:"#38bdf8", stat:"H",   players:topPlayers.hits},
-                  {title:"💥 TOTAL BASES",       key:"tb",  color:"#c084fc", stat:"TB",  players:topPlayers.tb},
-                ].map(({title,color,stat,players})=>(
-                  <div key={stat} style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
-                    <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`}}>
-                      <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{title}</div>
-                      <div style={{fontSize:9,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginTop:2}}>2025 Season Leaders</div>
-                    </div>
-                    {players.length===0 && <div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No data</div>}
-                    {players.map((p,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s"}}
-                        onMouseEnter={e=>e.currentTarget.style.background=`${color}08`}
-                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                        <div style={{width:22,height:22,borderRadius:"50%",background:`${color}20`,border:`1px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                          <span style={{fontSize:10,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
-                        </div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:12,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.person?.fullName||"—"}</div>
-                          <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{p.team?.name||""}</div>
-                        </div>
-                        <div style={{fontSize:18,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <TopPicksSection games={games} gamesLoading={gamesLoading} C={C}/>
         )}
 
       </div>
