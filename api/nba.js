@@ -1,194 +1,198 @@
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).end();
 
-  const { type, teamId, athleteId, gameId } = req.query;
+  const { type, teamId, athleteId, gameId, playerName, season } = req.query;
+  const BDL_KEY = process.env.BALLDONTLIE_API_KEY;
+  const BDL = 'https://api.balldontlie.io/v1';
+  const ESPN = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 
   try {
 
-    // ── Today's NBA scoreboard with team IDs ──────────────────────────────────
+    // ── Today's scoreboard (ESPN) ─────────────────────────────────────────────
     if (type === 'scoreboard') {
       const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
-      const r = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today}`
-      );
+      const r = await fetch(`${ESPN}/scoreboard?dates=${today}`);
       return res.status(200).json(await r.json());
     }
 
-    // ── Active roster for a team ──────────────────────────────────────────────
+    // ── Active roster (ESPN) ──────────────────────────────────────────────────
     if (type === 'roster' && teamId) {
-      const r = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`
-      );
+      const r = await fetch(`${ESPN}/teams/${teamId}/roster`);
       const d = await r.json();
-      // Extract clean roster with player IDs and names
       const athletes = d.athletes || [];
       const roster = athletes.flatMap(group =>
         (group.items || [group]).map(p => ({
-          id: p.id,
-          name: p.fullName || p.displayName,
-          position: p.position?.abbreviation,
-          jersey: p.jersey,
-          status: p.status?.type || 'active',
+          id:           p.id,
+          name:         p.fullName || p.displayName,
+          position:     p.position?.abbreviation,
+          jersey:       p.jersey,
           injuryStatus: p.injuries?.[0]?.status || null,
-          injuryDetail: p.injuries?.[0]?.longComment || null,
+          injuryDetail: p.injuries?.[0]?.shortComment || null,
         }))
       ).filter(p => p.name);
       return res.status(200).json({ roster, teamId });
     }
 
-    // ── Player recent game log (last 10 games) ────────────────────────────────
-    if (type === 'gamelog' && athleteId) {
-      const r = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/athletes/${athleteId}/gamelog?season=2025`
-      );
-      const d = await r.json();
-      // Get last 10 games
-      const categories = d.categories || [];
-      const events = d.events || {};
-      const labels = categories.map(c => c.abbreviation || c.name);
-      const recentGames = [];
-      const eventKeys = Object.keys(events).slice(-10);
-      for (const key of eventKeys) {
-        const event = events[key];
-        const stats = event?.stats || [];
-        const gameStats = {};
-        labels.forEach((label, i) => { gameStats[label] = stats[i]; });
-        recentGames.push({
-          date: event?.gameDate || key,
-          opponent: event?.opponent?.displayName || '?',
-          home: event?.home,
-          stats: gameStats,
-        });
-      }
-      return res.status(200).json({ playerId: athleteId, labels, recentGames });
-    }
-
-    // ── Team injury report ────────────────────────────────────────────────────
+    // ── Injury report (ESPN) ──────────────────────────────────────────────────
     if (type === 'injuries' && teamId) {
-      const r = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/injuries`
-      );
+      const r = await fetch(`${ESPN}/teams/${teamId}/injuries`);
       const d = await r.json();
-      const injuries = (d.injuries || []).map(inj => ({
-        player: inj.athlete?.displayName,
-        status: inj.status,
-        detail: inj.longComment || inj.shortComment || '',
-        returnDate: inj.details?.returnDate || null,
+      const injuries = (d.injuries || []).map(i => ({
+        player:     i.athlete?.displayName,
+        status:     i.status,
+        detail:     i.longComment || i.shortComment || '',
+        returnDate: i.details?.returnDate || null,
       }));
       return res.status(200).json({ injuries });
     }
 
-    // ── Full game context — rosters + injuries for both teams ─────────────────
-    if (type === 'gamecontext' && gameId) {
-      // Get game details
-      const gameRes = await fetch(
-        `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${gameId}`
-      );
-      const gameData = await gameRes.json();
-
-      const competitors = gameData.header?.competitions?.[0]?.competitors || [];
-      const awayTeam = competitors.find(c => c.homeAway === 'away');
-      const homeTeam = competitors.find(c => c.homeAway === 'home');
-      const awayTeamId = awayTeam?.team?.id;
-      const homeTeamId = homeTeam?.team?.id;
-
-      const result = {
-        awayTeam: awayTeam?.team?.displayName,
-        homeTeam: homeTeam?.team?.displayName,
-        awayTeamId,
-        homeTeamId,
-        awayRoster: [],
-        homeRoster: [],
-        awayInjuries: [],
-        homeInjuries: [],
-        boxscore: null,
-      };
-
-      // Fetch rosters and injuries in parallel
-      const [awayRosterRes, homeRosterRes, awayInjRes, homeInjRes] = await Promise.all([
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${awayTeamId}/roster`),
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${homeTeamId}/roster`),
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${awayTeamId}/injuries`),
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${homeTeamId}/injuries`),
-      ]);
-
-      const extractRoster = (d) => {
-        const athletes = d.athletes || [];
-        return athletes.flatMap(group =>
-          (group.items || [group]).map(p => ({
-            id: p.id,
-            name: p.fullName || p.displayName,
-            position: p.position?.abbreviation,
-            status: p.status?.type || 'active',
-            injuryStatus: p.injuries?.[0]?.status || null,
-          }))
-        ).filter(p => p.name);
-      };
-
-      const extractInjuries = (d) =>
-        (d.injuries || []).map(i => ({
-          player: i.athlete?.displayName,
-          status: i.status,
-          detail: i.shortComment || '',
-        }));
-
-      const [awayRosterData, homeRosterData, awayInjData, homeInjData] = await Promise.all([
-        awayRosterRes.json(), homeRosterRes.json(), awayInjRes.json(), homeInjRes.json()
-      ]);
-
-      result.awayRoster = extractRoster(awayRosterData);
-      result.homeRoster = extractRoster(homeRosterData);
-      result.awayInjuries = extractInjuries(awayInjData);
-      result.homeInjuries = extractInjuries(homeInjData);
-
-      // Try to get boxscore if game has started
-      try {
-        if (gameData.boxscore?.players) {
-          result.boxscore = gameData.boxscore.players;
-        }
-      } catch {}
-
-      return res.status(200).json(result);
+    // ── Search player by name (BallDontLie) ───────────────────────────────────
+    if (type === 'searchplayer' && playerName) {
+      const r = await fetch(`${BDL}/players?search=${encodeURIComponent(playerName)}&per_page=5`, {
+        headers: { 'Authorization': BDL_KEY }
+      });
+      const d = await r.json();
+      return res.status(200).json(d);
     }
 
-    // ── Batch player game logs ────────────────────────────────────────────────
-    if (type === 'batchlogs') {
-      const ids = (athleteId || '').split(',').filter(Boolean).slice(0, 10);
+    // ── Player season averages (BallDontLie) ──────────────────────────────────
+    if (type === 'seasonavg') {
+      const ids = (athleteId || '').split(',').filter(Boolean).slice(0, 20);
+      const season_yr = season || new Date().getFullYear();
+      const r = await fetch(
+        `${BDL}/season_averages?season=${season_yr}&player_ids[]=${ids.join('&player_ids[]=')}`,
+        { headers: { 'Authorization': BDL_KEY } }
+      );
+      const d = await r.json();
+      return res.status(200).json(d);
+    }
+
+    // ── Player last N games stats (BallDontLie) ───────────────────────────────
+    if (type === 'recentgames' && athleteId) {
+      const ids = athleteId.split(',').filter(Boolean).slice(0, 10);
+      const season_yr = new Date().getFullYear();
+
+      // Get last 10 games for each player
       const results = {};
       await Promise.all(ids.map(async id => {
         try {
           const r = await fetch(
-            `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/athletes/${id}/gamelog?season=2025`
+            `${BDL}/stats?player_ids[]=${id}&seasons[]=${season_yr}&per_page=10&sort=date&order=desc`,
+            { headers: { 'Authorization': BDL_KEY } }
           );
           const d = await r.json();
-          const categories = d.categories || [];
-          const events = d.events || {};
-          const labels = categories.map(c => c.abbreviation || c.name);
-          const eventKeys = Object.keys(events).slice(-10);
-          const games = eventKeys.map(key => {
-            const event = events[key];
-            const stats = event?.stats || [];
-            const gs = {};
-            labels.forEach((label, i) => { gs[label] = stats[i]; });
-            return gs;
-          }).filter(g => Object.keys(g).length > 0);
-
+          const games = d.data || [];
           if (games.length > 0) {
-            // Calculate averages over last 10 games
-            const avg = (field) => {
+            const avg = field => {
               const vals = games.map(g => parseFloat(g[field]) || 0);
-              return vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '0';
+              return vals.length ? (vals.reduce((a,b) => a+b,0) / vals.length).toFixed(1) : '0';
             };
             results[id] = {
               gamesPlayed: games.length,
-              avgPTS: avg('PTS'), avgREB: avg('REB'), avgAST: avg('AST'),
-              avg3PM: avg('3PM'), avgSTL: avg('STL'), avgBLK: avg('BLK'),
-              avgTO: avg('TO'), avgMIN: avg('MIN'),
+              avgPTS: avg('pts'),
+              avgREB: avg('reb'),
+              avgAST: avg('ast'),
+              avg3PM: avg('fg3m'),
+              avgSTL: avg('stl'),
+              avgBLK: avg('blk'),
+              avgTO:  avg('turnover'),
+              avgMIN: avg('min'),
+              recentGames: games.slice(0,5).map(g => ({
+                date: g.game?.date?.split('T')[0],
+                opponent: g.game?.home_team_id === parseInt(id) ? g.game?.visitor_team?.full_name : g.game?.home_team?.full_name,
+                pts: g.pts, reb: g.reb, ast: g.ast,
+                fg3m: g.fg3m, stl: g.stl, blk: g.blk, min: g.min,
+              })),
             };
           }
         } catch {}
       }));
       return res.status(200).json(results);
+    }
+
+    // ── Batch player lookup — ESPN id to BallDontLie id mapping ──────────────
+    if (type === 'batchlogs' && athleteId) {
+      const espnIds = athleteId.split(',').filter(Boolean).slice(0, 12);
+      // We need to search by name since ESPN and BDL use different IDs
+      // This endpoint expects names to be passed instead
+      return res.status(200).json({ message: 'Use playerrecentstats instead', espnIds });
+    }
+
+    // ── Get stats for players by name list (BallDontLie) ─────────────────────
+    if (type === 'playerrecentstats') {
+      const names = (playerName || '').split('|').filter(Boolean).slice(0, 15);
+      const season_yr = new Date().getFullYear();
+      const results = {};
+
+      await Promise.all(names.map(async name => {
+        try {
+          // Search for player
+          const searchRes = await fetch(
+            `${BDL}/players?search=${encodeURIComponent(name)}&per_page=3`,
+            { headers: { 'Authorization': BDL_KEY } }
+          );
+          const searchData = await searchRes.json();
+          const player = searchData.data?.[0];
+          if (!player) return;
+
+          // Get their recent games
+          const statsRes = await fetch(
+            `${BDL}/stats?player_ids[]=${player.id}&seasons[]=${season_yr}&per_page=10`,
+            { headers: { 'Authorization': BDL_KEY } }
+          );
+          const statsData = await statsRes.json();
+          const games = statsData.data || [];
+
+          if (games.length > 0) {
+            const avg = field => {
+              const vals = games.map(g => parseFloat(g[field]) || 0);
+              return vals.length ? (vals.reduce((a,b) => a+b,0) / vals.length).toFixed(1) : '0';
+            };
+            results[name] = {
+              bdlId: player.id,
+              fullName: `${player.first_name} ${player.last_name}`,
+              team: player.team?.full_name,
+              position: player.position,
+              gamesPlayed: games.length,
+              avgPTS: avg('pts'),
+              avgREB: avg('reb'),
+              avgAST: avg('ast'),
+              avg3PM: avg('fg3m'),
+              avgSTL: avg('stl'),
+              avgBLK: avg('blk'),
+              avgMIN: avg('min'),
+              last5: games.slice(0,5).map(g=>({
+                date: g.game?.date?.split('T')[0],
+                pts: g.pts, reb: g.reb, ast: g.ast,
+                fg3m: g.fg3m, min: g.min,
+              })),
+            };
+          }
+        } catch {}
+      }));
+      return res.status(200).json(results);
+    }
+
+    // ── League injuries (ESPN) ────────────────────────────────────────────────
+    if (type === 'leagueinjuries') {
+      const r = await fetch(`${ESPN}/injuries`);
+      const d = await r.json();
+      const injuries = (d.injuries || []).map(i => ({
+        player:   i.athlete?.displayName,
+        team:     i.team?.displayName,
+        teamAbbr: i.team?.abbreviation,
+        status:   i.status,
+        detail:   i.shortComment || '',
+      }));
+      return res.status(200).json({ injuries });
+    }
+
+    // ── Today's games with team info ──────────────────────────────────────────
+    if (type === 'todaygames') {
+      const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      const r = await fetch(`${ESPN}/scoreboard?dates=${today}`);
+      const d = await r.json();
+      return res.status(200).json(d);
     }
 
     return res.status(400).json({ error: 'Invalid type' });
