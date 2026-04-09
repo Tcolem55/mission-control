@@ -750,6 +750,317 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   );
 }
 
+// ── Coming Soon ───────────────────────────────────────────────────────────────
+function ComingSoon({ tab, color, icon, features }) {
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#010308",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,opacity:0.02,backgroundImage:"linear-gradient(#ffffff 1px,transparent 1px),linear-gradient(90deg,#ffffff 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
+      <div style={{textAlign:"center",zIndex:1,animation:"fadeUp 0.5s ease"}}>
+        <div style={{fontSize:40,marginBottom:16}}>{icon}</div>
+        <div style={{fontSize:20,fontWeight:"900",letterSpacing:4,color,fontFamily:"'Orbitron',monospace",marginBottom:8,textShadow:`0 0 30px ${color}40`}}>{tab} MODULE</div>
+        <div style={{fontSize:12,color:"#3a5070",letterSpacing:3,fontFamily:"'Inter',sans-serif",marginBottom:32}}>COMING SOON — UNDER CONSTRUCTION</div>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+          {features.map(f=>(
+            <div key={f} style={{padding:"8px 16px",background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{f}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Finance Tab ───────────────────────────────────────────────────────────────
+const loadBills = () => { try { return JSON.parse(localStorage.getItem("bills")||"[]"); } catch { return []; }};
+const saveBills = b => { try { localStorage.setItem("bills",JSON.stringify(b)); } catch {} };
+const loadSubs  = () => { try { return JSON.parse(localStorage.getItem("subs")||"[]"); } catch { return []; }};
+const saveSubs  = s => { try { localStorage.setItem("subs",JSON.stringify(s)); } catch {} };
+
+function FinanceTab() {
+  const [bills, setBills]   = useState(loadBills());
+  const [subs, setSubs]     = useState(loadSubs());
+  const [activeSection, setActiveSection] = useState("OVERVIEW");
+  const [showAddBill, setShowAddBill] = useState(false);
+  const [showAddSub, setShowAddSub]   = useState(false);
+  const [billForm, setBillForm] = useState({ name:"", amount:"", due:"", category:"Housing", autopay:false });
+  const [subForm, setSubForm]   = useState({ name:"", amount:"", cycle:"Monthly", category:"Entertainment" });
+
+  const BILL_CATS = ["Housing","Utilities","Insurance","Car","Loans","Other"];
+  const SUB_CATS  = ["Entertainment","Music","Software","Gaming","News","Fitness","Other"];
+  const C = "#38bdf8";
+
+  const totalBills    = bills.reduce((s,b)=>s+Number(b.amount),0);
+  const totalSubs     = subs.reduce((s,b)=>s+Number(b.amount),0);
+  const totalMonthly  = totalBills + totalSubs;
+  const totalAnnual   = totalMonthly * 12;
+
+  const addBill = () => {
+    if(!billForm.name||!billForm.amount) return;
+    const updated = [...bills, {...billForm, id:Date.now()}];
+    setBills(updated); saveBills(updated);
+    setBillForm({name:"",amount:"",due:"",category:"Housing",autopay:false});
+    setShowAddBill(false);
+  };
+
+  const addSub = () => {
+    if(!subForm.name||!subForm.amount) return;
+    const updated = [...subs, {...subForm, id:Date.now()}];
+    setSubs(updated); saveSubs(updated);
+    setSubForm({name:"",amount:"",cycle:"Monthly",category:"Entertainment"});
+    setShowAddSub(false);
+  };
+
+  const deleteBill = id => { const u=bills.filter(b=>b.id!==id); setBills(u); saveBills(u); };
+  const deleteSub  = id => { const u=subs.filter(s=>s.id!==id); setSubs(u); saveSubs(u); };
+
+  const sections = ["OVERVIEW","BILLS","SUBSCRIPTIONS"];
+
+  const inputStyle = { width:"100%", background:"#0a1220", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
+  const labelStyle = { fontSize:10, color:"#3a5070", fontFamily:"'Inter',sans-serif", marginBottom:4, display:"block" };
+  const selectStyle = { ...inputStyle, cursor:"pointer" };
+
+  // Group subs by category
+  const subsByCat = SUB_CATS.reduce((acc,cat)=>{
+    const items = subs.filter(s=>s.category===cat);
+    if(items.length) acc[cat]=items;
+    return acc;
+  },{});
+
+  // Bills due soon (within 7 days)
+  const today = new Date();
+  const dueSoon = bills.filter(b=>{
+    if(!b.due) return false;
+    const due = new Date(today.getFullYear(), today.getMonth(), Number(b.due));
+    const diff = (due-today)/(1000*60*60*24);
+    return diff>=0 && diff<=7;
+  });
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#010308",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
+      {/* Finance Header */}
+      <div style={{flexShrink:0,padding:"14px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#030c18)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:9,letterSpacing:4,color:"#38bdf860",fontFamily:"'Orbitron',monospace",marginBottom:2}}>💳 FINANCE MODULE</div>
+          <div style={{fontSize:20,fontWeight:"900",letterSpacing:3,color:"#38bdf8",fontFamily:"'Orbitron',monospace",textShadow:"0 0 20px #38bdf840"}}>FINANCIAL COMMAND</div>
+        </div>
+        {/* Summary stats */}
+        <div style={{display:"flex",gap:20}}>
+          {[
+            {label:"MONTHLY",val:`$${totalMonthly.toFixed(2)}`,color:"#38bdf8"},
+            {label:"ANNUAL",val:`$${totalAnnual.toFixed(0)}`,color:"#fbbf24"},
+            {label:"BILLS",val:bills.length,color:"#f472b6"},
+            {label:"SUBSCRIPTIONS",val:subs.length,color:"#c084fc"},
+          ].map(({label,val,color})=>(
+            <div key={label} style={{textAlign:"center"}}>
+              <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:2}}>{label}</div>
+              <div style={{fontSize:18,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section tabs */}
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+        {sections.map(s=>(
+          <button key={s} onClick={()=>setActiveSection(s)} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:activeSection===s?"#38bdf810":"transparent",border:"none",borderBottom:activeSection===s?"2px solid #38bdf8":"2px solid transparent",color:activeSection===s?"#38bdf8":"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+
+        {/* OVERVIEW */}
+        {activeSection==="OVERVIEW" && (
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {/* Alert for bills due soon */}
+            {dueSoon.length>0 && (
+              <div style={{background:"#fbbf2410",border:"1px solid #fbbf2430",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:18}}>⚠️</span>
+                <div>
+                  <div style={{fontSize:11,color:"#fbbf24",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:2}}>BILLS DUE SOON</div>
+                  <div style={{fontSize:13,color:"#c8a840",fontFamily:"'Inter',sans-serif"}}>{dueSoon.map(b=>b.name).join(", ")} — due within 7 days</div>
+                </div>
+              </div>
+            )}
+
+            {/* Monthly breakdown */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div style={{background:"linear-gradient(135deg,#0a1628,#060c18)",border:"1px solid #38bdf820",borderRadius:4,padding:16,position:"relative",overflow:"hidden"}}>
+                <HUDBrackets color="#38bdf8" size={10}/>
+                <div style={{fontSize:9,color:"#38bdf860",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8}}>BILLS</div>
+                <div style={{fontSize:28,fontWeight:"900",color:"#38bdf8",fontFamily:"'Orbitron',monospace",marginBottom:4}}>${totalBills.toFixed(2)}</div>
+                <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{bills.length} recurring bills/month</div>
+              </div>
+              <div style={{background:"linear-gradient(135deg,#0a1220,#060c14)",border:"1px solid #c084fc20",borderRadius:4,padding:16,position:"relative",overflow:"hidden"}}>
+                <HUDBrackets color="#c084fc" size={10}/>
+                <div style={{fontSize:9,color:"#c084fc60",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8}}>SUBSCRIPTIONS</div>
+                <div style={{fontSize:28,fontWeight:"900",color:"#c084fc",fontFamily:"'Orbitron',monospace",marginBottom:4}}>${totalSubs.toFixed(2)}</div>
+                <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{subs.length} active subscriptions/month</div>
+              </div>
+            </div>
+
+            {/* Spending bar */}
+            <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:16}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>Monthly Breakdown</span>
+                <span style={{fontSize:13,fontWeight:"bold",color:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>${totalMonthly.toFixed(2)}/mo</span>
+              </div>
+              <div style={{height:8,background:"#050d18",borderRadius:4,overflow:"hidden",display:"flex"}}>
+                {totalMonthly>0 && <>
+                  <div style={{width:`${(totalBills/totalMonthly)*100}%`,background:"#38bdf8",boxShadow:"0 0 8px #38bdf860",transition:"width 0.5s"}}/>
+                  <div style={{width:`${(totalSubs/totalMonthly)*100}%`,background:"#c084fc",boxShadow:"0 0 8px #c084fc60",transition:"width 0.5s"}}/>
+                </>}
+              </div>
+              <div style={{display:"flex",gap:16,marginTop:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:8,height:8,borderRadius:2,background:"#38bdf8"}}/><span style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>Bills</span></div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:8,height:8,borderRadius:2,background:"#c084fc"}}/><span style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>Subscriptions</span></div>
+              </div>
+            </div>
+
+            {/* Recent bills */}
+            {bills.length>0 && (
+              <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:16}}>
+                <div style={{fontSize:9,color:"#38bdf860",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:12}}>UPCOMING BILLS</div>
+                {bills.slice(0,5).map(b=>(
+                  <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #0d1a28"}}>
+                    <div>
+                      <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{b.name}</div>
+                      <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{b.category}{b.due?` · Due ${b.due}th`:""}{b.autopay?" · Autopay ✓":""}</div>
+                    </div>
+                    <div style={{fontSize:15,fontWeight:"bold",color:"#38bdf8",fontFamily:"'Orbitron',monospace"}}>${Number(b.amount).toFixed(2)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {bills.length===0 && subs.length===0 && (
+              <div style={{textAlign:"center",padding:40,color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>
+                No bills or subscriptions added yet.<br/>
+                <span style={{color:"#38bdf860"}}>Go to BILLS or SUBSCRIPTIONS to add them.</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* BILLS */}
+        {activeSection==="BILLS" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:13,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{bills.length} bills · <span style={{color:"#38bdf8",fontWeight:"600"}}>${totalBills.toFixed(2)}/mo</span></div>
+              <button onClick={()=>setShowAddBill(true)} style={{padding:"8px 16px",background:"#38bdf815",border:"1px solid #38bdf840",borderRadius:3,color:"#38bdf8",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>+ ADD BILL</button>
+            </div>
+
+            {showAddBill && (
+              <div style={{background:"#0a1628",border:"1px solid #38bdf825",borderRadius:4,padding:16,position:"relative"}}>
+                <HUDBrackets color="#38bdf8" size={10}/>
+                <div style={{fontSize:9,color:"#38bdf8",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:14}}>NEW BILL</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                  <div><label style={labelStyle}>BILL NAME</label><input value={billForm.name} onChange={e=>setBillForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Rent" style={inputStyle}/></div>
+                  <div><label style={labelStyle}>AMOUNT ($)</label><input type="number" value={billForm.amount} onChange={e=>setBillForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" style={inputStyle}/></div>
+                  <div><label style={labelStyle}>DUE DATE (day of month)</label><input type="number" value={billForm.due} onChange={e=>setBillForm(f=>({...f,due:e.target.value}))} placeholder="e.g. 15" style={inputStyle}/></div>
+                  <div><label style={labelStyle}>CATEGORY</label><select value={billForm.category} onChange={e=>setBillForm(f=>({...f,category:e.target.value}))} style={selectStyle}>{BILL_CATS.map(c=><option key={c}>{c}</option>)}</select></div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <input type="checkbox" checked={billForm.autopay} onChange={e=>setBillForm(f=>({...f,autopay:e.target.checked}))} style={{cursor:"pointer"}}/>
+                  <span style={{fontSize:12,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>Autopay enabled</span>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={addBill} style={{flex:1,padding:"10px",background:"#38bdf815",border:"1px solid #38bdf840",borderRadius:3,color:"#38bdf8",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>SAVE BILL</button>
+                  <button onClick={()=>setShowAddBill(false)} style={{padding:"10px 16px",background:"#ff444410",border:"1px solid #ff444430",borderRadius:3,color:"#ff4444",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace"}}>CANCEL</button>
+                </div>
+              </div>
+            )}
+
+            {bills.length===0 && !showAddBill && (
+              <div style={{textAlign:"center",padding:40,color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No bills added yet. Click + ADD BILL to get started.</div>
+            )}
+
+            {bills.map(b=>(
+              <div key={b.id} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"border-color 0.2s"}}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#38bdf830"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#0d2040"}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{width:4,height:36,borderRadius:2,background:"#38bdf8",boxShadow:"0 0 8px #38bdf860",flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:14,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",marginBottom:2}}>{b.name}</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{b.category}</span>
+                      {b.due&&<span style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>· Due {b.due}th</span>}
+                      {b.autopay&&<span style={{fontSize:10,color:"#00ff88",fontFamily:"'Inter',sans-serif"}}>· ✓ Autopay</span>}
+                    </div>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{fontSize:18,fontWeight:"bold",color:"#38bdf8",fontFamily:"'Orbitron',monospace"}}>${Number(b.amount).toFixed(2)}</div>
+                  <button onClick={()=>deleteBill(b.id)} style={{background:"#ff444410",border:"1px solid #ff444430",borderRadius:2,color:"#ff4444",fontSize:10,cursor:"pointer",padding:"4px 8px",fontFamily:"'Orbitron',monospace"}}>✕</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* SUBSCRIPTIONS */}
+        {activeSection==="SUBSCRIPTIONS" && (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:13,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{subs.length} subscriptions · <span style={{color:"#c084fc",fontWeight:"600"}}>${totalSubs.toFixed(2)}/mo</span></div>
+              <button onClick={()=>setShowAddSub(true)} style={{padding:"8px 16px",background:"#c084fc15",border:"1px solid #c084fc40",borderRadius:3,color:"#c084fc",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>+ ADD SUB</button>
+            </div>
+
+            {showAddSub && (
+              <div style={{background:"#0a1220",border:"1px solid #c084fc25",borderRadius:4,padding:16,position:"relative"}}>
+                <HUDBrackets color="#c084fc" size={10}/>
+                <div style={{fontSize:9,color:"#c084fc",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:14}}>NEW SUBSCRIPTION</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                  <div><label style={labelStyle}>SERVICE NAME</label><input value={subForm.name} onChange={e=>setSubForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Netflix" style={inputStyle}/></div>
+                  <div><label style={labelStyle}>AMOUNT ($)</label><input type="number" value={subForm.amount} onChange={e=>setSubForm(f=>({...f,amount:e.target.value}))} placeholder="0.00" style={inputStyle}/></div>
+                  <div><label style={labelStyle}>BILLING CYCLE</label><select value={subForm.cycle} onChange={e=>setSubForm(f=>({...f,cycle:e.target.value}))} style={selectStyle}>{["Monthly","Annual","Weekly"].map(c=><option key={c}>{c}</option>)}</select></div>
+                  <div><label style={labelStyle}>CATEGORY</label><select value={subForm.category} onChange={e=>setSubForm(f=>({...f,category:e.target.value}))} style={selectStyle}>{SUB_CATS.map(c=><option key={c}>{c}</option>)}</select></div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={addSub} style={{flex:1,padding:"10px",background:"#c084fc15",border:"1px solid #c084fc40",borderRadius:3,color:"#c084fc",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>SAVE SUB</button>
+                  <button onClick={()=>setShowAddSub(false)} style={{padding:"10px 16px",background:"#ff444410",border:"1px solid #ff444430",borderRadius:3,color:"#ff4444",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace"}}>CANCEL</button>
+                </div>
+              </div>
+            )}
+
+            {subs.length===0 && !showAddSub && (
+              <div style={{textAlign:"center",padding:40,color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No subscriptions added yet. Click + ADD SUB to get started.</div>
+            )}
+
+            {Object.entries(subsByCat).map(([cat,items])=>(
+              <div key={cat}>
+                <div style={{fontSize:9,color:"#c084fc60",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8,marginTop:4}}>{cat.toUpperCase()}</div>
+                {items.map(s=>(
+                  <div key={s.id} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,transition:"border-color 0.2s"}}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor="#c084fc30"}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor="#0d2040"}>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      <div style={{width:4,height:36,borderRadius:2,background:"#c084fc",boxShadow:"0 0 8px #c084fc60",flexShrink:0}}/>
+                      <div>
+                        <div style={{fontSize:14,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",marginBottom:2}}>{s.name}</div>
+                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{s.cycle}</div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      <div>
+                        <div style={{fontSize:16,fontWeight:"bold",color:"#c084fc",fontFamily:"'Orbitron',monospace",textAlign:"right"}}>${Number(s.amount).toFixed(2)}<span style={{fontSize:9,color:"#3a5070"}}>/mo</span></div>
+                        {s.cycle==="Annual"&&<div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",textAlign:"right"}}>${(Number(s.amount)*12).toFixed(2)}/yr</div>}
+                      </div>
+                      <button onClick={()=>deleteSub(s.id)} style={{background:"#ff444410",border:"1px solid #ff444430",borderRadius:2,color:"#ff4444",fontSize:10,cursor:"pointer",padding:"4px 8px",fontFamily:"'Orbitron',monospace"}}>✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [time, setTime]           = useState(new Date());
@@ -951,34 +1262,10 @@ export default function App() {
         </>
       )}
 
-      {activeTab!=="HOME" && (
-        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#010308",position:"relative",overflow:"hidden"}}>
-          {/* Grid texture */}
-          <div style={{position:"absolute",inset:0,opacity:0.02,backgroundImage:"linear-gradient(#ffffff 1px,transparent 1px),linear-gradient(90deg,#ffffff 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
-          {/* Coming soon content */}
-          <div style={{textAlign:"center",zIndex:1,animation:"fadeUp 0.5s ease"}}>
-            <div style={{fontSize:40,marginBottom:16}}>
-              {{FINANCE:"💳",JOBS:"💼",HEALTH:"🏋️",TRAVEL:"✈️"}[activeTab]}
-            </div>
-            <div style={{fontSize:20,fontWeight:"900",letterSpacing:4,color:{"FINANCE":"#38bdf8",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24"}[activeTab],fontFamily:"'Orbitron',monospace",marginBottom:8,textShadow:`0 0 30px ${{"FINANCE":"#38bdf840",JOBS:"#c084fc40",HEALTH:"#f472b640",TRAVEL:"#fbbf2440"}[activeTab]}`}}>
-              {activeTab} MODULE
-            </div>
-            <div style={{fontSize:12,color:"#3a5070",letterSpacing:3,fontFamily:"'Inter',sans-serif",marginBottom:32}}>
-              COMING SOON — UNDER CONSTRUCTION
-            </div>
-            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-              {{"FINANCE":["Bills Tracker","Subscription Manager","Budget Overview","Spending Alerts"],
-                "JOBS":["Job Finder","Resume Auto-Tailor","Application Tracker","Cover Letter AI"],
-                "HEALTH":["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"],
-                "TRAVEL":["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}[activeTab].map(feature=>(
-                <div key={feature} style={{padding:"8px 16px",background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>
-                  {feature}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {activeTab==="FINANCE" && <FinanceTab />}
+      {activeTab==="JOBS" && <ComingSoon tab="JOBS" color="#c084fc" icon="💼" features={["Job Finder","Resume Auto-Tailor","Application Tracker","Cover Letter AI"]}/>}
+      {activeTab==="HEALTH" && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
+      {activeTab==="TRAVEL" && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
 
       {/* Article Modal */}
       {selectedArticle&&(
