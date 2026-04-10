@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       const end = new Date().toISOString().split('T')[0];
       const start = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const r = await fetch(
-        `https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=byDateRange&group=hitting&startDate=${start}&endDate=${end}&season=2025`
+        `https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=byDateRange&group=hitting&startDate=${start}&endDate=${end}&season=2026`
       );
       data = await r.json();
     }
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     else if (type === 'pitcherstats' && playerId) {
       // Get pitcher last 5 starts
       const r = await fetch(
-        `https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=pitching&season=2025&limit=5`
+        `https://statsapi.mlb.com/api/v1/people/${playerId}/stats?stats=gameLog&group=pitching&season=2026&limit=5`
       );
       data = await r.json();
     }
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
 
     else if (type === 'standings') {
       const r = await fetch(
-        `https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=2025&hydrate=team`
+        `https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=2026&hydrate=team`
       );
       data = await r.json();
     }
