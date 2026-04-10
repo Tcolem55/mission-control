@@ -2470,6 +2470,206 @@ Respond ONLY with valid JSON, no markdown:
 }
 
 
+
+// ── HR Team Picker ─────────────────────────────────────────────────────────────
+const MLB_TEAMS = [
+  {id:109,name:"Arizona Diamondbacks",abbr:"ARI"},{id:144,name:"Atlanta Braves",abbr:"ATL"},
+  {id:110,name:"Baltimore Orioles",abbr:"BAL"},{id:111,name:"Boston Red Sox",abbr:"BOS"},
+  {id:112,name:"Chicago Cubs",abbr:"CHC"},{id:145,name:"Chicago White Sox",abbr:"CWS"},
+  {id:113,name:"Cincinnati Reds",abbr:"CIN"},{id:114,name:"Cleveland Guardians",abbr:"CLE"},
+  {id:115,name:"Colorado Rockies",abbr:"COL"},{id:116,name:"Detroit Tigers",abbr:"DET"},
+  {id:117,name:"Houston Astros",abbr:"HOU"},{id:118,name:"Kansas City Royals",abbr:"KC"},
+  {id:108,name:"Los Angeles Angels",abbr:"LAA"},{id:119,name:"Los Angeles Dodgers",abbr:"LAD"},
+  {id:146,name:"Miami Marlins",abbr:"MIA"},{id:158,name:"Milwaukee Brewers",abbr:"MIL"},
+  {id:142,name:"Minnesota Twins",abbr:"MIN"},{id:121,name:"New York Mets",abbr:"NYM"},
+  {id:147,name:"New York Yankees",abbr:"NYY"},{id:133,name:"Athletics",abbr:"ATH"},
+  {id:143,name:"Philadelphia Phillies",abbr:"PHI"},{id:134,name:"Pittsburgh Pirates",abbr:"PIT"},
+  {id:135,name:"San Diego Padres",abbr:"SD"},{id:137,name:"San Francisco Giants",abbr:"SF"},
+  {id:136,name:"Seattle Mariners",abbr:"SEA"},{id:138,name:"St. Louis Cardinals",abbr:"STL"},
+  {id:139,name:"Tampa Bay Rays",abbr:"TB"},{id:140,name:"Texas Rangers",abbr:"TEX"},
+  {id:141,name:"Toronto Blue Jays",abbr:"TOR"},{id:120,name:"Washington Nationals",abbr:"WSH"},
+];
+
+function HRTeamPicker({ C }) {
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [picks, setPicks]               = useState(null);
+  const [loading, setLoading]           = useState(false);
+  const [status, setStatus]             = useState("");
+
+  const generate = async (team) => {
+    setSelectedTeam(team);
+    setPicks(null);
+    setLoading(true);
+    setStatus("Loading roster...");
+
+    try {
+      // Fetch live roster
+      const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster?rosterType=active&hydrate=person`);
+      const rData = await rRes.json();
+      const SKIP = ["P","SP","RP","CL"];
+      const hitters = (rData.roster||[])
+        .filter(p=>!SKIP.includes(p.position?.abbreviation))
+        .map(p=>({id:p.person?.id, name:p.person?.fullName, pos:p.position?.abbreviation}));
+
+      if (!hitters.length) {
+        setPicks(null);
+        setStatus("Could not load roster. Try again.");
+        setLoading(false);
+        return;
+      }
+
+      // Fetch 2026 season stats for each hitter
+      setStatus("Loading power stats...");
+      const statsMap = {};
+      await Promise.all(hitters.slice(0,15).map(async h => {
+        try {
+          const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=season&group=hitting&season=2026`);
+          const d = await r.json();
+          const s = d.stats?.[0]?.splits?.[0]?.stat;
+          if (s) statsMap[h.id] = {
+            avg: s.avg||".000", hr: s.homeRuns||0, slg: s.slg||".000",
+            ops: s.ops||".000", ab: s.atBats||0, iso: s.slg&&s.avg?(parseFloat(s.slg)-parseFloat(s.avg)).toFixed(3):"—",
+          };
+        } catch {}
+      }));
+
+      // Build context
+      const hittersCtx = hitters.slice(0,15).map(h => {
+        const s = statsMap[h.id];
+        if (!s || s.ab < 5) return `${h.name}(${h.pos}): limited data`;
+        return `${h.name}(${h.pos}): .${s.avg} AVG, ${s.hr}HR, ${s.slg} SLG, ${s.ops} OPS, ${s.iso} ISO`;
+      }).join("\n");
+
+      setStatus("Generating HR picks...");
+
+      const prompt = `You are an elite MLB home run prop analyst.
+
+TASK: Rank the top 5 home run candidates from ${team.name} for today.
+
+${team.name} ACTIVE HITTERS WITH 2026 STATS:
+${hittersCtx}
+
+RULES:
+1. Only use players listed above
+2. Rank by HR likelihood based on: ISO, SLG, HR count, OPS
+3. Give a specific reason for each pick referencing their actual stats
+
+Respond ONLY with valid JSON:
+{
+  "team": "${team.name}",
+  "picks": [
+    {"rank":1,"player":"Name","pos":"POS","stats":"HR count, AVG, ISO","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":2,"player":"Name","pos":"POS","stats":"HR count, AVG, ISO","reason":"Specific stat-based reason","confidence":"HIGH"},
+    {"rank":3,"player":"Name","pos":"POS","stats":"HR count, AVG, ISO","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":4,"player":"Name","pos":"POS","stats":"HR count, AVG, ISO","reason":"Specific stat-based reason","confidence":"MED"},
+    {"rank":5,"player":"Name","pos":"POS","stats":"HR count, AVG, ISO","reason":"Specific stat-based reason","confidence":"LOW"}
+  ]
+}`;
+
+      const res = await fetch('/api/claude', {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514", max_tokens:1000,
+          system:"Expert MLB HR prop analyst. Only recommend players explicitly listed. Respond with valid JSON only.",
+          messages:[{role:"user",content:prompt}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.map(b=>b.text||"").join("")||"{}";
+      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      setPicks(parsed);
+    } catch(e) {
+      setStatus("Error: " + e.message);
+    }
+    setStatus("");
+    setLoading(false);
+  };
+
+  const CONF = {HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35"};
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>HR Pick of the Day — By Team</div>
+        <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Select any team → get top 5 HR candidates ranked by power metrics</div>
+      </div>
+
+      <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+        {/* Team selector */}
+        <div style={{width:160,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
+          {MLB_TEAMS.sort((a,b)=>a.abbr.localeCompare(b.abbr)).map(team=>(
+            <div key={team.id} onClick={()=>!loading&&generate(team)}
+              style={{padding:"9px 12px",borderBottom:"1px solid #0a1828",cursor:loading?"not-allowed":"pointer",
+                background:selectedTeam?.id===team.id?`${C}15`:"transparent",
+                borderLeft:`3px solid ${selectedTeam?.id===team.id?C:"transparent"}`,
+                transition:"all 0.15s"}}
+              onMouseEnter={e=>{if(selectedTeam?.id!==team.id&&!loading)e.currentTarget.style.background="#0a1220";}}
+              onMouseLeave={e=>{if(selectedTeam?.id!==team.id)e.currentTarget.style.background="transparent";}}>
+              <div style={{fontSize:12,fontWeight:"bold",color:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{team.abbr}</div>
+              <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:1}}>{team.name}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Picks panel */}
+        <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin"}}>
+          {!selectedTeam && !loading && (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:12}}>
+              <div style={{fontSize:40}}>⚾</div>
+              <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>Select a team to see their top 5 HR candidates</div>
+              <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",textAlign:"center",lineHeight:1.8}}>
+                Pulls live 2026 roster + season stats<br/>
+                Ranks by ISO, SLG, HR count, OPS
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:12}}>
+              <div style={{fontSize:14,color:C,letterSpacing:4,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>LOADING···</div>
+              <div style={{fontSize:12,color:"#38bdf8",fontFamily:"'Inter',sans-serif"}}>{status}</div>
+            </div>
+          )}
+
+          {!loading && picks?.picks && (
+            <div>
+              {/* Team header */}
+              <div style={{background:`linear-gradient(90deg,${C}15,transparent)`,border:`1px solid ${C}30`,borderRadius:4,padding:"14px 20px",marginBottom:20,display:"flex",alignItems:"center",gap:16}}>
+                <div style={{fontSize:28,fontWeight:"900",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:3}}>{selectedTeam?.abbr}</div>
+                <div>
+                  <div style={{fontSize:14,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{picks.team}</div>
+                  <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Top 5 HR Candidates — 2026 Season Stats</div>
+                </div>
+              </div>
+
+              {/* Picks */}
+              {picks.picks.map((p,i)=>(
+                <div key={i} style={{background:"#0a1220",border:`1px solid ${C}20`,borderRadius:4,padding:"14px 18px",marginBottom:10,display:"flex",gap:16,alignItems:"flex-start"}}>
+                  {/* Rank */}
+                  <div style={{width:36,height:36,borderRadius:"50%",background:`${C}20`,border:`2px solid ${C}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <span style={{fontSize:14,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace"}}>{p.rank}</span>
+                  </div>
+                  {/* Info */}
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+                      <div style={{fontSize:15,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</div>
+                      <div style={{fontSize:10,color:"#3a5070",background:"#050d18",border:"1px solid #0a1828",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</div>
+                      <div style={{fontSize:10,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{p.confidence}</div>
+                    </div>
+                    <div style={{fontSize:12,color:"#f97316",fontFamily:"'Orbitron',monospace",marginBottom:6}}>{p.stats}</div>
+                    <div style={{fontSize:12,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.6}}>{p.reason}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Cheat Sheet ───────────────────────────────────────────────────────────────
 function CheatSheet({ games, gamesLoading, C }) {
   const [sheets, setSheets]       = useState([]);
@@ -3297,7 +3497,7 @@ Only recommend players from the lists above.`;
 
       {/* Section tabs */}
       <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
-        {(sport==="MLB" ? ["TODAY","PROPS","TOP PICKS","CHEAT SHEET"] : ["TODAY","PROPS","TOP PICKS"]).map(s=>(
+        {(sport==="MLB" ? ["TODAY","PROPS","TOP PICKS","HR PICKS","CHEAT SHEET"] : ["TODAY","PROPS","TOP PICKS"]).map(s=>(
           <button key={s} onClick={()=>{setSection(s);if(s==="PROPS"){sport==="MLB"?fetchMlbProps():fetchNbaProps();}}} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?`${C}10`:"transparent",border:"none",borderBottom:section===s?`2px solid ${C}`:"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {s}
           </button>
@@ -3502,6 +3702,7 @@ Only recommend players from the lists above.`;
         {/* ── TOP PICKS ── */}
         {section==="TOP PICKS" && sport==="MLB" && <TopPicksSection games={mlbGames} gamesLoading={mlbLoading} C={MLB_C}/>}
         {section==="CHEAT SHEET" && sport==="MLB" && <CheatSheet games={mlbGames} gamesLoading={mlbLoading} C={MLB_C}/>}
+        {section==="HR PICKS" && sport==="MLB" && <HRTeamPicker C={MLB_C}/>}
         {section==="TOP PICKS" && sport==="NBA" && <NBAPicksSection games={nbaGames} gamesLoading={nbaLoading} C={NBA_C}/>}
 
       </div>
