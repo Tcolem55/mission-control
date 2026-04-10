@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
     for (const teamId of [...new Set(teamIds)]) {
       try {
-        const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active`);
+        const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=2026`);
         const rData = await rRes.json();
         const hitters = (rData.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).slice(0,9);
         for (const hitter of hitters) {
