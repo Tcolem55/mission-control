@@ -1487,10 +1487,10 @@ function NBAPicksSection({ games, gamesLoading, C }) {
         try {
           // Use cached rosters if available
           if (cachedRosters?.nba?.[awayAbbr]?.roster) {
-            awayRoster = cachedRosters.nba[awayAbbr].roster.filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+            awayRoster = cachedRosters.nba[awayAbbr].roster.filter(p=>!p.injuryStatus||!["Out","Doubtful","Injured Reserve","IR","Suspension"].includes(p.injuryStatus));
           }
           if (cachedRosters?.nba?.[homeAbbr]?.roster) {
-            homeRoster = cachedRosters.nba[homeAbbr].roster.filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+            homeRoster = cachedRosters.nba[homeAbbr].roster.filter(p=>!p.injuryStatus||!["Out","Doubtful","Injured Reserve","IR","Suspension"].includes(p.injuryStatus));
           }
           // Use cached injuries
           if (cachedInjuries?.nba?.length > 0) {
@@ -1506,8 +1506,9 @@ function NBAPicksSection({ games, gamesLoading, C }) {
               fetch(`/api/nba?type=injuries&teamId=${homeId}`),
             ]);
             const [aRD,hRD,aID,hID] = await Promise.all([aRR.json(),hRR.json(),aIR.json(),hIR.json()]);
-            if (!awayRoster.length) awayRoster = (aRD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
-            if (!homeRoster.length) homeRoster  = (hRD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+            const EXCL = ["Out","Doubtful","Injured Reserve","IR","Suspension"];
+            if (!awayRoster.length) awayRoster = (aRD.roster||[]).filter(p=>!p.injuryStatus||!EXCL.includes(p.injuryStatus));
+            if (!homeRoster.length) homeRoster  = (hRD.roster||[]).filter(p=>!p.injuryStatus||!EXCL.includes(p.injuryStatus));
             if (!awayInjuries.length) awayInjuries = (aID.injuries||[]);
             if (!homeInjuries.length) homeInjuries = (hID.injuries||[]);
           }
@@ -1515,8 +1516,17 @@ function NBAPicksSection({ games, gamesLoading, C }) {
 
         if (awayRoster.length) gameCtx += `\n  ${awayName} active: ${awayRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
         if (homeRoster.length) gameCtx += `\n  ${homeName} active: ${homeRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
-        const allInj = [...awayInjuries.map(i=>`${i.player}(${awayName}):${i.status}`), ...homeInjuries.map(i=>`${i.player}(${homeName}):${i.status}`)];
-        if (allInj.length) gameCtx += `\n  INJURIES: ${allInj.join(" | ")}`;
+        // Remove injured players from rosters
+        const OUT_STATUSES = ["Out","Doubtful","Injured Reserve"];
+        const awayOutNames = awayInjuries.filter(i=>OUT_STATUSES.includes(i.status)).map(i=>i.player?.toLowerCase());
+        const homeOutNames = homeInjuries.filter(i=>OUT_STATUSES.includes(i.status)).map(i=>i.player?.toLowerCase());
+        awayRoster = awayRoster.filter(p=>!awayOutNames.some(n=>p.name?.toLowerCase().includes(n?.split(" ")[1]||"")));
+        homeRoster = homeRoster.filter(p=>!homeOutNames.some(n=>p.name?.toLowerCase().includes(n?.split(" ")[1]||"")));
+
+        const criticalInj = [...awayInjuries, ...homeInjuries].filter(i=>OUT_STATUSES.includes(i.status));
+        const qInj = [...awayInjuries, ...homeInjuries].filter(i=>i.status==="Questionable");
+        if (criticalInj.length) gameCtx += `\n  ❌ OUT/DOUBTFUL: ${criticalInj.map(i=>`${i.player}(${i.status})`).join(", ")}`;
+        if (qInj.length) gameCtx += `\n  ⚠️ QUESTIONABLE: ${qInj.map(i=>`${i.player}`).join(", ")}`;
 
         const topPlayers = [...awayRoster.slice(0,5), ...homeRoster.slice(0,5)];
         const playerNames = topPlayers.map(p=>p.name).filter(Boolean);
@@ -1558,7 +1568,15 @@ function NBAPicksSection({ games, gamesLoading, C }) {
       }
 
       log("Generating picks from real data...");
-      const prompt = `You are an elite NBA prop analyst. Use ONLY players listed below. Reference actual stats in reasoning.
+      const prompt = `You are an elite NBA prop analyst.
+
+ABSOLUTE RULES — VIOLATION IS NOT ACCEPTABLE:
+1. ONLY recommend players whose names appear in the active roster sections below
+2. Players marked ❌ OUT/DOUBTFUL — NEVER recommend them, no exceptions
+3. Players marked ⚠️ QUESTIONABLE — avoid or assign LOW confidence only  
+4. Do NOT use training data to recall rosters — only use what is listed below
+5. If a team has ⚠️ BACK-TO-BACK flag, lean toward UNDER props for their players
+6. Reference actual stats in your reasoning
 
 TODAY'S REAL DATA:
 ${gameContexts.join("\n")}
@@ -1568,7 +1586,7 @@ Respond ONLY with valid JSON:
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, system:"Expert NBA prop betting analyst. CRITICAL: ONLY recommend players explicitly listed in the user message data — never use training data to recall team rosters. NBA players change teams frequently. Only use players from the active roster data provided. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, system:"Expert NBA prop betting analyst. CRITICAL RULES: (1) ONLY recommend players in the active roster data provided — never use training memory. (2) NEVER recommend players marked as OUT or DOUBTFUL. (3) Teams on back-to-back = lean to unders. (4) Only use players explicitly listed. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
@@ -1606,9 +1624,9 @@ Respond ONLY with valid JSON:
           fetch(`/api/nba?type=injuries&teamId=${opponentId}`),
         ]);
         const [rD,iD,orD,oiD] = await Promise.all([rRes.json(),iRes.json(),orRes.json(),oiRes.json()]);
-        roster          = (rD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+        roster          = (rD.roster||[]).filter(p=>!p.injuryStatus||!["Out","Doubtful","Injured Reserve","IR","Suspension"].includes(p.injuryStatus));
         injuries        = (iD.injuries||[]);
-        opponentRoster  = (orD.roster||[]).filter(p=>!p.injuryStatus||p.injuryStatus==="Probable");
+        opponentRoster  = (orD.roster||[]).filter(p=>!p.injuryStatus||!["Out","Doubtful","Injured Reserve","IR","Suspension"].includes(p.injuryStatus));
         opponentInjuries= (oiD.injuries||[]);
       } catch {}
 
