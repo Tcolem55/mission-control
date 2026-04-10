@@ -1514,19 +1514,19 @@ function NBAPicksSection({ games, gamesLoading, C }) {
           }
         } catch {}
 
+        // Cross-reference injuries BEFORE building context
+        const OUT_STATUSES = ["Out","Doubtful","Injured Reserve"];
+        const criticalInj = [...awayInjuries, ...homeInjuries].filter(i=>OUT_STATUSES.includes(i.status));
+        const qInj        = [...awayInjuries, ...homeInjuries].filter(i=>i.status==="Questionable");
+        const outNames    = criticalInj.map(i=>(i.player||"").toLowerCase());
+        // Filter out injured players safely
+        awayRoster = awayRoster.filter(p=>!outNames.some(n=>n&&p.name&&p.name.toLowerCase().includes(n.split(" ").slice(-1)[0])));
+        homeRoster = homeRoster.filter(p=>!outNames.some(n=>n&&p.name&&p.name.toLowerCase().includes(n.split(" ").slice(-1)[0])));
+
         if (awayRoster.length) gameCtx += `\n  ${awayName} active: ${awayRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
         if (homeRoster.length) gameCtx += `\n  ${homeName} active: ${homeRoster.map(p=>`${p.name}(${p.position||"?"})`).join(", ")}`;
-        // Remove injured players from rosters
-        const OUT_STATUSES = ["Out","Doubtful","Injured Reserve"];
-        const awayOutNames = awayInjuries.filter(i=>OUT_STATUSES.includes(i.status)).map(i=>i.player?.toLowerCase());
-        const homeOutNames = homeInjuries.filter(i=>OUT_STATUSES.includes(i.status)).map(i=>i.player?.toLowerCase());
-        awayRoster = awayRoster.filter(p=>!awayOutNames.some(n=>p.name?.toLowerCase().includes(n?.split(" ")[1]||"")));
-        homeRoster = homeRoster.filter(p=>!homeOutNames.some(n=>p.name?.toLowerCase().includes(n?.split(" ")[1]||"")));
-
-        const criticalInj = [...awayInjuries, ...homeInjuries].filter(i=>OUT_STATUSES.includes(i.status));
-        const qInj = [...awayInjuries, ...homeInjuries].filter(i=>i.status==="Questionable");
-        if (criticalInj.length) gameCtx += `\n  ❌ OUT/DOUBTFUL: ${criticalInj.map(i=>`${i.player}(${i.status})`).join(", ")}`;
-        if (qInj.length) gameCtx += `\n  ⚠️ QUESTIONABLE: ${qInj.map(i=>`${i.player}`).join(", ")}`;
+        if (criticalInj.length) gameCtx += `\n  ❌ OUT/DOUBTFUL (DO NOT RECOMMEND): ${criticalInj.map(i=>`${i.player}(${i.status})`).join(", ")}`;
+        if (qInj.length) gameCtx += `\n  ⚠️ QUESTIONABLE: ${qInj.map(i=>i.player).join(", ")}`;
 
         const topPlayers = [...awayRoster.slice(0,5), ...homeRoster.slice(0,5)];
         const playerNames = topPlayers.map(p=>p.name).filter(Boolean);
@@ -1590,9 +1590,16 @@ Respond ONLY with valid JSON:
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
-      setPicks(JSON.parse(text.replace(/```json|```/g,"").trim()));
-      setGenerated(true);
-    } catch(e) { console.error(e); setPicks(null); }
+      try {
+        const cleaned = text.replace(/```json|```/g,"").trim();
+        const parsed = JSON.parse(cleaned);
+        setPicks(parsed);
+        setGenerated(true);
+      } catch(parseErr) {
+        console.error("JSON parse error:", parseErr, text.slice(0,200));
+        setPicks(null);
+      }
+    } catch(e) { console.error("generatePicks error:", e); setPicks(null); }
     setStatus(""); setLoading(false);
   };
 
