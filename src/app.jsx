@@ -2284,6 +2284,10 @@ function CheatSheet({ games, gamesLoading, C }) {
   const [status, setStatus]       = useState("");
   const [selectedGame, setSelectedGame] = useState(null);
   const [weather, setWeather]     = useState({});
+  const [awaySortBy, setAwaySortBy]   = useState("order");
+  const [awaySortDir, setAwaySortDir] = useState("asc");
+  const [homeSortBy, setHomeSortBy]   = useState("order");
+  const [homeSortDir, setHomeSortDir] = useState("asc");
 
   const load = async () => {
     if (!games.length) return;
@@ -2552,9 +2556,7 @@ function CheatSheet({ games, gamesLoading, C }) {
     );
   };
 
-  const BatterTable = ({ batters, pitcherHand, confirmed, teamName }) => {
-    const [sortBy, setSortBy] = useState("order");
-    const [sortDir, setSortDir] = useState("asc");
+  const BatterTable = ({ batters, pitcherHand, confirmed, teamName, sortBy, setSortBy, sortDir, setSortDir }) => {
     if (!batters.length) return <div style={{padding:20,textAlign:"center",color:"#2a3a55",fontSize:12,fontFamily:"'Inter',sans-serif"}}>No batter data available</div>;
     const vsLabel    = pitcherHand==="L" ? "vs LHP" : "vs RHP";
     const splitColor = pitcherHand==="L" ? "#38bdf8" : "#f97316";
@@ -2718,7 +2720,7 @@ function CheatSheet({ games, gamesLoading, C }) {
           {/* Game selector sidebar */}
           <div style={{width:180,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
             {sheets.map((s,i)=>(
-              <div key={s.gamePk} onClick={()=>setSelectedGame(s)}
+              <div key={s.gamePk} onClick={()=>{ setSelectedGame(s); setAwaySortBy("order"); setAwaySortDir("asc"); setHomeSortBy("order"); setHomeSortDir("asc"); }}
                 style={{padding:"10px 12px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:selectedGame?.gamePk===s.gamePk?`${C}12`:"transparent",borderLeft:`3px solid ${selectedGame?.gamePk===s.gamePk?C:"transparent"}`}}
                 onMouseEnter={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="#0a1220";}}
                 onMouseLeave={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="transparent";}}>
@@ -2775,12 +2777,16 @@ function CheatSheet({ games, gamesLoading, C }) {
                 pitcherHand={selectedGame.homePitcher?.hand||"R"}
                 confirmed={selectedGame.awayLineupConfirmed}
                 teamName={selectedGame.awayTeam}
+                sortBy={awaySortBy} setSortBy={setAwaySortBy}
+                sortDir={awaySortDir} setSortDir={setAwaySortDir}
               />
               <BatterTable
                 batters={selectedGame.homeBatters}
                 pitcherHand={selectedGame.awayPitcher?.hand||"R"}
                 confirmed={selectedGame.homeLineupConfirmed}
                 teamName={selectedGame.homeTeam}
+                sortBy={homeSortBy} setSortBy={setHomeSortBy}
+                sortDir={homeSortDir} setSortDir={setHomeSortDir}
               />
             </div>
           )}
