@@ -2057,9 +2057,10 @@ function TopPicksSection({ games, gamesLoading, C }) {
 
         log(`Fetching live rosters for ${awayTeam} & ${homeTeam}...`);
         try {
+          // Use roster endpoint with hydrate=person for full current player data
           const [awayRosterRes, homeRosterRes] = await Promise.all([
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active&season=2026`),
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active&season=2026`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active&hydrate=person`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active&hydrate=person`),
           ]);
           const [awayRosterData, homeRosterData] = await Promise.all([
             awayRosterRes.json(), homeRosterRes.json()
@@ -2072,6 +2073,17 @@ function TopPicksSection({ games, gamesLoading, C }) {
             .map(p=>({id:p.person?.id, name:p.person?.fullName, pos:p.position?.abbreviation, team:homeTeam}));
           if (awayHitters.length) log(`✅ ${awayTeam}: ${awayHitters.length} active hitters`);
           if (homeHitters.length) log(`✅ ${homeTeam}: ${homeHitters.length} active hitters`);
+          // Validate - if either team came back empty something is wrong
+          if (!awayHitters.length || !homeHitters.length) {
+            log(`⚠️ Empty roster detected — trying alternate endpoint...`);
+            const [r2a, r2h] = await Promise.all([
+              fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster/active?hydrate=person`),
+              fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster/active?hydrate=person`),
+            ]);
+            const [d2a, d2h] = await Promise.all([r2a.json(), r2h.json()]);
+            if (!awayHitters.length) awayHitters = (d2a.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:awayTeam}));
+            if (!homeHitters.length) homeHitters = (d2h.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:homeTeam}));
+          }
         } catch(e) { log(`⚠️ Roster fetch failed: ${e.message}`); }
 
         // Try confirmed lineup — if available use batting order, else use full roster
@@ -2097,8 +2109,15 @@ function TopPicksSection({ games, gamesLoading, C }) {
             gameCtx += `\n  📋 ${homeTeam} Active Roster (lineup TBD): ${homeHitters.map(p=>`${p.name}[${homeTeam}](${p.pos})`).join(", ")}`;
           }
         } catch {
+          // If lineup feed fails, use roster data we already have
           if (awayHitters.length) gameCtx += `\n  📋 ${awayTeam} Active Roster: ${awayHitters.map(p=>`${p.name}[${awayTeam}](${p.pos})`).join(", ")}`;
           if (homeHitters.length) gameCtx += `\n  📋 ${homeTeam} Active Roster: ${homeHitters.map(p=>`${p.name}[${homeTeam}](${p.pos})`).join(", ")}`;
+        }
+
+        // Final safety check - if we have no hitters for either team, skip this game
+        if (!awayHitters.length && !homeHitters.length) {
+          log(`⚠️ No roster data for ${awayTeam} @ ${homeTeam} — skipping game`);
+          continue;
         }
 
         // Batch fetch last 14-day stats for top hitters
@@ -2995,7 +3014,7 @@ function SportsTab() {
   const fetchMlbGames = async () => {
     setMlbLoading(true);
     try {
-      const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${activeDate}&hydrate=probablePitcher(stats),team,linescore`);
+      const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${activeDate}&hydrate=probablePitcher(stats),team,linescore,roster`);
       const d = await r.json();
       setMlbGames(d.dates?.[0]?.games || []);
     } catch { setMlbGames([]); }
