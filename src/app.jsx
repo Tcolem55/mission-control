@@ -2253,6 +2253,404 @@ Respond ONLY with valid JSON, no markdown:
   );
 }
 
+
+// ── Cheat Sheet ───────────────────────────────────────────────────────────────
+function CheatSheet({ games, gamesLoading, C }) {
+  const [sheets, setSheets]       = useState([]);
+  const [loading, setLoading]     = useState(false);
+  const [status, setStatus]       = useState("");
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [weather, setWeather]     = useState({});
+
+  const load = async () => {
+    if (!games.length) return;
+    setLoading(true); setSheets([]); setSelectedGame(null);
+
+    const result = [];
+
+    for (const game of games.slice(0, 8)) {
+      const away        = game.teams?.away;
+      const home        = game.teams?.home;
+      const awayTeam    = away?.team?.name;
+      const homeTeam    = home?.team?.name;
+      const awayAbbr    = away?.team?.abbreviation;
+      const homeAbbr    = home?.team?.abbreviation;
+      const awayId      = away?.team?.id;
+      const homeId      = home?.team?.id;
+      const awayPitcher = away?.probablePitcher;
+      const homePitcher = home?.probablePitcher;
+      const gameTime    = new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+      const PITCHERS    = ['P','SP','RP','CL'];
+
+      setStatus(`Loading ${awayAbbr} @ ${homeAbbr}...`);
+
+      const sheet = {
+        gamePk: game.gamePk, awayTeam, homeTeam, awayAbbr, homeAbbr,
+        gameTime, venue: game.venue?.name, status: game.status?.abstractGameState,
+        awayPitcher: null, homePitcher: null,
+        awayBatters: [], homeBatters: [],
+        awayLineupConfirmed: false, homeLineupConfirmed: false,
+      };
+
+      // Fetch pitcher splits
+      const fetchPitcherData = async (pitcher, side) => {
+        if (!pitcher?.id) return { side, name:"TBD", hand:"?", era:"—", whip:"—", k9:"—", bb9:"—", ip:"—", wl:"—", avgVsL:"—", opsVsL:"—", hrVsL:"—", kVsL:"—", avgVsR:"—", opsVsR:"—", hrVsR:"—", kVsR:"—" };
+        try {
+          const [seasonRes, splitsRes, bioRes] = await Promise.all([
+            fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=season&group=pitching&season=2026`),
+            fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=statSplits&group=pitching&season=2026&sitCodes=vl,vr`),
+            fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}`),
+          ]);
+          const [sD, spD, bD] = await Promise.all([seasonRes.json(), splitsRes.json(), bioRes.json()]);
+          const s   = sD.stats?.[0]?.splits?.[0]?.stat || {};
+          const spl = spD.stats?.[0]?.splits || [];
+          const vsL = spl.find(x=>x.split?.code==="vl")?.stat || {};
+          const vsR = spl.find(x=>x.split?.code==="vr")?.stat || {};
+          const hand = bD.people?.[0]?.pitchHand?.code || "?";
+          return {
+            side, name: pitcher.fullName, id: pitcher.id, hand,
+            era: s.era||"—", whip: s.whip||"—", k9: s.strikeoutsPer9Inn||"—",
+            bb9: s.walksPer9Inn||"—", ip: s.inningsPitched||"—",
+            wl: s.wins!=null?`${s.wins}-${s.losses}`:"—",
+            gbPct: s.groundOutsToAirouts||"—",
+            avgVsL: vsL.avg||"—", opsVsL: vsL.ops||"—", hrVsL: vsL.homeRuns??0, kVsL: vsL.strikeOuts??0, abVsL: vsL.atBats??0,
+            avgVsR: vsR.avg||"—", opsVsR: vsR.ops||"—", hrVsR: vsR.homeRuns??0, kVsR: vsR.strikeOuts??0, abVsR: vsR.atBats??0,
+          };
+        } catch { return { side, name:pitcher.fullName||"?", hand:"?", era:"—", whip:"—", k9:"—", bb9:"—", ip:"—", wl:"—", avgVsL:"—", opsVsL:"—", hrVsL:0, kVsL:0, avgVsR:"—", opsVsR:"—", hrVsR:0, kVsR:0 }; }
+      };
+
+      const [awayPData, homePData] = await Promise.all([
+        fetchPitcherData(awayPitcher, "Away"),
+        fetchPitcherData(homePitcher, "Home"),
+      ]);
+      sheet.awayPitcher = awayPData;
+      sheet.homePitcher = homePData;
+
+      // Fetch batter splits for both teams
+      const fetchBatters = async (teamId, teamName, oppPitcherHand) => {
+        const batters = [];
+        try {
+          // Try confirmed lineup first
+          const feedRes = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live?fields=liveData,boxscore,teams,battingOrder,players`);
+          const feedData = await feedRes.json();
+          const isAway = teamId === awayId;
+          const side   = isAway ? "away" : "home";
+          const order  = feedData.liveData?.boxscore?.teams?.[side]?.battingOrder || [];
+          const plrs   = feedData.liveData?.boxscore?.teams?.[side]?.players || {};
+          let hitterIds = [];
+          let confirmed = false;
+
+          if (order.length > 0) {
+            confirmed = true;
+            hitterIds = order.slice(0,9).map(id=>({ id, name: plrs[`ID${id}`]?.person?.fullName })).filter(p=>p.name);
+          } else {
+            const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active`);
+            const rD   = await rRes.json();
+            hitterIds  = (rD.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).slice(0,9).map(p=>({id:p.person?.id, name:p.person?.fullName, pos:p.position?.abbreviation}));
+          }
+
+          // Fetch splits for each hitter
+          await Promise.all(hitterIds.slice(0,9).map(async (hitter, idx) => {
+            try {
+              const [splRes, bioRes, seasonRes] = await Promise.all([
+                fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`),
+                fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}`),
+                fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}/stats?stats=season&group=hitting&season=2026`),
+              ]);
+              const [spD, bD, seD] = await Promise.all([splRes.json(), bioRes.json(), seasonRes.json()]);
+              const spl    = spD.stats?.[0]?.splits || [];
+              const vsL    = spl.find(x=>x.split?.code==="vl")?.stat || {};
+              const vsR    = spl.find(x=>x.split?.code==="vr")?.stat || {};
+              const season = seD.stats?.[0]?.splits?.[0]?.stat || {};
+              const hand   = bD.people?.[0]?.batSide?.code || "?";
+              const pos    = bD.people?.[0]?.primaryPosition?.abbreviation || hitter.pos || "?";
+              batters.push({
+                order: idx+1, name: hitter.name, pos, hand, team: teamName,
+                oppHand: oppPitcherHand,
+                seasonAvg: season.avg||"—", seasonHR: season.homeRuns??0, seasonOPS: season.ops||"—",
+                avgVsL: vsL.avg||"—", opsVsL: vsL.ops||"—", slgVsL: vsL.slg||"—", hrVsL: vsL.homeRuns??0, abVsL: vsL.atBats??0,
+                avgVsR: vsR.avg||"—", opsVsR: vsR.ops||"—", slgVsR: vsR.slg||"—", hrVsR: vsR.homeRuns??0, abVsR: vsR.atBats??0,
+              });
+            } catch {}
+          }));
+
+          return { batters, confirmed };
+        } catch { return { batters, confirmed: false }; }
+      };
+
+      const [awayBatterResult, homeBatterResult] = await Promise.all([
+        fetchBatters(awayId, awayTeam, homePData.hand),
+        fetchBatters(homeId, homeTeam, awayPData.hand),
+      ]);
+
+      sheet.awayBatters = awayBatterResult.batters;
+      sheet.awayLineupConfirmed = awayBatterResult.confirmed;
+      sheet.homeBatters = homeBatterResult.batters;
+      sheet.homeLineupConfirmed = homeBatterResult.confirmed;
+
+      result.push(sheet);
+    }
+
+    setSheets(result);
+    if (result.length > 0) setSelectedGame(result[0]);
+    setStatus("");
+    setLoading(false);
+  };
+
+  // Color helpers
+  const avgColor  = v => { const n=parseFloat(v); if(n>=0.280)return"#00ff88"; if(n<=0.210)return"#ff4444"; return"#c8d8f0"; };
+  const opsColor  = v => { const n=parseFloat(v); if(n>=0.850)return"#00ff88"; if(n<=0.650)return"#ff4444"; return"#c8d8f0"; };
+  const eraColor  = v => { const n=parseFloat(v); if(n<=3.00)return"#00ff88"; if(n>=5.00)return"#ff4444"; return"#c8d8f0"; };
+  const k9Color   = v => { const n=parseFloat(v); if(n>=9.5)return"#00ff88"; if(n<=6.0)return"#ff4444"; return"#c8d8f0"; };
+  const whipColor = v => { const n=parseFloat(v); if(n<=1.10)return"#00ff88"; if(n>=1.50)return"#ff4444"; return"#c8d8f0"; };
+
+  const C2 = "#f97316";
+  const TH = ({children, left}) => (
+    <th style={{padding:"6px 10px",fontSize:9,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:left?"left":"center",borderRight:"1px solid #0a1828",whiteSpace:"nowrap",background:"#050d18",position:"sticky",top:0,zIndex:1}}>
+      {children}
+    </th>
+  );
+  const TD = ({val, color, bold, bg}) => (
+    <td style={{padding:"6px 10px",textAlign:"center",fontSize:12,color:color||"#8a9ab0",fontFamily:"'Orbitron',monospace",fontWeight:bold?"bold":"normal",borderRight:"1px solid #0a1828",whiteSpace:"nowrap",background:bg||"transparent"}}>
+      {val}
+    </td>
+  );
+  const TDL = ({val, color}) => (
+    <td style={{padding:"6px 10px",textAlign:"left",fontSize:12,color:color||"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",borderRight:"1px solid #0a1828",whiteSpace:"nowrap"}}>
+      {val}
+    </td>
+  );
+
+  const PitcherTable = ({ pitcher, oppTeam }) => {
+    if (!pitcher) return null;
+    const handColor = pitcher.hand==="L"?"#38bdf8":"#f97316";
+    return (
+      <div style={{background:"#0a1220",border:`1px solid ${C2}20`,borderRadius:4,overflow:"hidden",marginBottom:12}}>
+        {/* Pitcher header */}
+        <div style={{padding:"10px 14px",background:`${C2}08`,borderBottom:`1px solid ${C2}15`,display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:28,height:28,borderRadius:"50%",background:`${handColor}20`,border:`1px solid ${handColor}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <span style={{fontSize:11,fontWeight:"bold",color:handColor,fontFamily:"'Orbitron',monospace"}}>{pitcher.hand}</span>
+          </div>
+          <div>
+            <div style={{fontSize:14,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{pitcher.name}</div>
+            <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{pitcher.side === "Away" ? `${pitcher.side} SP` : `${pitcher.side} SP`} · {pitcher.wl} W-L · {pitcher.ip} IP</div>
+          </div>
+          <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
+            {[{label:"ERA",val:pitcher.era,color:eraColor(pitcher.era)},{label:"WHIP",val:pitcher.whip,color:whipColor(pitcher.whip)},{label:"K/9",val:pitcher.k9,color:k9Color(pitcher.k9)},{label:"BB/9",val:pitcher.bb9}].map(({label,val,color})=>(
+              <div key={label} style={{textAlign:"center",background:"#050d18",border:"1px solid #0a1828",borderRadius:3,padding:"4px 10px"}}>
+                <div style={{fontSize:8,color:"#3a5070",fontFamily:"'Orbitron',monospace",marginBottom:2}}>{label}</div>
+                <div style={{fontSize:14,fontWeight:"bold",color:color||"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Splits table */}
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr style={{background:"#050d18"}}>
+              <TH left>SPLIT</TH>
+              <TH>AB</TH>
+              <TH>AVG</TH>
+              <TH>OPS</TH>
+              <TH>HR</TH>
+              <TH>K</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              {label:"vs LHB", avg:pitcher.avgVsL, ops:pitcher.opsVsL, hr:pitcher.hrVsL, k:pitcher.kVsL, ab:pitcher.abVsL},
+              {label:"vs RHB", avg:pitcher.avgVsR, ops:pitcher.opsVsR, hr:pitcher.hrVsR, k:pitcher.kVsR, ab:pitcher.abVsR},
+            ].map((row,i)=>(
+              <tr key={i} style={{borderBottom:"1px solid #0a1828"}}>
+                <td style={{padding:"7px 10px",fontSize:11,color:"#4a6080",fontFamily:"'Orbitron',monospace",borderRight:"1px solid #0a1828",letterSpacing:1}}>{row.label}</td>
+                <TD val={row.ab||"—"}/>
+                <TD val={row.avg} color={avgColor(row.avg)} bold={parseFloat(row.avg)>=0.280||parseFloat(row.avg)<=0.210}/>
+                <TD val={row.ops} color={opsColor(row.ops)} bold={parseFloat(row.ops)>=0.850||parseFloat(row.ops)<=0.650}/>
+                <TD val={row.hr} color={row.hr>=3?"#ff4444":undefined}/>
+                <TD val={row.k}/>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const BatterTable = ({ batters, pitcherHand, confirmed, teamName }) => {
+    if (!batters.length) return <div style={{padding:20,textAlign:"center",color:"#2a3a55",fontSize:12,fontFamily:"'Inter',sans-serif"}}>No batter data available</div>;
+    const vsKey = pitcherHand==="L" ? "vsL" : "vsR";
+    const vsLabel = pitcherHand==="L" ? "vs LHP" : "vs RHP";
+    const splitColor = pitcherHand==="L" ? "#38bdf8" : "#f97316";
+
+    return (
+      <div style={{background:"#0a1220",border:"1px solid #0a1828",borderRadius:4,overflow:"hidden",marginBottom:12}}>
+        <div style={{padding:"8px 14px",background:"#050d18",borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:10}}>
+          <div style={{fontSize:11,color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{teamName.toUpperCase()}</div>
+          {confirmed
+            ? <span style={{fontSize:9,color:"#00ff88",background:"#00ff8815",border:"1px solid #00ff8830",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ CONFIRMED LINEUP</span>
+            : <span style={{fontSize:9,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>PROJECTED LINEUP</span>
+          }
+          <div style={{marginLeft:"auto",fontSize:10,color:splitColor,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>FACING {pitcherHand==="L"?"LHP":"RHP"} · {vsLabel}</div>
+        </div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
+            <thead>
+              <tr>
+                <TH left>#</TH>
+                <TH left>BATTER</TH>
+                <TH>B</TH>
+                <TH>SZN AVG</TH>
+                <TH>SZN HR</TH>
+                <TH>SZN OPS</TH>
+                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} AVG</th>
+                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} OPS</th>
+                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} SLG</th>
+                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} HR</th>
+                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} AB</th>
+              </tr>
+            </thead>
+            <tbody>
+              {batters.sort((a,b)=>a.order-b.order).map((b,i)=>{
+                const splitAvg = pitcherHand==="L" ? b.avgVsL : b.avgVsR;
+                const splitOPS = pitcherHand==="L" ? b.opsVsL : b.opsVsR;
+                const splitSLG = pitcherHand==="L" ? b.slgVsL : b.slgVsR;
+                const splitHR  = pitcherHand==="L" ? b.hrVsL  : b.hrVsR;
+                const splitAB  = pitcherHand==="L" ? b.abVsL  : b.abVsR;
+                const handColor = b.hand==="L"?"#38bdf8":b.hand==="R"?"#f97316":"#8a9ab0";
+                const rowBg = i%2===0?"transparent":"#050d1890";
+                return (
+                  <tr key={i} style={{borderBottom:"1px solid #0a1828",background:rowBg}}>
+                    <td style={{padding:"7px 10px",fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace",borderRight:"1px solid #0a1828",textAlign:"center"}}>{b.order}</td>
+                    <td style={{padding:"7px 10px",fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",borderRight:"1px solid #0a1828",whiteSpace:"nowrap"}}>
+                      {b.name}
+                      <span style={{fontSize:9,color:"#3a5070",marginLeft:6}}>{b.pos}</span>
+                    </td>
+                    <td style={{padding:"7px 10px",textAlign:"center",borderRight:"1px solid #0a1828"}}>
+                      <span style={{fontSize:10,fontWeight:"bold",color:handColor,fontFamily:"'Orbitron',monospace"}}>{b.hand}</span>
+                    </td>
+                    <TD val={b.seasonAvg} color={avgColor(b.seasonAvg)}/>
+                    <TD val={b.seasonHR}/>
+                    <TD val={b.seasonOPS} color={opsColor(b.seasonOPS)}/>
+                    <TD val={splitAvg} color={avgColor(splitAvg)} bold={parseFloat(splitAvg)>=0.280} bg={parseFloat(splitAvg)>=0.300?"#00ff8808":parseFloat(splitAvg)<=0.200?"#ff444408":undefined}/>
+                    <TD val={splitOPS} color={opsColor(splitOPS)} bold={parseFloat(splitOPS)>=0.850} bg={parseFloat(splitOPS)>=0.900?"#00ff8808":parseFloat(splitOPS)<=0.650?"#ff444408":undefined}/>
+                    <TD val={splitSLG} color={opsColor(splitSLG)}/>
+                    <TD val={splitHR} color={splitHR>=3?"#f97316":undefined} bold={splitHR>=3}/>
+                    <TD val={splitAB} color="#3a5070"/>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+        <div>
+          <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>MLB Cheat Sheet</div>
+          <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Pitcher ERA/WHIP/K9 · vs LHB/RHB splits · Batter splits vs LHP/RHP · Confirmed lineups</div>
+        </div>
+        <button onClick={load} disabled={loading||gamesLoading||!games.length}
+          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,whiteSpace:"nowrap",flexShrink:0}}>
+          {loading?"LOADING···":sheets.length?"🔄 REFRESH":"📋 LOAD CHEAT SHEET"}
+        </button>
+      </div>
+
+      {loading && (
+        <div style={{padding:40,textAlign:"center"}}>
+          <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>LOADING CHEAT SHEET···</div>
+          <div style={{fontSize:12,color:"#38bdf8",fontFamily:"'Inter',sans-serif"}}>{status}</div>
+          <div style={{fontSize:11,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginTop:8}}>Fetching pitcher splits, batter splits vs LHP/RHP for all games</div>
+        </div>
+      )}
+
+      {!loading && !sheets.length && (
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}}>
+          <div style={{fontSize:32}}>📋</div>
+          <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{games.length} games today</div>
+          <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",textAlign:"center",lineHeight:1.8}}>
+            Click LOAD CHEAT SHEET to fetch:<br/>
+            ✓ Pitcher season stats + vs LHB/RHB splits<br/>
+            ✓ Confirmed lineups (or projected rosters)<br/>
+            ✓ Each batter's splits vs LHP and RHP
+          </div>
+        </div>
+      )}
+
+      {!loading && sheets.length > 0 && (
+        <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+          {/* Game selector sidebar */}
+          <div style={{width:180,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
+            {sheets.map((s,i)=>(
+              <div key={s.gamePk} onClick={()=>setSelectedGame(s)}
+                style={{padding:"10px 12px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:selectedGame?.gamePk===s.gamePk?`${C}12`:"transparent",borderLeft:`3px solid ${selectedGame?.gamePk===s.gamePk?C:"transparent"}`}}
+                onMouseEnter={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="#0a1220";}}
+                onMouseLeave={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="transparent";}}>
+                <div style={{fontSize:12,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",marginBottom:2}}>{s.awayAbbr} @ {s.homeAbbr}</div>
+                <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{s.gameTime}</div>
+                {s.venue&&<div style={{fontSize:9,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginTop:2}}>{s.venue}</div>}
+                <div style={{display:"flex",gap:4,marginTop:4}}>
+                  {s.awayLineupConfirmed&&<span style={{fontSize:7,color:"#00ff88",background:"#00ff8815",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ LINE</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Main cheat sheet */}
+          {selectedGame && (
+            <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
+              {/* Game header */}
+              <div style={{background:"linear-gradient(90deg,#0a1220,#060c18)",border:`1px solid ${C}20`,borderRadius:4,padding:"12px 20px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{textAlign:"center",flex:1}}>
+                  <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:4}}>AWAY</div>
+                  <div style={{fontSize:20,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:3}}>{selectedGame.awayAbbr}</div>
+                  <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{selectedGame.awayTeam}</div>
+                </div>
+                <div style={{textAlign:"center",padding:"0 24px"}}>
+                  <div style={{fontSize:14,color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:4}}>{selectedGame.gameTime}</div>
+                  <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{selectedGame.venue}</div>
+                  <div style={{fontSize:9,color:selectedGame.status==="Live"?"#00ff88":"#2a3a55",fontFamily:"'Orbitron',monospace",marginTop:4,letterSpacing:2}}>{selectedGame.status==="Live"?"🔴 LIVE":selectedGame.status==="Final"?"FINAL":"SCHEDULED"}</div>
+                </div>
+                <div style={{textAlign:"center",flex:1}}>
+                  <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:4}}>HOME</div>
+                  <div style={{fontSize:20,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:3}}>{selectedGame.homeAbbr}</div>
+                  <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{selectedGame.homeTeam}</div>
+                </div>
+              </div>
+
+              {/* Pitchers side by side */}
+              <div style={{fontSize:9,color:`${C}80`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8}}>⚾ STARTING PITCHERS</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+                <PitcherTable pitcher={selectedGame.awayPitcher} oppTeam={selectedGame.homeTeam}/>
+                <PitcherTable pitcher={selectedGame.homePitcher} oppTeam={selectedGame.awayTeam}/>
+              </div>
+
+              {/* Batters */}
+              <div style={{fontSize:9,color:`${C}80`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8}}>🏏 BATTER SPLITS</div>
+              <BatterTable
+                batters={selectedGame.awayBatters}
+                pitcherHand={selectedGame.homePitcher?.hand||"R"}
+                confirmed={selectedGame.awayLineupConfirmed}
+                teamName={selectedGame.awayTeam}
+              />
+              <BatterTable
+                batters={selectedGame.homeBatters}
+                pitcherHand={selectedGame.awayPitcher?.hand||"R"}
+                confirmed={selectedGame.homeLineupConfirmed}
+                teamName={selectedGame.homeTeam}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sports Tab (MLB + NBA combined) ──────────────────────────────────────────
 function SportsTab() {
   const [sport, setSport]           = useState("MLB");
@@ -2450,7 +2848,7 @@ Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to targe
 
       {/* Section tabs */}
       <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
-        {["TODAY","PROPS","TOP PICKS"].map(s=>(
+        {(sport==="MLB" ? ["TODAY","PROPS","TOP PICKS","CHEAT SHEET"] : ["TODAY","PROPS","TOP PICKS"]).map(s=>(
           <button key={s} onClick={()=>{setSection(s);if(s==="PROPS"){sport==="MLB"?fetchMlbProps():fetchNbaProps();}}} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?`${C}10`:"transparent",border:"none",borderBottom:section===s?`2px solid ${C}`:"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {s}
           </button>
@@ -2629,6 +3027,7 @@ Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to targe
 
         {/* ── TOP PICKS ── */}
         {section==="TOP PICKS" && sport==="MLB" && <TopPicksSection games={mlbGames} gamesLoading={mlbLoading} C={MLB_C}/>}
+        {section==="CHEAT SHEET" && sport==="MLB" && <CheatSheet games={mlbGames} gamesLoading={mlbLoading} C={MLB_C}/>}
         {section==="TOP PICKS" && sport==="NBA" && <NBAPicksSection games={nbaGames} gamesLoading={nbaLoading} C={NBA_C}/>}
 
       </div>
