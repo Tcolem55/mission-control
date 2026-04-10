@@ -2352,24 +2352,39 @@ function CheatSheet({ games, gamesLoading, C }) {
           // Fetch splits for each hitter
           await Promise.all(hitterIds.slice(0,9).map(async (hitter, idx) => {
             try {
-              const [splRes, bioRes, seasonRes] = await Promise.all([
+              const [splRes, bioRes, seasonRes, saberRes] = await Promise.all([
                 fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`),
                 fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}`),
                 fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}/stats?stats=season&group=hitting&season=2026`),
+                fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}/stats?stats=season&group=hitting&season=2026&fields=stats,splits,stat,hardHitPercent,barrelPercent,launchAngle,exitVelocity`),
               ]);
-              const [spD, bD, seD] = await Promise.all([splRes.json(), bioRes.json(), seasonRes.json()]);
+              const [spD, bD, seD, sabD] = await Promise.all([splRes.json(), bioRes.json(), seasonRes.json(), saberRes.json()]);
               const spl    = spD.stats?.[0]?.splits || [];
               const vsL    = spl.find(x=>x.split?.code==="vl")?.stat || {};
               const vsR    = spl.find(x=>x.split?.code==="vr")?.stat || {};
               const season = seD.stats?.[0]?.splits?.[0]?.stat || {};
+              const saber  = sabD.stats?.[0]?.splits?.[0]?.stat || {};
               const hand   = bD.people?.[0]?.batSide?.code || "?";
               const pos    = bD.people?.[0]?.primaryPosition?.abbreviation || hitter.pos || "?";
+              // ISO = SLG - AVG
+              const iso = season.slg && season.avg
+                ? (parseFloat(season.slg) - parseFloat(season.avg)).toFixed(3)
+                : "—";
+              const isoVsL = vsL.slg && vsL.avg
+                ? (parseFloat(vsL.slg) - parseFloat(vsL.avg)).toFixed(3)
+                : "—";
+              const isoVsR = vsR.slg && vsR.avg
+                ? (parseFloat(vsR.slg) - parseFloat(vsR.avg)).toFixed(3)
+                : "—";
               batters.push({
                 order: idx+1, name: hitter.name, pos, hand, team: teamName,
                 oppHand: oppPitcherHand,
                 seasonAvg: season.avg||"—", seasonHR: season.homeRuns??0, seasonOPS: season.ops||"—",
-                avgVsL: vsL.avg||"—", opsVsL: vsL.ops||"—", slgVsL: vsL.slg||"—", hrVsL: vsL.homeRuns??0, abVsL: vsL.atBats??0,
-                avgVsR: vsR.avg||"—", opsVsR: vsR.ops||"—", slgVsR: vsR.slg||"—", hrVsR: vsR.homeRuns??0, abVsR: vsR.atBats??0,
+                seasonSLG: season.slg||"—", seasonISO: iso,
+                hardHit: saber.hardHitPercent!=null ? `${saber.hardHitPercent}%` : season.hardHitPercent!=null ? `${season.hardHitPercent}%` : "—",
+                barrel:  saber.barrelPercent!=null  ? `${saber.barrelPercent}%`  : season.barrelPercent!=null  ? `${season.barrelPercent}%`  : "—",
+                avgVsL: vsL.avg||"—", opsVsL: vsL.ops||"—", slgVsL: vsL.slg||"—", isoVsL, hrVsL: vsL.homeRuns??0, abVsL: vsL.atBats??0,
+                avgVsR: vsR.avg||"—", opsVsR: vsR.ops||"—", slgVsR: vsR.slg||"—", isoVsR, hrVsR: vsR.homeRuns??0, abVsR: vsR.atBats??0,
               });
             } catch {}
           }));
@@ -2477,53 +2492,90 @@ function CheatSheet({ games, gamesLoading, C }) {
   };
 
   const BatterTable = ({ batters, pitcherHand, confirmed, teamName }) => {
+    const [sortBy, setSortBy] = useState("order");
+    const [sortDir, setSortDir] = useState("asc");
     if (!batters.length) return <div style={{padding:20,textAlign:"center",color:"#2a3a55",fontSize:12,fontFamily:"'Inter',sans-serif"}}>No batter data available</div>;
-    const vsKey = pitcherHand==="L" ? "vsL" : "vsR";
-    const vsLabel = pitcherHand==="L" ? "vs LHP" : "vs RHP";
+    const vsLabel    = pitcherHand==="L" ? "vs LHP" : "vs RHP";
     const splitColor = pitcherHand==="L" ? "#38bdf8" : "#f97316";
+
+    const getVal = (b, key) => {
+      const map = {
+        order: b.order,
+        seasonAvg: parseFloat(b.seasonAvg)||0, seasonHR: b.seasonHR||0, seasonOPS: parseFloat(b.seasonOPS)||0,
+        seasonISO: parseFloat(b.seasonISO)||0,
+        hardHit: parseFloat(b.hardHit)||0, barrel: parseFloat(b.barrel)||0,
+        splitAvg: parseFloat(pitcherHand==="L"?b.avgVsL:b.avgVsR)||0,
+        splitOPS: parseFloat(pitcherHand==="L"?b.opsVsL:b.opsVsR)||0,
+        splitISO: parseFloat(pitcherHand==="L"?b.isoVsL:b.isoVsR)||0,
+        splitHR:  pitcherHand==="L"?b.hrVsL:b.hrVsR||0,
+      };
+      return map[key]??0;
+    };
+
+    const sorted = [...batters].sort((a,b)=>{
+      const av = getVal(a,sortBy), bv = getVal(b,sortBy);
+      return sortDir==="asc" ? av-bv : bv-av;
+    });
+
+    const SortTH = ({label, field, color, last}) => {
+      const active = sortBy===field;
+      const c = color||(active?C:"#3a5070");
+      return (
+        <th onClick={()=>{ if(sortBy===field) setSortDir(d=>d==="asc"?"desc":"asc"); else {setSortBy(field);setSortDir("desc");} }}
+          style={{padding:"6px 10px",fontSize:9,color:active?c:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:last?"none":"1px solid #0a1828",background:active?"#0d1828":"#050d18",whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",transition:"all 0.15s"}}>
+          {label} {active?(sortDir==="desc"?"▼":"▲"):""}
+        </th>
+      );
+    };
+
+    const isoColor = v => { const n=parseFloat(v); if(n>=0.200)return"#00ff88"; if(n<=0.100)return"#ff4444"; return"#c8d8f0"; };
+    const hhColor  = v => { const n=parseFloat(v); if(n>=45)return"#00ff88"; if(n<=30)return"#ff4444"; return"#c8d8f0"; };
+    const brColor  = v => { const n=parseFloat(v); if(n>=12)return"#00ff88"; if(n<=5)return"#ff4444"; return"#c8d8f0"; };
 
     return (
       <div style={{background:"#0a1220",border:"1px solid #0a1828",borderRadius:4,overflow:"hidden",marginBottom:12}}>
-        <div style={{padding:"8px 14px",background:"#050d18",borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:10}}>
+        <div style={{padding:"8px 14px",background:"#050d18",borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <div style={{fontSize:11,color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{teamName.toUpperCase()}</div>
           {confirmed
             ? <span style={{fontSize:9,color:"#00ff88",background:"#00ff8815",border:"1px solid #00ff8830",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ CONFIRMED LINEUP</span>
-            : <span style={{fontSize:9,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>PROJECTED LINEUP</span>
+            : <span style={{fontSize:9,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>PROJECTED</span>
           }
-          <div style={{marginLeft:"auto",fontSize:10,color:splitColor,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>FACING {pitcherHand==="L"?"LHP":"RHP"} · {vsLabel}</div>
+          <div style={{marginLeft:"auto",fontSize:10,color:splitColor,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>FACING {pitcherHand==="L"?"LHP":"RHP"}</div>
+          <div style={{fontSize:9,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>Click column headers to sort</div>
         </div>
         <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
+          <table style={{width:"100%",borderCollapse:"collapse",minWidth:900}}>
             <thead>
               <tr>
-                <TH left>#</TH>
-                <TH left>BATTER</TH>
+                <SortTH label="#"         field="order"/>
+                <th style={{padding:"6px 10px",fontSize:9,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"left",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",minWidth:130}}>BATTER</th>
                 <TH>B</TH>
-                <TH>SZN AVG</TH>
-                <TH>SZN HR</TH>
-                <TH>SZN OPS</TH>
-                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} AVG</th>
-                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} OPS</th>
-                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} SLG</th>
-                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} HR</th>
-                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",background:"#050d18",whiteSpace:"nowrap",position:"sticky",top:0}}>{vsLabel} AB</th>
+                <SortTH label="SZN AVG"   field="seasonAvg"/>
+                <SortTH label="SZN HR"    field="seasonHR"/>
+                <SortTH label="SZN OPS"   field="seasonOPS"/>
+                <SortTH label="ISO"       field="seasonISO"/>
+                <SortTH label="HARD HIT%" field="hardHit"/>
+                <SortTH label="BARREL%"   field="barrel"/>
+                <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderLeft:"2px solid #1a2a40",borderRight:"1px solid #0a1828",background:"#060e1a",whiteSpace:"nowrap",minWidth:4}}/>
+                <SortTH label={`${vsLabel} AVG`} field="splitAvg" color={splitColor}/>
+                <SortTH label={`${vsLabel} OPS`} field="splitOPS" color={splitColor}/>
+                <SortTH label={`${vsLabel} ISO`} field="splitISO" color={splitColor}/>
+                <SortTH label={`${vsLabel} HR`}  field="splitHR"  color={splitColor} last/>
               </tr>
             </thead>
             <tbody>
-              {batters.sort((a,b)=>a.order-b.order).map((b,i)=>{
+              {sorted.map((b,i)=>{
                 const splitAvg = pitcherHand==="L" ? b.avgVsL : b.avgVsR;
                 const splitOPS = pitcherHand==="L" ? b.opsVsL : b.opsVsR;
-                const splitSLG = pitcherHand==="L" ? b.slgVsL : b.slgVsR;
+                const splitISO = pitcherHand==="L" ? b.isoVsL : b.isoVsR;
                 const splitHR  = pitcherHand==="L" ? b.hrVsL  : b.hrVsR;
-                const splitAB  = pitcherHand==="L" ? b.abVsL  : b.abVsR;
                 const handColor = b.hand==="L"?"#38bdf8":b.hand==="R"?"#f97316":"#8a9ab0";
                 const rowBg = i%2===0?"transparent":"#050d1890";
                 return (
                   <tr key={i} style={{borderBottom:"1px solid #0a1828",background:rowBg}}>
                     <td style={{padding:"7px 10px",fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace",borderRight:"1px solid #0a1828",textAlign:"center"}}>{b.order}</td>
                     <td style={{padding:"7px 10px",fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",borderRight:"1px solid #0a1828",whiteSpace:"nowrap"}}>
-                      {b.name}
-                      <span style={{fontSize:9,color:"#3a5070",marginLeft:6}}>{b.pos}</span>
+                      {b.name}<span style={{fontSize:9,color:"#3a5070",marginLeft:6}}>{b.pos}</span>
                     </td>
                     <td style={{padding:"7px 10px",textAlign:"center",borderRight:"1px solid #0a1828"}}>
                       <span style={{fontSize:10,fontWeight:"bold",color:handColor,fontFamily:"'Orbitron',monospace"}}>{b.hand}</span>
@@ -2531,11 +2583,15 @@ function CheatSheet({ games, gamesLoading, C }) {
                     <TD val={b.seasonAvg} color={avgColor(b.seasonAvg)}/>
                     <TD val={b.seasonHR}/>
                     <TD val={b.seasonOPS} color={opsColor(b.seasonOPS)}/>
+                    <TD val={b.seasonISO} color={isoColor(b.seasonISO)}/>
+                    <TD val={b.hardHit}   color={hhColor(b.hardHit)}/>
+                    <TD val={b.barrel}    color={brColor(b.barrel)}/>
+                    {/* Split divider */}
+                    <td style={{padding:0,borderLeft:"2px solid #1a2a40",background:"#060e1a",width:4}}/>
                     <TD val={splitAvg} color={avgColor(splitAvg)} bold={parseFloat(splitAvg)>=0.280} bg={parseFloat(splitAvg)>=0.300?"#00ff8808":parseFloat(splitAvg)<=0.200?"#ff444408":undefined}/>
                     <TD val={splitOPS} color={opsColor(splitOPS)} bold={parseFloat(splitOPS)>=0.850} bg={parseFloat(splitOPS)>=0.900?"#00ff8808":parseFloat(splitOPS)<=0.650?"#ff444408":undefined}/>
-                    <TD val={splitSLG} color={opsColor(splitSLG)}/>
+                    <TD val={splitISO} color={isoColor(splitISO)}/>
                     <TD val={splitHR} color={splitHR>=3?"#f97316":undefined} bold={splitHR>=3}/>
-                    <TD val={splitAB} color="#3a5070"/>
                   </tr>
                 );
               })}
