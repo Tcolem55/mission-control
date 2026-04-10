@@ -2966,7 +2966,7 @@ function SportsTab() {
   const fetchMlbGames = async () => {
     setMlbLoading(true);
     try {
-      const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${activeDate}&hydrate=probablePitcher(stats),team`);
+      const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${activeDate}&hydrate=probablePitcher(stats),team,linescore`);
       const d = await r.json();
       setMlbGames(d.dates?.[0]?.games || []);
     } catch { setMlbGames([]); }
@@ -3167,17 +3167,40 @@ Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to targe
                       <span style={{fontSize:9,color:status==="Live"?"#00ff88":status==="Final"?"#555":C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{status==="Live"?"🔴 LIVE":status==="Final"?"FINAL":gameTime}</span>
                       {game.venue?.name&&<span style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{game.venue.name}</span>}
                     </div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{away?.team?.abbreviation} <span style={{fontSize:10,color:"#4a6080"}}>({away?.team?.name})</span></div>
-                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>SP: {away?.probablePitcher?.fullName||"TBD"}</div>
-                      </div>
-                      <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
-                      <div style={{flex:1,textAlign:"right"}}>
-                        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{home?.team?.abbreviation} <span style={{fontSize:10,color:"#4a6080"}}>({home?.team?.name})</span></div>
-                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>SP: {home?.probablePitcher?.fullName||"TBD"}</div>
-                      </div>
-                    </div>
+                    {(() => {
+                      const ls = game.linescore;
+                      const awayScore = ls?.teams?.away?.runs;
+                      const homeScore = ls?.teams?.home?.runs;
+                      const isLive = status === "Live";
+                      const isFinal = status === "Final";
+                      const inning = ls?.currentInning;
+                      const half = ls?.inningHalf;
+                      const showScore = isLive || isFinal;
+                      return (
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{away?.team?.abbreviation} <span style={{fontSize:10,color:"#4a6080"}}>({away?.team?.name})</span></div>
+                            <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>SP: {away?.probablePitcher?.fullName||"TBD"}</div>
+                          </div>
+                          {showScore ? (
+                            <div style={{textAlign:"center",flexShrink:0}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <div style={{fontSize:20,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{awayScore??0}</div>
+                                <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>-</div>
+                                <div style={{fontSize:20,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{homeScore??0}</div>
+                              </div>
+                              {isLive && inning && <div style={{fontSize:8,color:"#00ff88",fontFamily:"'Orbitron',monospace",textAlign:"center"}}>{half?.toUpperCase()?.slice(0,3)} {inning}</div>}
+                            </div>
+                          ) : (
+                            <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
+                          )}
+                          <div style={{flex:1,textAlign:"right"}}>
+                            <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{home?.team?.abbreviation} <span style={{fontSize:10,color:"#4a6080"}}>({home?.team?.name})</span></div>
+                            <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>SP: {home?.probablePitcher?.fullName||"TBD"}</div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
