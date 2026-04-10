@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     for (const id of [...new Set(pitcherIds)]) {
       try {
-        const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=pitching&season=2025&limit=5`);
+        const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=pitching&season=2026&limit=5`);
         const d = await r.json();
         const logs = d.stats?.[0]?.splits?.slice(0,5)||[];
         if (logs.length) {
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
         const hitters = (rData.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).slice(0,9);
         for (const hitter of hitters) {
           try {
-            const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.person?.id}/stats?stats=byDateRange&group=hitting&startDate=${start14}&endDate=${today}&season=2025`);
+            const r = await fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.person?.id}/stats?stats=byDateRange&group=hitting&startDate=${start14}&endDate=${today}&season=2026`);
             const d = await r.json();
             const stat = d.stats?.[0]?.splits?.[0]?.stat;
             if (stat) {
