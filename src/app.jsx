@@ -2202,15 +2202,19 @@ function TopPicksSection({ games, gamesLoading, C }) {
 
       const prompt = `You are an elite MLB prop betting analyst. The data below was pulled LIVE from MLB Stats API today and contains the actual current rosters reflecting all 2025-26 offseason moves.
 
-ABSOLUTE RULES — YOU MUST FOLLOW THESE EXACTLY:
-1. ONLY recommend players whose names appear in the roster/lineup data below
-2. Do NOT use training data to recall which team a player is on — the data below is authoritative
-3. If a player is not listed below, do NOT recommend them — period
-4. Cross-check: before recommending any player, verify their name appears in the section for that team
-5. Players on IL/injury report must be excluded
-6. Factor in ballpark — high HR factor parks (>110) boost HR and TB props
-7. Heavily weight last 7-day form — a player hitting .380 in last 7 days is a strong hit/TB pick
-8. Use Hard Hit%, Barrel%, xBA, xSLG when available — these are better indicators than raw AVG
+ABSOLUTE RULES — VIOLATION IS NOT ACCEPTABLE:
+1. ONLY recommend players whose names appear EXPLICITLY in the roster/lineup sections below
+2. ONLY recommend players from teams that appear in today's games below — if a team is not listed, their players CANNOT be recommended
+3. Do NOT use training data for ANY roster information — trades happen constantly, players change teams
+4. If a player name is not in the data below, they DO NOT PLAY TODAY — do not recommend them
+5. Before recommending ANY player, find their exact name in the data below first
+6. Players on IL/injury report must be excluded
+7. Factor in ballpark — high HR factor parks (>110) boost HR and TB props
+8. Heavily weight last 7-day form — a player hitting .380 in last 7 days is a strong hit/TB pick
+9. Use Hard Hit%, Barrel%, xBA, xSLG when available — these are better indicators than raw AVG
+
+TEAMS PLAYING TODAY (ONLY recommend players from these teams):
+${games.slice(0,8).map(g=>`${g.teams?.away?.team?.name} vs ${g.teams?.home?.team?.name}`).join("\n")}
 
 TODAY'S LIVE ROSTER AND STATS DATA:
 ${gameContexts.join("\n")}
@@ -2266,7 +2270,7 @@ Respond ONLY with valid JSON, no markdown:
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           model:"claude-sonnet-4-20250514", max_tokens:2000,
-          system:"You are an expert MLB prop betting analyst. CRITICAL: You must ONLY recommend players explicitly listed in the user message data. The roster data was pulled live from MLB Stats API today. Never use your training data to determine team rosters — players change teams via trades and free agency. If a player is not in the provided data, do not recommend them. Respond with valid JSON only, no markdown.",
+          system:"You are an expert MLB prop betting analyst. CRITICAL RULES that cannot be broken: (1) You may ONLY recommend players whose names appear word-for-word in the roster/lineup data provided. (2) You may ONLY recommend players from teams explicitly listed in today's games data. (3) NEVER use your training knowledge about which team a player is on — this data changes constantly via trades. (4) If you cannot find a player name in the provided data, they are NOT playing today. Do not recommend them. Respond with valid JSON only, no markdown.",
           messages:[{role:"user",content:prompt}]
         }),
       });
