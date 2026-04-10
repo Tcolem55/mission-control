@@ -3054,14 +3054,54 @@ function SportsTab() {
 
   const getMlbAiInsight = async (game) => {
     setMlbAiLoading(true); setMlbAiInsight("");
-    const away = game.teams?.away;
-    const home = game.teams?.home;
-    const prompt = `You are an elite baseball prop betting analyst. Give a concise prop breakdown for:
-${away?.team?.name} (SP: ${away?.probablePitcher?.fullName||"TBD"}) @ ${home?.team?.name} (SP: ${home?.probablePitcher?.fullName||"TBD"})
+    const away     = game.teams?.away;
+    const home     = game.teams?.home;
+    const awayId   = away?.team?.id;
+    const homeId   = home?.team?.id;
+    const awayName = away?.team?.name;
+    const homeName = home?.team?.name;
+    const awaySP   = away?.probablePitcher?.fullName || "TBD";
+    const homeSP   = home?.probablePitcher?.fullName || "TBD";
+    const SKIP     = ["P","SP","RP","CL"];
 
-Provide: Top 3 player props you like, best strikeout prop, best over/under total, one contrarian pick. Be specific and concise.`;
+    // Always fetch live rosters — never trust Claude's memory
+    setMlbAiInsight("Loading rosters...");
+    let awayHitters = [], homeHitters = [];
     try {
-      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:600, system:"You are an expert baseball analyst and prop betting specialist.", messages:[{role:"user",content:prompt}] }) });
+      const [aRes, hRes] = await Promise.all([
+        fetch(`https://statsapi.mlb.com/api/v1/teams/${awayId}/roster?rosterType=active&hydrate=person`),
+        fetch(`https://statsapi.mlb.com/api/v1/teams/${homeId}/roster?rosterType=active&hydrate=person`),
+      ]);
+      const [aData, hData] = await Promise.all([aRes.json(), hRes.json()]);
+      awayHitters = (aData.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>p.person?.fullName).filter(Boolean);
+      homeHitters = (hData.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>p.person?.fullName).filter(Boolean);
+    } catch {}
+
+    if (!awayHitters.length && !homeHitters.length) {
+      setMlbAiInsight("Could not load rosters. Try again.");
+      setMlbAiLoading(false);
+      return;
+    }
+
+    const prompt = `You are an elite baseball prop betting analyst.
+
+STRICT RULE: You may ONLY recommend players from the lists below. These are the real current 2026 rosters pulled live from MLB API. Do NOT use any player not on these lists.
+
+${awayName} ACTIVE HITTERS: ${awayHitters.join(", ")}
+${homeName} ACTIVE HITTERS: ${homeHitters.join(", ")}
+
+MATCHUP: ${awayName} (SP: ${awaySP}) @ ${homeName} (SP: ${homeSP})
+
+Give a concise prop breakdown:
+- Top 3 player prop picks (hits/HR/TB/doubles) using ONLY players listed above
+- Best strikeout prop for either SP
+- Best game total (over/under runs)
+- One contrarian pick
+
+Be specific with reasoning. Do not recommend any player not in the lists above.`;
+
+    try {
+      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:700, system:"You are an expert baseball prop analyst. CRITICAL: Only recommend players explicitly listed in the user message. Never use training memory for rosters — players change teams via trades and free agency constantly.", messages:[{role:"user",content:prompt}] }) });
       const data = await res.json();
       setMlbAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
     } catch { setMlbAiInsight("Connection error."); }
@@ -3095,15 +3135,65 @@ Provide: Top 3 player props you like, best strikeout prop, best over/under total
 
   const getNbaAiInsight = async (game) => {
     setNbaAiLoading(true); setNbaAiInsight("");
-    const comp = game.competitions?.[0];
-    const away = comp?.competitors?.find(c=>c.homeAway==="away");
-    const home = comp?.competitors?.find(c=>c.homeAway==="home");
-    const prompt = `You are an elite NBA prop betting analyst. Give a prop breakdown for:
-${away?.team?.displayName||"Away"} (${away?.records?.[0]?.summary||""}) @ ${home?.team?.displayName||"Home"} (${home?.records?.[0]?.summary||""})
+    const comp     = game.competitions?.[0];
+    const away     = comp?.competitors?.find(c=>c.homeAway==="away");
+    const home     = comp?.competitors?.find(c=>c.homeAway==="home");
+    const awayId   = away?.team?.id;
+    const homeId   = home?.team?.id;
+    const awayName = away?.team?.displayName || "Away";
+    const homeName = home?.team?.displayName || "Home";
+    const awayRec  = away?.records?.[0]?.summary || "";
+    const homeRec  = home?.records?.[0]?.summary || "";
+    const EXCL     = ["Out","Doubtful","Injured Reserve","IR"];
 
-Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to target, best defensive fade, game total pick, one longshot. Be specific.`;
+    // Fetch live rosters — never trust Claude's memory
+    setNbaAiInsight("Loading rosters...");
+    let awayPlayers = [], homePlayers = [];
     try {
-      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:700, system:"You are an expert NBA analyst and prop betting specialist.", messages:[{role:"user",content:prompt}] }) });
+      const [aRes, hRes, aIRes, hIRes] = await Promise.all([
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${awayId}/roster`),
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${homeId}/roster`),
+        fetch(`/api/nba?type=injuries&teamId=${awayId}`),
+        fetch(`/api/nba?type=injuries&teamId=${homeId}`),
+      ]);
+      const [aData, hData, aIData, hIData] = await Promise.all([aRes.json(), hRes.json(), aIRes.json(), hIRes.json()]);
+      const awayOut = (aIData.injuries||[]).filter(i=>EXCL.includes(i.status)).map(i=>i.player?.toLowerCase());
+      const homeOut = (hIData.injuries||[]).filter(i=>EXCL.includes(i.status)).map(i=>i.player?.toLowerCase());
+      awayPlayers = (aData.athletes||[]).flatMap(g=>(g.items||[g]))
+        .filter(p=>p.fullName||p.displayName)
+        .map(p=>p.fullName||p.displayName)
+        .filter(name=>!awayOut.some(n=>name.toLowerCase().includes(n?.split(" ").slice(-1)[0]||"")));
+      homePlayers = (hData.athletes||[]).flatMap(g=>(g.items||[g]))
+        .filter(p=>p.fullName||p.displayName)
+        .map(p=>p.fullName||p.displayName)
+        .filter(name=>!homeOut.some(n=>name.toLowerCase().includes(n?.split(" ").slice(-1)[0]||"")));
+    } catch {}
+
+    if (!awayPlayers.length && !homePlayers.length) {
+      setNbaAiInsight("Could not load rosters. Try again.");
+      setNbaAiLoading(false);
+      return;
+    }
+
+    const prompt = `You are an elite NBA prop betting analyst.
+
+STRICT RULE: Only recommend players from the active roster lists below. Do NOT use training memory.
+
+${awayName} ACTIVE PLAYERS: ${awayPlayers.join(", ")}
+${homeName} ACTIVE PLAYERS: ${homePlayers.join(", ")}
+
+MATCHUP: ${awayName} (${awayRec}) @ ${homeName} (${homeRec})
+
+Give a concise prop breakdown:
+- Top 3 player prop picks (pts/reb/ast/3PM/PRA) using ONLY players listed above
+- Best scorer to target and why
+- Game total pick
+- One contrarian pick
+
+Only recommend players from the lists above.`;
+
+    try {
+      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:700, system:"You are an expert NBA prop analyst. CRITICAL: Only recommend players explicitly listed in the user message. Never use training memory for rosters.", messages:[{role:"user",content:prompt}] }) });
       const data = await res.json();
       setNbaAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
     } catch { setNbaAiInsight("Connection error."); }
