@@ -1568,35 +1568,31 @@ function NBAPicksSection({ games, gamesLoading, C }) {
       }
 
       // ── Fetch real NBA prop lines ─────────────────────────────────────────
-      log("Fetching real NBA prop lines from sportsbooks...");
+      log("Fetching real NBA prop lines...");
       let nbaRealLines = {};
       try {
-        const evRes  = await fetch('/api/odds?type=events&sport=basketball_nba');
-        const events = await evRes.json();
-        if (Array.isArray(events) && events.length > 0) {
-          for (const event of events.slice(0, 6)) {
-            try {
-              const prRes   = await fetch(`/api/odds?type=eventprops&sport=basketball_nba&eventId=${event.id}&market=player_points,player_rebounds,player_assists,player_threes`);
-              const prData  = await prRes.json();
-              const bm      = prData.bookmakers?.[0];
-              if (!bm) continue;
-              for (const market of bm.markets || []) {
-                for (const outcome of market.outcomes || []) {
-                  const playerName = outcome.description || outcome.name;
-                  if (!playerName || outcome.name === playerName) continue;
-                  if (!nbaRealLines[playerName]) nbaRealLines[playerName] = {};
+        const evRes = await fetch('/api/odds?sport=basketball_nba&market=player_points,player_rebounds,player_assists');
+        const evData = await evRes.json();
+        if (Array.isArray(evData)) {
+          for (const game of evData) {
+            for (const bm of game.bookmakers||[]) {
+              for (const market of bm.markets||[]) {
+                for (const outcome of market.outcomes||[]) {
+                  const name = outcome.description;
+                  if (!name) continue;
+                  if (!nbaRealLines[name]) nbaRealLines[name] = {};
                   const mkt = market.key;
-                  if (!nbaRealLines[playerName][mkt]) nbaRealLines[playerName][mkt] = {};
-                  if (outcome.name === 'Over') { nbaRealLines[playerName][mkt].line = outcome.point; nbaRealLines[playerName][mkt].over = outcome.price; }
-                  if (outcome.name === 'Under') nbaRealLines[playerName][mkt].under = outcome.price;
+                  if (!nbaRealLines[name][mkt]) nbaRealLines[name][mkt] = {};
+                  if (outcome.name==="Over") { nbaRealLines[name][mkt].line=outcome.point; nbaRealLines[name][mkt].over=outcome.price; }
+                  if (outcome.name==="Under") nbaRealLines[name][mkt].under=outcome.price;
                 }
               }
-            } catch {}
+            }
           }
-          const cnt = Object.keys(nbaRealLines).length;
-          log(cnt > 0 ? `✅ Real NBA lines for ${cnt} players` : "⚠️ No NBA lines yet");
         }
-      } catch { log("⚠️ NBA lines unavailable"); }
+        const cnt = Object.keys(nbaRealLines).length;
+        log(cnt > 0 ? `✅ Real NBA lines: ${cnt} players` : "⚠️ No NBA lines yet");
+      } catch { log("⚠️ NBA lines skipped"); }
 
       const nbaLinesCtx = Object.keys(nbaRealLines).length > 0
         ? "REAL NBA SPORTSBOOK LINES:\n" + Object.entries(nbaRealLines).slice(0,50).map(([name,lines])=>{
@@ -2149,53 +2145,44 @@ function TopPicksSection({ games, gamesLoading, C }) {
 
       // ── Step 3: Fetch real prop lines from Odds API ──────────────────────
       log("Fetching real prop lines from sportsbooks...");
-      let realLines = {}; // { "Player Name": { hits: {line, over, under}, hr: {odds}, tb: {line, over, under}, k: {line, over, under} } }
+      let realLines = {};
       try {
-        const eventsRes = await fetch('/api/odds?type=events&sport=baseball_mlb');
-        const events    = await eventsRes.json();
-        if (Array.isArray(events) && events.length > 0) {
-          // Fetch props for up to 6 games
-          for (const event of events.slice(0, 6)) {
-            try {
-              const propsRes = await fetch(`/api/odds?type=eventprops&sport=baseball_mlb&eventId=${event.id}`);
-              const propsData = await propsRes.json();
-              const bookmaker = propsData.bookmakers?.[0];
-              if (!bookmaker) continue;
-              for (const market of bookmaker.markets || []) {
+        const propsRes = await fetch('/api/odds?sport=baseball_mlb&market=batter_hits,batter_home_runs,batter_total_bases,batter_doubles,pitcher_strikeouts');
+        const propsData = await propsRes.json();
+        if (Array.isArray(propsData)) {
+          for (const game of propsData) {
+            for (const bm of game.bookmakers||[]) {
+              for (const market of bm.markets||[]) {
                 const mkt = market.key;
-                for (const outcome of market.outcomes || []) {
-                  const playerName = outcome.description || outcome.name;
-                  if (!playerName) continue;
-                  if (!realLines[playerName]) realLines[playerName] = {};
-                  if (mkt === 'batter_hits') {
-                    if (!realLines[playerName].hits) realLines[playerName].hits = {};
-                    if (outcome.name === 'Over') { realLines[playerName].hits.line = outcome.point; realLines[playerName].hits.over = outcome.price; }
-                    if (outcome.name === 'Under') realLines[playerName].hits.under = outcome.price;
+                for (const outcome of market.outcomes||[]) {
+                  const name = outcome.description;
+                  if (!name) continue;
+                  if (!realLines[name]) realLines[name] = {};
+                  if (mkt==="batter_hits") {
+                    if (!realLines[name].hits) realLines[name].hits={};
+                    if (outcome.name==="Over"){realLines[name].hits.line=outcome.point;realLines[name].hits.over=outcome.price;}
+                    if (outcome.name==="Under") realLines[name].hits.under=outcome.price;
                   }
-                  if (mkt === 'batter_home_runs') {
-                    realLines[playerName].hr = { odds: outcome.price };
+                  if (mkt==="batter_home_runs") realLines[name].hr={odds:outcome.price};
+                  if (mkt==="batter_total_bases") {
+                    if (!realLines[name].tb) realLines[name].tb={};
+                    if (outcome.name==="Over"){realLines[name].tb.line=outcome.point;realLines[name].tb.over=outcome.price;}
+                    if (outcome.name==="Under") realLines[name].tb.under=outcome.price;
                   }
-                  if (mkt === 'batter_total_bases') {
-                    if (!realLines[playerName].tb) realLines[playerName].tb = {};
-                    if (outcome.name === 'Over') { realLines[playerName].tb.line = outcome.point; realLines[playerName].tb.over = outcome.price; }
-                    if (outcome.name === 'Under') realLines[playerName].tb.under = outcome.price;
-                  }
-                  if (mkt === 'batter_doubles') {
-                    realLines[playerName].doubles = { odds: outcome.price };
-                  }
-                  if (mkt === 'pitcher_strikeouts') {
-                    if (!realLines[playerName].k) realLines[playerName].k = {};
-                    if (outcome.name === 'Over') { realLines[playerName].k.line = outcome.point; realLines[playerName].k.over = outcome.price; }
-                    if (outcome.name === 'Under') realLines[playerName].k.under = outcome.price;
+                  if (mkt==="batter_doubles") realLines[name].doubles={odds:outcome.price};
+                  if (mkt==="pitcher_strikeouts") {
+                    if (!realLines[name].k) realLines[name].k={};
+                    if (outcome.name==="Over"){realLines[name].k.line=outcome.point;realLines[name].k.over=outcome.price;}
+                    if (outcome.name==="Under") realLines[name].k.under=outcome.price;
                   }
                 }
               }
-            } catch {}
+            }
           }
-          const linesCount = Object.keys(realLines).length;
-          log(linesCount > 0 ? `✅ Real lines loaded for ${linesCount} players` : "⚠️ No prop lines available yet (too early)");
         }
-      } catch(e) { log("⚠️ Could not load prop lines — using AI estimates"); }
+        const cnt = Object.keys(realLines).length;
+        log(cnt > 0 ? `✅ Real lines: ${cnt} players` : "⚠️ Lines not posted yet");
+      } catch { log("⚠️ Prop lines skipped"); }
 
       // Build lines context for prompt
       const linesContext = Object.keys(realLines).length > 0
