@@ -2947,8 +2947,13 @@ function SportsTab() {
   const MLB_C = "#f97316";
   const NBA_C = "#e11d48";
   const C = sport === "MLB" ? MLB_C : NBA_C;
-  const todayStr    = new Date().toISOString().split("T")[0];
-  const tomorrowStr = new Date(Date.now()+86400000).toISOString().split("T")[0];
+  // Use Eastern time for date (APIs use ET not UTC)
+  const getETDate = (offset=0) => {
+    const now = new Date(Date.now() + offset * 86400000);
+    return new Intl.DateTimeFormat("en-CA", { timeZone:"America/New_York" }).format(now);
+  };
+  const todayStr    = getETDate(0);
+  const tomorrowStr = getETDate(1);
   const [selectedDate, setSelectedDate] = useState("TODAY");
   const activeDate = selectedDate === "TODAY" ? todayStr : tomorrowStr;
 
