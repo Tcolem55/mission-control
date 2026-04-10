@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
   for (const team of MLB_TEAMS) {
     try {
-      const r = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster?rosterType=active&season=2025`);
+      const r = await fetch(`https://statsapi.mlb.com/api/v1/teams/${team.id}/roster?rosterType=active`);
       const d = await r.json();
       results.mlb[team.abbr] = {
         teamId: team.id,
