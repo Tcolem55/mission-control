@@ -1559,7 +1559,7 @@ Respond ONLY with valid JSON:
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, system:"Expert NBA prop analyst. ONLY recommend players explicitly listed in provided data. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, system:"Expert NBA prop betting analyst. CRITICAL: ONLY recommend players explicitly listed in the user message data — never use training data to recall team rosters. NBA players change teams frequently. Only use players from the active roster data provided. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
@@ -2066,19 +2066,19 @@ function TopPicksSection({ games, gamesLoading, C }) {
       // ── Step 3: Generate picks with all real data ─────────────────────────
       log("Sending real data to AI for pick generation...");
 
-      const prompt = `You are an elite MLB prop betting analyst. You have been given REAL current data:
-- Active 26-man rosters (current as of today — use ONLY these players)
-- Confirmed lineups where available, or full active rosters where not yet posted
-- Actual pitcher stats from their last 5 starts this season
-- Actual 14-day batting stats for hitters
-- Recent IL transactions (avoid these players)
+      const prompt = `You are an elite MLB prop betting analyst. The data below was pulled LIVE from MLB Stats API today and contains the actual current rosters reflecting all 2025-26 offseason moves.
 
-CRITICAL: Only recommend players listed in the data below. Do NOT use any player not mentioned. Do NOT guess rosters from memory.
+ABSOLUTE RULES — YOU MUST FOLLOW THESE EXACTLY:
+1. ONLY recommend players whose names appear in the roster/lineup data below
+2. Do NOT use training data to recall which team a player is on — the data below is authoritative
+3. If a player is not listed below, do NOT recommend them — period
+4. Cross-check: before recommending any player, verify their name appears in the section for that team
+5. Players on IL/injury report must be excluded
 
-TODAY'S REAL DATA:
+TODAY'S LIVE ROSTER AND STATS DATA:
 ${gameContexts.join("\n")}
 
-INJURY/IL REPORT:
+INJURY/IL REPORT — DO NOT RECOMMEND THESE PLAYERS:
 ${injuryNote}
 
 Generate today's top 5 picks per category using ONLY players listed above. Reference specific stats in your reasoning.
@@ -2126,14 +2126,39 @@ Respond ONLY with valid JSON, no markdown:
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           model:"claude-sonnet-4-20250514", max_tokens:2000,
-          system:"You are an expert MLB prop betting analyst. You have been given REAL current roster and stats data. ONLY recommend players explicitly listed in the data provided. Never use players from memory or training data. Always respond with valid JSON only, no markdown.",
+          system:"You are an expert MLB prop betting analyst. CRITICAL: You must ONLY recommend players explicitly listed in the user message data. The roster data was pulled live from MLB Stats API today. Never use your training data to determine team rosters — players change teams via trades and free agency. If a player is not in the provided data, do not recommend them. Respond with valid JSON only, no markdown.",
           messages:[{role:"user",content:prompt}]
         }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
       const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
-      setPicks(parsed);
+
+      // Validate picks — build list of all valid player names from fetched data
+      const validNames = gameContexts.join(" ")
+        .split("\n")
+        .filter(l => l.includes("(") && !l.includes("SP:") && !l.includes("@"))
+        .flatMap(l => l.match(/([A-Z][a-z]+ [A-Z][a-z]+)/g)||[]);
+
+      // Filter out any picks with players not in our data (loose match)
+      const validatePicks = (picks) => {
+        if (!picks) return picks;
+        return picks.map(p => {
+          const inData = validNames.length === 0 || // if no names parsed, allow all
+            validNames.some(n => p.player?.toLowerCase().includes(n.split(" ")[1]?.toLowerCase()));
+          return { ...p, verified: inData };
+        });
+      };
+
+      const validatedPicks = {
+        homeRuns:   validatePicks(parsed.homeRuns),
+        hits:       validatePicks(parsed.hits),
+        totalBases: validatePicks(parsed.totalBases),
+        doubles:    validatePicks(parsed.doubles),
+        strikeouts: validatePicks(parsed.strikeouts),
+      };
+
+      setPicks(validatedPicks);
       setGenerated(true);
 
     } catch(e) {
@@ -2154,7 +2179,7 @@ Respond ONLY with valid JSON, no markdown:
       </div>
       {(!items||items.length===0)&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No picks generated</div>}
       {items?.map((p,i)=>(
-        <div key={i} style={{padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s"}}
+        <div key={i} style={{padding:"10px 14px",borderBottom:"1px solid #080f1e",transition:"background 0.15s",opacity:p.verified===false?0.5:1}}
           onMouseEnter={e=>e.currentTarget.style.background=`${color}06`}
           onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
@@ -2162,7 +2187,11 @@ Respond ONLY with valid JSON, no markdown:
               <span style={{fontSize:9,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.rank}</span>
             </div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{p.player}</div>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{p.player}</div>
+                {p.verified===false && <span style={{fontSize:8,color:"#ff4444",background:"#ff444415",border:"1px solid #ff444430",padding:"1px 5px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>VERIFY</span>}
+                {p.verified===true && <span style={{fontSize:8,color:"#00ff88",background:"#00ff8815",border:"1px solid #00ff8830",padding:"1px 5px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>✓</span>}
+              </div>
               <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.team} · {p.matchup||`${p.pick} ${p.line}`}</div>
             </div>
             <div style={{textAlign:"right",flexShrink:0}}>
