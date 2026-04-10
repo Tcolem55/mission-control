@@ -2947,18 +2947,21 @@ function SportsTab() {
   const MLB_C = "#f97316";
   const NBA_C = "#e11d48";
   const C = sport === "MLB" ? MLB_C : NBA_C;
-  const today = new Date().toISOString().split("T")[0];
+  const todayStr    = new Date().toISOString().split("T")[0];
+  const tomorrowStr = new Date(Date.now()+86400000).toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState("TODAY");
+  const activeDate = selectedDate === "TODAY" ? todayStr : tomorrowStr;
 
   useEffect(() => {
     if (sport === "MLB") fetchMlbGames();
     else fetchNbaGames();
-  }, [sport]);
+  }, [sport, selectedDate]);
 
   // ── MLB Fetches ──
   const fetchMlbGames = async () => {
     setMlbLoading(true);
     try {
-      const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${today}&hydrate=probablePitcher(stats),team`);
+      const r = await fetch(`https://statsapi.mlb.com/api/v1/schedule?sportId=1&date=${activeDate}&hydrate=probablePitcher(stats),team`);
       const d = await r.json();
       setMlbGames(d.dates?.[0]?.games || []);
     } catch { setMlbGames([]); }
@@ -2996,7 +2999,7 @@ Provide: Top 3 player props you like, best strikeout prop, best over/under total
     setNbaLoading(true);
     try {
       const [scoreRes, b2bRes] = await Promise.all([
-        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today.replace(/-/g,"")}`),
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${activeDate.replace(/-/g,"")}`),
         fetch(`/api/statcast?type=b2b`),
       ]);
       const [scoreData, b2bData] = await Promise.all([scoreRes.json(), b2bRes.json()]);
@@ -3112,8 +3115,16 @@ Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to targe
               </button>
             ))}
           </div>
+          {/* Date toggle */}
+          <div style={{display:"flex",background:"#0a1220",border:"1px solid #1a2a40",borderRadius:4,overflow:"hidden"}}>
+            {["TODAY","TOMORROW"].map((d,i)=>(
+              <button key={d} onClick={()=>setSelectedDate(d)} style={{padding:"8px 16px",background:selectedDate===d?`${C}20`:"transparent",border:"none",borderRight:i===0?"1px solid #1a2a40":"none",color:selectedDate===d?C:"#3a5070",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:1,transition:"all 0.2s"}}>
+                {d}
+              </button>
+            ))}
+          </div>
           <div style={{textAlign:"center"}}>
-            <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:2}}>TODAY</div>
+            <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:2}}>{selectedDate}</div>
             <div style={{fontSize:16,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace"}}>{games.length} GAMES</div>
           </div>
           <button onClick={()=>sport==="MLB"?fetchMlbGames():fetchNbaGames()} style={{padding:"6px 14px",background:`${C}15`,border:`1px solid ${C}40`,borderRadius:3,color:C,fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>↻ REFRESH</button>
