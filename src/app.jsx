@@ -1959,7 +1959,7 @@ function TopPicksSection({ games, gamesLoading, C }) {
           } catch {}
         }
 
-        // Get active rosters — use cache if available
+        // Always fetch rosters live from MLB Stats API — most reliable source
         const awayTeamId = away?.team?.id;
         const homeTeamId = home?.team?.id;
         const awayAbbr   = away?.team?.abbreviation;
@@ -1969,30 +1969,24 @@ function TopPicksSection({ games, gamesLoading, C }) {
         let awayHitters = [];
         let homeHitters = [];
 
-        // Try cache first
-        if (cachedRosters?.mlb?.[awayAbbr]?.roster) {
-          awayHitters = cachedRosters.mlb[awayAbbr].roster
-            .filter(p=>!p.isPitcher)
-            .map(p=>({id:p.id, name:p.name, pos:p.position}));
-        } else if (awayTeamId) {
-          try {
-            const r = await fetch(`/api/mlb?type=roster&teamId=${awayTeamId}`);
-            const d = await r.json();
-            awayHitters = (d.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation}));
-          } catch {}
-        }
-
-        if (cachedRosters?.mlb?.[homeAbbr]?.roster) {
-          homeHitters = cachedRosters.mlb[homeAbbr].roster
-            .filter(p=>!p.isPitcher)
-            .map(p=>({id:p.id, name:p.name, pos:p.position}));
-        } else if (homeTeamId) {
-          try {
-            const r = await fetch(`/api/mlb?type=roster&teamId=${homeTeamId}`);
-            const d = await r.json();
-            homeHitters = (d.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation}));
-          } catch {}
-        }
+        log(`Fetching live rosters for ${awayTeam} & ${homeTeam}...`);
+        try {
+          const [awayRosterRes, homeRosterRes] = await Promise.all([
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active&season=2025`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active&season=2025`),
+          ]);
+          const [awayRosterData, homeRosterData] = await Promise.all([
+            awayRosterRes.json(), homeRosterRes.json()
+          ]);
+          awayHitters = (awayRosterData.roster||[])
+            .filter(p=>!PITCHERS.includes(p.position?.abbreviation))
+            .map(p=>({id:p.person?.id, name:p.person?.fullName, pos:p.position?.abbreviation, team:awayTeam}));
+          homeHitters = (homeRosterData.roster||[])
+            .filter(p=>!PITCHERS.includes(p.position?.abbreviation))
+            .map(p=>({id:p.person?.id, name:p.person?.fullName, pos:p.position?.abbreviation, team:homeTeam}));
+          if (awayHitters.length) log(`✅ ${awayTeam}: ${awayHitters.length} active hitters`);
+          if (homeHitters.length) log(`✅ ${homeTeam}: ${homeHitters.length} active hitters`);
+        } catch(e) { log(`⚠️ Roster fetch failed: ${e.message}`); }
 
         // Try confirmed lineup — if available use batting order, else use full roster
         let awayLineup = awayHitters;
@@ -2005,20 +1999,20 @@ function TopPicksSection({ games, gamesLoading, C }) {
           const awayP = feedData.liveData?.boxscore?.teams?.away?.players || {};
           const homeP = feedData.liveData?.boxscore?.teams?.home?.players || {};
           if (awayOrder.length > 0) {
-            awayLineup = awayOrder.slice(0,9).map(id=>({id, name:awayP[`ID${id}`]?.person?.fullName})).filter(p=>p.name);
-            gameCtx += `\n  ✅ CONFIRMED Away Lineup: ${awayLineup.map(p=>p.name).join(", ")}`;
+            awayLineup = awayOrder.slice(0,9).map(id=>({id, name:awayP[`ID${id}`]?.person?.fullName, team:awayTeam})).filter(p=>p.name);
+            gameCtx += `\n  ✅ CONFIRMED ${awayTeam} Lineup: ${awayLineup.map(p=>`${p.name}[${awayTeam}]`).join(", ")}`;
           } else {
-            gameCtx += `\n  📋 Away Active Roster (lineup TBD): ${awayHitters.map(p=>`${p.name}(${p.pos})`).join(", ")}`;
+            gameCtx += `\n  📋 ${awayTeam} Active Roster (lineup TBD): ${awayHitters.map(p=>`${p.name}[${awayTeam}](${p.pos})`).join(", ")}`;
           }
           if (homeOrder.length > 0) {
-            homeLineup = homeOrder.slice(0,9).map(id=>({id, name:homeP[`ID${id}`]?.person?.fullName})).filter(p=>p.name);
-            gameCtx += `\n  ✅ CONFIRMED Home Lineup: ${homeLineup.map(p=>p.name).join(", ")}`;
+            homeLineup = homeOrder.slice(0,9).map(id=>({id, name:homeP[`ID${id}`]?.person?.fullName, team:homeTeam})).filter(p=>p.name);
+            gameCtx += `\n  ✅ CONFIRMED ${homeTeam} Lineup: ${homeLineup.map(p=>`${p.name}[${homeTeam}]`).join(", ")}`;
           } else {
-            gameCtx += `\n  📋 Home Active Roster (lineup TBD): ${homeHitters.map(p=>`${p.name}(${p.pos})`).join(", ")}`;
+            gameCtx += `\n  📋 ${homeTeam} Active Roster (lineup TBD): ${homeHitters.map(p=>`${p.name}[${homeTeam}](${p.pos})`).join(", ")}`;
           }
         } catch {
-          if (awayHitters.length) gameCtx += `\n  📋 Away Active Roster: ${awayHitters.map(p=>`${p.name}(${p.pos})`).join(", ")}`;
-          if (homeHitters.length) gameCtx += `\n  📋 Home Active Roster: ${homeHitters.map(p=>`${p.name}(${p.pos})`).join(", ")}`;
+          if (awayHitters.length) gameCtx += `\n  📋 ${awayTeam} Active Roster: ${awayHitters.map(p=>`${p.name}[${awayTeam}](${p.pos})`).join(", ")}`;
+          if (homeHitters.length) gameCtx += `\n  📋 ${homeTeam} Active Roster: ${homeHitters.map(p=>`${p.name}[${homeTeam}](${p.pos})`).join(", ")}`;
         }
 
         // Batch fetch last 14-day stats for top hitters
@@ -2054,7 +2048,7 @@ function TopPicksSection({ games, gamesLoading, C }) {
                 const doubles = st.doubles || 0;
                 const tb = st.totalBases || st.tb || 0;
                 const pa = st.plateAppearances || st.pa || 0;
-                gameCtx += `\n    ${hitter.name} (${team}): ${avg} AVG, ${hits}H, ${hr}HR, ${doubles}2B, ${tb}TB in ${pa}PA`;
+                gameCtx += `\n    ${hitter.name}[${team}]: ${avg} AVG, ${hits}H, ${hr}HR, ${doubles}2B, ${tb}TB in ${pa}PA`;
               }
             }
           } catch {}
