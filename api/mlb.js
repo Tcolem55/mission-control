@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     else if (type === 'roster' && teamId) {
       // Get active 26-man roster
       const r = await fetch(
-        `https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active`
+        `https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=2026`
       );
       data = await r.json();
     }
