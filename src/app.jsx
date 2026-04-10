@@ -2058,8 +2058,8 @@ function TopPicksSection({ games, gamesLoading, C }) {
         log(`Fetching live rosters for ${awayTeam} & ${homeTeam}...`);
         try {
           const [awayRosterRes, homeRosterRes] = await Promise.all([
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active`),
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active&season=2026`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active&season=2026`),
           ]);
           const [awayRosterData, homeRosterData] = await Promise.all([
             awayRosterRes.json(), homeRosterRes.json()
@@ -2142,6 +2142,16 @@ function TopPicksSection({ games, gamesLoading, C }) {
 
         gameContexts.push(gameCtx);
       }
+
+      // ── Step 2.5: Build master whitelist of ALL fetched player names ────────
+      // This is the source of truth — any pick not in this list gets removed
+      const validPlayerNames = new Set();
+      for (const ctx of gameContexts) {
+        // Extract all player names tagged with [TeamName] from the context
+        const matches = ctx.match(/([A-ZÀ-Ö][a-zà-ö]+(?: [A-ZÀ-Ö][a-zà-ö.'-]+)+)\[/g) || [];
+        matches.forEach(m => validPlayerNames.add(m.replace('[','').toLowerCase().trim()));
+      }
+      log(`✅ Whitelist built: ${validPlayerNames.size} verified players across today's games`);
 
       // ── Step 3: Fetch real prop lines from Odds API ──────────────────────
       log("Fetching real prop lines from sportsbooks...");
@@ -2278,27 +2288,42 @@ Respond ONLY with valid JSON, no markdown:
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
       const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
 
-      // Tag picks with real line badge if odds came from sportsbook
-      const tagWithRealLines = (picks, category) => {
-        if (!picks) return picks;
-        return picks.map(p => {
-          // Find player in real lines (loose name match)
-          const matchedPlayer = Object.keys(realLines).find(name =>
-            name.toLowerCase().includes((p.player||"").split(" ").slice(-1)[0].toLowerCase()) ||
-            (p.player||"").toLowerCase().includes(name.split(" ").slice(-1)[0].toLowerCase())
-          );
-          const hasRealLine = !!matchedPlayer;
-          return { ...p, verified: true, realLine: hasRealLine };
-        });
+      // HARD FILTER: remove any pick where player is not in our fetched whitelist
+      const filterAndTag = (picks) => {
+        if (!picks) return [];
+        return picks
+          .map(p => {
+            const playerLower = (p.player||"").toLowerCase().trim();
+            // Check if player name matches anything in our whitelist
+            const inWhitelist = validPlayerNames.size === 0 || // if whitelist empty, allow all (fallback)
+              [...validPlayerNames].some(name => {
+                const nameParts = name.split(" ");
+                const playerParts = playerLower.split(" ");
+                // Match on last name at minimum
+                const lastName = nameParts[nameParts.length-1];
+                return lastName.length > 2 && playerLower.includes(lastName);
+              });
+            // Check real line
+            const matchedLine = Object.keys(realLines).find(name =>
+              name.toLowerCase().includes((p.player||"").split(" ").slice(-1)[0].toLowerCase())
+            );
+            return { ...p, verified: inWhitelist, realLine: !!matchedLine };
+          })
+          .filter(p => p.verified); // REMOVE unverified picks entirely
       };
 
       const validatedPicks = {
-        homeRuns:   tagWithRealLines(parsed.homeRuns, 'hr'),
-        hits:       tagWithRealLines(parsed.hits, 'hits'),
-        totalBases: tagWithRealLines(parsed.totalBases, 'tb'),
-        doubles:    tagWithRealLines(parsed.doubles, 'doubles'),
-        strikeouts: tagWithRealLines(parsed.strikeouts, 'k'),
+        homeRuns:   filterAndTag(parsed.homeRuns),
+        hits:       filterAndTag(parsed.hits),
+        totalBases: filterAndTag(parsed.totalBases),
+        doubles:    filterAndTag(parsed.doubles),
+        strikeouts: filterAndTag(parsed.strikeouts),
       };
+
+      // Log what got filtered
+      const totalIn  = Object.values(parsed).flat().length;
+      const totalOut = Object.values(validatedPicks).flat().length;
+      if (totalIn !== totalOut) console.warn(`Filtered ${totalIn-totalOut} picks not in whitelist`);
 
       setPicks(validatedPicks);
       setGenerated(true);
@@ -2519,7 +2544,7 @@ function CheatSheet({ games, gamesLoading, C }) {
             confirmed = true;
             hitterIds = order.slice(0,9).map(id=>({ id, name: plrs[`ID${id}`]?.person?.fullName })).filter(p=>p.name);
           } else {
-            const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active`);
+            const rRes = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&season=2026`);
             const rD   = await rRes.json();
             hitterIds  = (rD.roster||[]).filter(p=>!PITCHERS.includes(p.position?.abbreviation)).slice(0,9).map(p=>({id:p.person?.id, name:p.person?.fullName, pos:p.position?.abbreviation}));
           }
