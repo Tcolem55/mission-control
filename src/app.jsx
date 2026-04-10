@@ -1972,8 +1972,8 @@ function TopPicksSection({ games, gamesLoading, C }) {
         log(`Fetching live rosters for ${awayTeam} & ${homeTeam}...`);
         try {
           const [awayRosterRes, homeRosterRes] = await Promise.all([
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active&season=2025`),
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active&season=2025`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayTeamId}/roster?rosterType=active`),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeTeamId}/roster?rosterType=active`),
           ]);
           const [awayRosterData, homeRosterData] = await Promise.all([
             awayRosterRes.json(), homeRosterRes.json()
