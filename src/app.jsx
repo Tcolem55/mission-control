@@ -1451,11 +1451,16 @@ function NBAPicksSection({ games, gamesLoading, C }) {
 
       // Try cache first
       log("Checking cached data from cron jobs...");
-      const [cachedInjuries, cachedRosters, cachedStats] = await Promise.all([
+      const [cachedInjuries, cachedRosters, cachedStats, b2bData] = await Promise.all([
         fetchCachedInjuries(), fetchCachedRosters(), fetchCachedStats(),
+        fetch('/api/statcast?type=b2b').then(r=>r.json()).catch(()=>({b2bTeams:{}})),
       ]);
       const usingCache = !!(cachedStats?.nba && Object.keys(cachedStats.nba.players||{}).length > 0);
+      const b2bTeams = b2bData?.b2bTeams || {};
       log(usingCache ? "✅ Cache loaded — fast mode!" : "⚡ No cache — fetching live...");
+      if (Object.keys(b2bTeams).length > 0) {
+        log(`⚠️ B2B teams today: ${Object.keys(b2bTeams).join(", ")}`);
+      }
 
       for (const game of games.slice(0,6)) {
         const comp    = game.competitions?.[0];
@@ -1472,7 +1477,11 @@ function NBAPicksSection({ games, gamesLoading, C }) {
         const tipTime  = comp?.date ? new Date(comp.date).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
 
         log(`Loading ${awayName} @ ${homeName}...`);
+        const awayIsB2B = !!(b2bTeams[awayAbbr]);
+        const homeIsB2B = !!(b2bTeams[homeAbbr]);
         let gameCtx = `\n🏀 ${awayName} (${awayRec}) @ ${homeName} (${homeRec}) — ${tipTime}`;
+        if (awayIsB2B) gameCtx += `\n  ⚠️ ${awayName} ON BACK-TO-BACK — players likely fatigued, expect lower output`;
+        if (homeIsB2B) gameCtx += `\n  ⚠️ ${homeName} ON BACK-TO-BACK — players likely fatigued, expect lower output`;
 
         let awayRoster=[], homeRoster=[], awayInjuries=[], homeInjuries=[];
         try {
@@ -1937,7 +1946,18 @@ function TopPicksSection({ games, gamesLoading, C }) {
 
         log(`Loading ${awayTeam} @ ${homeTeam}...`);
 
+        // Get park factor
+        let parkNote = "";
+        try {
+          const pfRes = await fetch(`/api/statcast?type=park`);
+          const pfData = await pfRes.json();
+          const venue = game.venue?.name || "";
+          const pf = pfData[venue];
+          if (pf) parkNote = `\n  🏟️ ${venue} — HR Factor: ${pf.hr} ${pf.flag}`;
+        } catch {}
+
         let gameCtx = `\n📍 ${awayTeam} @ ${homeTeam}`;
+        if (parkNote) gameCtx += parkNote;
         gameCtx += `\n  Away SP: ${awayPitcher?.fullName || "TBD"}`;
         gameCtx += `\n  Home SP: ${homePitcher?.fullName || "TBD"}`;
 
@@ -2068,6 +2088,9 @@ ABSOLUTE RULES — YOU MUST FOLLOW THESE EXACTLY:
 3. If a player is not listed below, do NOT recommend them — period
 4. Cross-check: before recommending any player, verify their name appears in the section for that team
 5. Players on IL/injury report must be excluded
+6. Factor in ballpark — high HR factor parks (>110) boost HR and TB props
+7. Heavily weight last 7-day form — a player hitting .380 in last 7 days is a strong hit/TB pick
+8. Use Hard Hit%, Barrel%, xBA, xSLG when available — these are better indicators than raw AVG
 
 TODAY'S LIVE ROSTER AND STATS DATA:
 ${gameContexts.join("\n")}
@@ -2268,6 +2291,23 @@ function CheatSheet({ games, gamesLoading, C }) {
 
     const result = [];
 
+    // Pre-fetch park factors and Statcast leaderboard
+    setStatus("Loading Statcast leaderboard and park factors...");
+    let statcastMap = {};
+    let parkFactors = {};
+    try {
+      const [scRes, pfRes] = await Promise.all([
+        fetch(`/api/statcast?type=leaderboard`),
+        fetch(`/api/statcast?type=park`),
+      ]);
+      const [scData, pfData] = await Promise.all([scRes.json(), pfRes.json()]);
+      // Build map by player id
+      if (Array.isArray(scData)) {
+        scData.forEach(p => { if(p.id) statcastMap[p.id] = p; });
+      }
+      parkFactors = pfData || {};
+    } catch {}
+
     for (const game of games.slice(0, 8)) {
       const away        = game.teams?.away;
       const home        = game.teams?.home;
@@ -2284,9 +2324,12 @@ function CheatSheet({ games, gamesLoading, C }) {
 
       setStatus(`Loading ${awayAbbr} @ ${homeAbbr}...`);
 
+      const venueName = game.venue?.name || "";
+      const park = parkFactors[venueName] || null;
       const sheet = {
         gamePk: game.gamePk, awayTeam, homeTeam, awayAbbr, homeAbbr,
-        gameTime, venue: game.venue?.name, status: game.status?.abstractGameState,
+        gameTime, venue: venueName, status: game.status?.abstractGameState,
+        park,
         awayPitcher: null, homePitcher: null,
         awayBatters: [], homeBatters: [],
         awayLineupConfirmed: false, homeLineupConfirmed: false,
@@ -2376,13 +2419,31 @@ function CheatSheet({ games, gamesLoading, C }) {
               const isoVsR = vsR.slg && vsR.avg
                 ? (parseFloat(vsR.slg) - parseFloat(vsR.avg)).toFixed(3)
                 : "—";
+              // Get Statcast data from leaderboard
+              const sc = statcastMap[String(hitter.id)] || {};
+              const hardHitVal = sc.hardHitPct ? `${sc.hardHitPct}%` : saber.hardHitPercent!=null ? `${saber.hardHitPercent}%` : "—";
+              const barrelVal  = sc.barrelPct  ? `${sc.barrelPct}%`  : saber.barrelPercent!=null  ? `${saber.barrelPercent}%`  : "—";
+              const xBAval     = sc.xBA  || "—";
+              const xSLGval    = sc.xSLG || "—";
+              const avgEVval   = sc.avgEV ? `${sc.avgEV}` : "—";
+
+              // Recent form last 7/14 days
+              let last7Avg="—", last7HR=0, last7OPS="—", recentTrend=[];
+              try {
+                const recentRes = await fetch(`https://statsapi.mlb.com/api/v1/people/${hitter.id}/stats?stats=byDateRange&group=hitting&startDate=${new Date(Date.now()-7*86400000).toISOString().split("T")[0]}&endDate=${new Date().toISOString().split("T")[0]}&season=2026`);
+                const recentData = await recentRes.json();
+                const r7 = recentData.stats?.[0]?.splits?.[0]?.stat || {};
+                last7Avg = r7.avg||"—"; last7HR = r7.homeRuns??0; last7OPS = r7.ops||"—";
+              } catch {}
+
               batters.push({
                 order: idx+1, name: hitter.name, pos, hand, team: teamName,
                 oppHand: oppPitcherHand,
                 seasonAvg: season.avg||"—", seasonHR: season.homeRuns??0, seasonOPS: season.ops||"—",
                 seasonSLG: season.slg||"—", seasonISO: iso,
-                hardHit: saber.hardHitPercent!=null ? `${saber.hardHitPercent}%` : season.hardHitPercent!=null ? `${season.hardHitPercent}%` : "—",
-                barrel:  saber.barrelPercent!=null  ? `${saber.barrelPercent}%`  : season.barrelPercent!=null  ? `${season.barrelPercent}%`  : "—",
+                hardHit: hardHitVal, barrel: barrelVal,
+                xBA: xBAval, xSLG: xSLGval, avgEV: avgEVval,
+                last7Avg, last7HR, last7OPS,
                 avgVsL: vsL.avg||"—", opsVsL: vsL.ops||"—", slgVsL: vsL.slg||"—", isoVsL, hrVsL: vsL.homeRuns??0, abVsL: vsL.atBats??0,
                 avgVsR: vsR.avg||"—", opsVsR: vsR.ops||"—", slgVsR: vsR.slg||"—", isoVsR, hrVsR: vsR.homeRuns??0, abVsR: vsR.atBats??0,
               });
@@ -2504,6 +2565,9 @@ function CheatSheet({ games, gamesLoading, C }) {
         seasonAvg: parseFloat(b.seasonAvg)||0, seasonHR: b.seasonHR||0, seasonOPS: parseFloat(b.seasonOPS)||0,
         seasonISO: parseFloat(b.seasonISO)||0,
         hardHit: parseFloat(b.hardHit)||0, barrel: parseFloat(b.barrel)||0,
+        xBA: parseFloat(b.xBA)||0, xSLG: parseFloat(b.xSLG)||0,
+        avgEV: parseFloat(b.avgEV)||0,
+        last7Avg: parseFloat(b.last7Avg)||0, last7HR: b.last7HR||0, last7OPS: parseFloat(b.last7OPS)||0,
         splitAvg: parseFloat(pitcherHand==="L"?b.avgVsL:b.avgVsR)||0,
         splitOPS: parseFloat(pitcherHand==="L"?b.opsVsL:b.opsVsR)||0,
         splitISO: parseFloat(pitcherHand==="L"?b.isoVsL:b.isoVsR)||0,
@@ -2556,6 +2620,12 @@ function CheatSheet({ games, gamesLoading, C }) {
                 <SortTH label="ISO"       field="seasonISO"/>
                 <SortTH label="HARD HIT%" field="hardHit"/>
                 <SortTH label="BARREL%"   field="barrel"/>
+                <SortTH label="xBA"       field="xBA"/>
+                <SortTH label="xSLG"      field="xSLG"/>
+                <SortTH label="EV"        field="avgEV"/>
+                <SortTH label="L7 AVG"    field="last7Avg"/>
+                <SortTH label="L7 HR"     field="last7HR"/>
+                <SortTH label="L7 OPS"    field="last7OPS"/>
                 <th style={{padding:"6px 10px",fontSize:9,color:splitColor,letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderLeft:"2px solid #1a2a40",borderRight:"1px solid #0a1828",background:"#060e1a",whiteSpace:"nowrap",minWidth:4}}/>
                 <SortTH label={`${vsLabel} AVG`} field="splitAvg" color={splitColor}/>
                 <SortTH label={`${vsLabel} OPS`} field="splitOPS" color={splitColor}/>
@@ -2586,6 +2656,12 @@ function CheatSheet({ games, gamesLoading, C }) {
                     <TD val={b.seasonISO} color={isoColor(b.seasonISO)}/>
                     <TD val={b.hardHit}   color={hhColor(b.hardHit)}/>
                     <TD val={b.barrel}    color={brColor(b.barrel)}/>
+                    <TD val={b.xBA}       color={avgColor(b.xBA)}/>
+                    <TD val={b.xSLG}      color={opsColor(b.xSLG)}/>
+                    <TD val={b.avgEV}     color={parseFloat(b.avgEV)>=92?"#00ff88":parseFloat(b.avgEV)<=85?"#ff4444":"#c8d8f0"}/>
+                    <TD val={b.last7Avg}  color={avgColor(b.last7Avg)} bold={parseFloat(b.last7Avg)>=0.300} bg={parseFloat(b.last7Avg)>=0.350?"#00ff8815":parseFloat(b.last7Avg)<=0.150?"#ff444415":undefined}/>
+                    <TD val={b.last7HR}   color={b.last7HR>=2?"#f97316":undefined} bold={b.last7HR>=2}/>
+                    <TD val={b.last7OPS}  color={opsColor(b.last7OPS)} bold={parseFloat(b.last7OPS)>=0.900}/>
                     {/* Split divider */}
                     <td style={{padding:0,borderLeft:"2px solid #1a2a40",background:"#060e1a",width:4}}/>
                     <TD val={splitAvg} color={avgColor(splitAvg)} bold={parseFloat(splitAvg)>=0.280} bg={parseFloat(splitAvg)>=0.300?"#00ff8808":parseFloat(splitAvg)<=0.200?"#ff444408":undefined}/>
@@ -2668,8 +2744,15 @@ function CheatSheet({ games, gamesLoading, C }) {
                 </div>
                 <div style={{textAlign:"center",padding:"0 24px"}}>
                   <div style={{fontSize:14,color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:4}}>{selectedGame.gameTime}</div>
-                  <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{selectedGame.venue}</div>
-                  <div style={{fontSize:9,color:selectedGame.status==="Live"?"#00ff88":"#2a3a55",fontFamily:"'Orbitron',monospace",marginTop:4,letterSpacing:2}}>{selectedGame.status==="Live"?"🔴 LIVE":selectedGame.status==="Final"?"FINAL":"SCHEDULED"}</div>
+                  <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:4}}>{selectedGame.venue}</div>
+                  {selectedGame.park && (
+                    <div style={{marginBottom:4}}>
+                      <span style={{fontSize:9,color:selectedGame.park.hr>=110?"#f97316":selectedGame.park.hr<=90?"#38bdf8":"#8a9ab0",background:selectedGame.park.hr>=110?"#f9731615":selectedGame.park.hr<=90?"#38bdf815":"#0a1220",border:`1px solid ${selectedGame.park.hr>=110?"#f9731630":selectedGame.park.hr<=90?"#38bdf830":"#1a2a40"}`,padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>
+                        {selectedGame.park.flag} · HR Factor: {selectedGame.park.hr}
+                      </span>
+                    </div>
+                  )}
+                  <div style={{fontSize:9,color:selectedGame.status==="Live"?"#00ff88":"#2a3a55",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{selectedGame.status==="Live"?"🔴 LIVE":selectedGame.status==="Final"?"FINAL":"SCHEDULED"}</div>
                 </div>
                 <div style={{textAlign:"center",flex:1}}>
                   <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:4}}>HOME</div>
@@ -2728,6 +2811,7 @@ function SportsTab() {
   const [nbaAiInsight, setNbaAiInsight] = useState("");
   const [nbaAiLoading, setNbaAiLoading] = useState(false);
   const [nbaProps, setNbaProps]     = useState([]);
+  const [nbaB2B, setNbaB2B]         = useState({});
   const [nbaPropsLoading, setNbaPropsLoading] = useState(false);
 
   const MLB_C = "#f97316";
@@ -2781,9 +2865,13 @@ Provide: Top 3 player props you like, best strikeout prop, best over/under total
   const fetchNbaGames = async () => {
     setNbaLoading(true);
     try {
-      const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today.replace(/-/g,"")}`);
-      const d = await r.json();
-      setNbaGames(d.events || []);
+      const [scoreRes, b2bRes] = await Promise.all([
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today.replace(/-/g,"")}`),
+        fetch(`/api/statcast?type=b2b`),
+      ]);
+      const [scoreData, b2bData] = await Promise.all([scoreRes.json(), b2bRes.json()]);
+      setNbaGames(scoreData.events || []);
+      setNbaB2B(b2bData?.b2bTeams || {});
     } catch { setNbaGames([]); }
     setNbaLoading(false);
   };
@@ -3011,11 +3099,13 @@ Provide: Top 3 player props you like (pts/reb/ast/3PM/PRA), best scorer to targe
                           {away?.team?.logo&&<img src={away.team.logo} style={{width:20,height:20,objectFit:"contain"}} alt=""/>}
                           <span style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{away?.team?.abbreviation}</span>
                           <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{away?.records?.[0]?.summary}</span>
+                          {nbaB2B[away?.team?.abbreviation]&&<span style={{fontSize:7,color:"#ff6b35",background:"#ff6b3515",border:"1px solid #ff6b3530",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>B2B</span>}
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           {home?.team?.logo&&<img src={home.team.logo} style={{width:20,height:20,objectFit:"contain"}} alt=""/>}
                           <span style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{home?.team?.abbreviation}</span>
                           <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{home?.records?.[0]?.summary}</span>
+                          {nbaB2B[home?.team?.abbreviation]&&<span style={{fontSize:7,color:"#ff6b35",background:"#ff6b3515",border:"1px solid #ff6b3530",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>B2B</span>}
                         </div>
                       </div>
                       {(isLive||isFinal)&&(
