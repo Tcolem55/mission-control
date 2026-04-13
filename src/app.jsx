@@ -1954,6 +1954,7 @@ function TopPicksSection({ games, gamesLoading, C }) {
   const [generated, setGenerated] = useState(false);
   const [status, setStatus]   = useState("");
   const [dataLog, setDataLog] = useState([]);
+  const [error, setError]     = useState("");
 
   const log = (msg) => {
     setStatus(msg);
@@ -1962,7 +1963,7 @@ function TopPicksSection({ games, gamesLoading, C }) {
 
   const generatePicks = async () => {
     if (!games.length) return;
-    setLoading(true); setPicks(null); setDataLog([]);
+    setLoading(true); setPicks(null); setDataLog([]); setError("");
 
     try {
       const gameContexts = [];
@@ -2357,7 +2358,8 @@ Respond ONLY with valid JSON, no markdown:
       setGenerated(true);
 
     } catch(e) {
-      console.error(e);
+      console.error("MLB picks error:", e);
+      setError(`Error: ${e.message}`);
       setPicks(null);
     }
     setStatus("");
@@ -2417,13 +2419,18 @@ Respond ONLY with valid JSON, no markdown:
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
-        {loading && (
+        {(loading || (dataLog.length > 0 && !picks)) && (
           <div style={{padding:40,textAlign:"center"}}>
-            <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:16}}>LOADING REAL DATA···</div>
+            {loading && <div style={{fontSize:14,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:16}}>LOADING REAL DATA···</div>}
             <div style={{fontSize:12,color:"#38bdf8",fontFamily:"'Inter',sans-serif",marginBottom:8}}>{status}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"center",maxHeight:120,overflowY:"auto"}}>
-              {dataLog.map((l,i)=><div key={i} style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>)}
+            <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"center",maxHeight:200,overflowY:"auto"}}>
+              {dataLog.map((l,i)=><div key={i} style={{fontSize:10,color:i===dataLog.length-1?"#38bdf8":"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>)}
             </div>
+          </div>
+        )}
+        {!loading && error && (
+          <div style={{padding:20,textAlign:"center",color:"#ff4444",fontFamily:"'Inter',sans-serif",fontSize:12,background:"#ff444410",border:"1px solid #ff444430",borderRadius:4,margin:16}}>
+            ❌ {error}
           </div>
         )}
         {!loading && !picks && (
