@@ -1386,22 +1386,18 @@ function JobsTab() {
 
 // ── Safe JSON parser — handles Claude's occasional malformed JSON ─────────────
 function safeParseJSON(text) {
-  // Strip markdown code blocks
-  let cleaned = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-  // Remove JS-style comments
-  cleaned = cleaned.replace(/\/\/[^
-]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
-  // Remove trailing commas before } or ]
-  cleaned = cleaned.replace(/,(\s*[}\]])/g,'$1');
-  // Try direct parse first
+  let cleaned = text;
+  const fence1 = "```json";
+  const fence2 = "```";
+  cleaned = cleaned.split(fence1).join("").split(fence2).join("").trim();
+  cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
   try { return JSON.parse(cleaned); } catch(e1) {}
-  // Find first { and last } and try that
-  const start = cleaned.indexOf('{');
-  const end   = cleaned.lastIndexOf('}');
+  const start = cleaned.indexOf("{");
+  const end   = cleaned.lastIndexOf("}");
   if (start !== -1 && end !== -1) {
-    try { return JSON.parse(cleaned.slice(start, end+1)); } catch(e2) {}
+    try { return JSON.parse(cleaned.slice(start, end + 1)); } catch(e2) {}
   }
-  throw new Error('Could not parse JSON from response');
+  throw new Error("Could not parse JSON: " + cleaned.slice(0, 100));
 }
 
 // ── Cache helpers — reads from cron job endpoints ────────────────────────────
