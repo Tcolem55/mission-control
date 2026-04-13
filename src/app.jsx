@@ -2328,42 +2328,30 @@ Respond ONLY with valid JSON, no markdown:
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
       const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
 
-      // HARD FILTER: remove any pick where player is not in our fetched whitelist
-      const filterAndTag = (picks) => {
+      // Tag picks with real line badge — soft verification only, never filter out
+      const tagPicks = (picks) => {
         if (!picks) return [];
-        return picks
-          .map(p => {
-            const playerLower = (p.player||"").toLowerCase().trim();
-            // Check if player name matches anything in our whitelist
-            const inWhitelist = validPlayerNames.size === 0 || // if whitelist empty, allow all (fallback)
-              [...validPlayerNames].some(name => {
-                const nameParts = name.split(" ");
-                const playerParts = playerLower.split(" ");
-                // Match on last name at minimum
-                const lastName = nameParts[nameParts.length-1];
-                return lastName.length > 2 && playerLower.includes(lastName);
-              });
-            // Check real line
-            const matchedLine = Object.keys(realLines).find(name =>
-              name.toLowerCase().includes((p.player||"").split(" ").slice(-1)[0].toLowerCase())
-            );
-            return { ...p, verified: inWhitelist, realLine: !!matchedLine };
-          })
-          .filter(p => p.verified); // REMOVE unverified picks entirely
+        return picks.map(p => {
+          const playerLower = (p.player||"").toLowerCase();
+          const lastName = playerLower.split(" ").slice(-1)[0];
+          // Soft check against whitelist
+          const inWhitelist = validPlayerNames.size === 0 ||
+            [...validPlayerNames].some(n => n.includes(lastName) && lastName.length > 2);
+          // Check real line
+          const matchedLine = Object.keys(realLines).find(name =>
+            name.toLowerCase().includes(lastName)
+          );
+          return { ...p, verified: inWhitelist, realLine: !!matchedLine };
+        });
       };
 
       const validatedPicks = {
-        homeRuns:   filterAndTag(parsed.homeRuns),
-        hits:       filterAndTag(parsed.hits),
-        totalBases: filterAndTag(parsed.totalBases),
-        doubles:    filterAndTag(parsed.doubles),
-        strikeouts: filterAndTag(parsed.strikeouts),
+        homeRuns:   tagPicks(parsed.homeRuns),
+        hits:       tagPicks(parsed.hits),
+        totalBases: tagPicks(parsed.totalBases),
+        doubles:    tagPicks(parsed.doubles),
+        strikeouts: tagPicks(parsed.strikeouts),
       };
-
-      // Log what got filtered
-      const totalIn  = Object.values(parsed).flat().length;
-      const totalOut = Object.values(validatedPicks).flat().length;
-      if (totalIn !== totalOut) console.warn(`Filtered ${totalIn-totalOut} picks not in whitelist`);
 
       setPicks(validatedPicks);
       setGenerated(true);
@@ -2678,7 +2666,10 @@ Respond ONLY with valid JSON:
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
-      setPicks(JSON.parse(text.replace(/```json|```/g,"").trim()));
+      const cleaned = text.replace(/```json|```/g,"").trim();
+      const parsed = JSON.parse(cleaned);
+      if (!parsed.awayPicks && !parsed.homePicks) throw new Error("Invalid response structure");
+      setPicks(parsed);
 
     } catch(e) {
       addLog("❌ Error: " + e.message);
