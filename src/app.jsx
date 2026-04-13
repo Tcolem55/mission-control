@@ -62,7 +62,7 @@ const savePortfolio = p => { try { localStorage.setItem("portfolio",JSON.stringi
 async function askClaude(messages, system) {
   const res = await fetch('/api/claude', {
     method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:800, system, messages }),
+    body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:800, system, messages }),
   });
   const data = await res.json();
   return data.content?.map(b=>b.text||"").join("") || "No response.";
@@ -1140,7 +1140,7 @@ function JobsTab() {
     try {
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1200, system:"You are an expert career coach and resume writer.", messages:[{role:"user",content:prompts[mode]}] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1200, system:"You are an expert career coach and resume writer.", messages:[{role:"user",content:prompts[mode]}] }),
       });
       const data = await res.json();
       setAiResult(data.content?.map(b=>b.text||"").join("")||"No response.");
@@ -1627,7 +1627,7 @@ Respond ONLY with valid JSON:
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:2000, system:"Expert NBA prop betting analyst. CRITICAL RULES: (1) ONLY recommend players in the active roster data provided — never use training memory. (2) NEVER recommend players marked as OUT or DOUBTFUL. (3) Teams on back-to-back = lean to unders. (4) Only use players explicitly listed. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:2000, system:"Expert NBA prop betting analyst. CRITICAL RULES: (1) ONLY recommend players in the active roster data provided — never use training memory. (2) NEVER recommend players marked as OUT or DOUBTFUL. (3) Teams on back-to-back = lean to unders. (4) Only use players explicitly listed. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
@@ -1765,7 +1765,7 @@ Respond ONLY with valid JSON, no markdown:
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1500, system:"Expert NBA same-game parlay builder. ONLY use players explicitly listed in provided data. Valid JSON only.", messages:[{role:"user",content:parlayPrompt}] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1500, system:"Expert NBA same-game parlay builder. ONLY use players explicitly listed in provided data. Valid JSON only.", messages:[{role:"user",content:parlayPrompt}] }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
@@ -2319,7 +2319,7 @@ Respond ONLY with valid JSON, no markdown:
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:2000,
+          model:"claude-sonnet-4-6", max_tokens:2000,
           system:"You are an expert MLB prop betting analyst. CRITICAL RULES that cannot be broken: (1) You may ONLY recommend players whose names appear word-for-word in the roster/lineup data provided. (2) You may ONLY recommend players from teams explicitly listed in today's games data. (3) NEVER use your training knowledge about which team a player is on — this data changes constantly via trades. (4) If you cannot find a player name in the provided data, they are NOT playing today. Do not recommend them. Respond with valid JSON only, no markdown.",
           messages:[{role:"user",content:prompt}]
         }),
@@ -2671,7 +2671,7 @@ Respond ONLY with valid JSON:
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-20250514", max_tokens:1500,
+          model:"claude-sonnet-4-6", max_tokens:1500,
           system:"Expert MLB HR prop analyst. Only use players explicitly listed. Weight split stats vs opposing pitcher hand most heavily. Valid JSON only.",
           messages:[{role:"user",content:prompt}]
         })
@@ -3469,7 +3469,7 @@ Give a concise prop breakdown:
 Be specific with reasoning. Do not recommend any player not in the lists above.`;
 
     try {
-      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:700, system:"You are an expert baseball prop analyst. CRITICAL: Only recommend players explicitly listed in the user message. Never use training memory for rosters — players change teams via trades and free agency constantly.", messages:[{role:"user",content:prompt}] }) });
+      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:700, system:"You are an expert baseball prop analyst. CRITICAL: Only recommend players explicitly listed in the user message. Never use training memory for rosters — players change teams via trades and free agency constantly.", messages:[{role:"user",content:prompt}] }) });
       const data = await res.json();
       setMlbAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
     } catch { setMlbAiInsight("Connection error."); }
@@ -3561,7 +3561,7 @@ Give a concise prop breakdown:
 Only recommend players from the lists above.`;
 
     try {
-      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:700, system:"You are an expert NBA prop analyst. CRITICAL: Only recommend players explicitly listed in the user message. Never use training memory for rosters.", messages:[{role:"user",content:prompt}] }) });
+      const res = await fetch('/api/claude', { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:700, system:"You are an expert NBA prop analyst. CRITICAL: Only recommend players explicitly listed in the user message. Never use training memory for rosters.", messages:[{role:"user",content:prompt}] }) });
       const data = await res.json();
       setNbaAiInsight(data.content?.map(b=>b.text||"").join("")||"No response.");
     } catch { setNbaAiInsight("Connection error."); }
