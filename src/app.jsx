@@ -1384,6 +1384,26 @@ function JobsTab() {
 
 
 
+// ── Safe JSON parser — handles Claude's occasional malformed JSON ─────────────
+function safeParseJSON(text) {
+  // Strip markdown code blocks
+  let cleaned = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  // Remove JS-style comments
+  cleaned = cleaned.replace(/\/\/[^
+]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
+  // Remove trailing commas before } or ]
+  cleaned = cleaned.replace(/,(\s*[}\]])/g,'$1');
+  // Try direct parse first
+  try { return JSON.parse(cleaned); } catch(e1) {}
+  // Find first { and last } and try that
+  const start = cleaned.indexOf('{');
+  const end   = cleaned.lastIndexOf('}');
+  if (start !== -1 && end !== -1) {
+    try { return JSON.parse(cleaned.slice(start, end+1)); } catch(e2) {}
+  }
+  throw new Error('Could not parse JSON from response');
+}
+
 // ── Cache helpers — reads from cron job endpoints ────────────────────────────
 async function fetchCachedInjuries() {
   try {
@@ -1632,12 +1652,11 @@ Respond ONLY with valid JSON:
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
       try {
-        const cleaned = text.replace(/```json|```/g,"").trim();
-        const parsed = JSON.parse(cleaned);
+        const parsed = safeParseJSON(text);
         setPicks(parsed);
         setGenerated(true);
       } catch(parseErr) {
-        console.error("JSON parse error:", parseErr, text.slice(0,200));
+        console.error("NBA JSON parse error:", parseErr, text.slice(0,500));
         setPicks(null);
       }
     } catch(e) { console.error("generatePicks error:", e); setPicks(null); }
@@ -2327,7 +2346,7 @@ Respond ONLY with valid JSON, no markdown:
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
-      const parsed = JSON.parse(text.replace(/```json|```/g,"").trim());
+      const parsed = safeParseJSON(text);
 
       // Tag picks with real line badge — soft verification only, never filter out
       const tagPicks = (picks) => {
@@ -2673,8 +2692,7 @@ Respond ONLY with valid JSON:
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
-      const cleaned = text.replace(/```json|```/g,"").trim();
-      const parsed = JSON.parse(cleaned);
+      const parsed = safeParseJSON(text);
       if (!parsed.awayPicks && !parsed.homePicks) throw new Error("Invalid response structure");
       setPicks(parsed);
 
