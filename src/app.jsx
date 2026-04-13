@@ -1643,7 +1643,7 @@ Respond ONLY with valid JSON:
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:2000, system:"Expert NBA prop betting analyst. CRITICAL RULES: (1) ONLY recommend players in the active roster data provided — never use training memory. (2) NEVER recommend players marked as OUT or DOUBTFUL. (3) Teams on back-to-back = lean to unders. (4) Only use players explicitly listed. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:4000, system:"Expert NBA prop betting analyst. CRITICAL RULES: (1) ONLY recommend players in the active roster data provided — never use training memory. (2) NEVER recommend players marked as OUT or DOUBTFUL. (3) Teams on back-to-back = lean to unders. (4) Only use players explicitly listed. Valid JSON only, no markdown.", messages:[{role:"user",content:prompt}] }),
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"{}";
@@ -2295,13 +2295,7 @@ Generate today's top 5 picks per category using ONLY players listed above. Refer
 
 Respond ONLY with valid JSON, no markdown:
 {
-  "homeRuns":[
-    {"rank":1,"player":"Exact Name From Data","team":"Team Name","matchup":"vs SP Name","odds":"+185","reason":"References actual stats e.g. 3 HR in last 14 days, facing SP averaging 4.2 ER/start","confidence":"HIGH"},
-    {"rank":2,"player":"Exact Name From Data","team":"Team Name","matchup":"vs SP Name","odds":"+210","reason":"Specific stat-based reason","confidence":"HIGH"},
-    {"rank":3,"player":"Exact Name From Data","team":"Team Name","matchup":"vs SP Name","odds":"+195","reason":"Specific stat-based reason","confidence":"MED"},
-    {"rank":4,"player":"Exact Name From Data","team":"Team Name","matchup":"vs SP Name","odds":"+240","reason":"Specific stat-based reason","confidence":"MED"},
-    {"rank":5,"player":"Exact Name From Data","team":"Team Name","matchup":"vs SP Name","odds":"+175","reason":"Specific stat-based reason","confidence":"MED"}
-  ],
+  "homeRuns":[{"rank":1,"player":"Name","team":"Team","matchup":"vs SP","odds":"+185","reason":"stat-based reason","confidence":"HIGH"},{"rank":2,"player":"Name","team":"Team","matchup":"vs SP","odds":"+210","reason":"reason","confidence":"HIGH"},{"rank":3,"player":"Name","team":"Team","matchup":"vs SP","odds":"+195","reason":"reason","confidence":"MED"},{"rank":4,"player":"Name","team":"Team","matchup":"vs SP","odds":"+240","reason":"reason","confidence":"MED"},{"rank":5,"player":"Name","team":"Team","matchup":"vs SP","odds":"+175","reason":"reason","confidence":"MED"}],
   "hits":[
     {"rank":1,"player":"Exact Name From Data","team":"Team Name","line":"1.5","pick":"OVER","odds":"-125","reason":"References actual 14-day hit rate","confidence":"HIGH"},
     {"rank":2,"player":"Exact Name From Data","team":"Team Name","line":"1.5","pick":"OVER","odds":"-115","reason":"Specific stat-based reason","confidence":"HIGH"},
@@ -2335,7 +2329,7 @@ Respond ONLY with valid JSON, no markdown:
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6", max_tokens:2000,
+          model:"claude-sonnet-4-6", max_tokens:4000,
           system:"You are an expert MLB prop betting analyst. CRITICAL RULES that cannot be broken: (1) You may ONLY recommend players whose names appear word-for-word in the roster/lineup data provided. (2) You may ONLY recommend players from teams explicitly listed in today's games data. (3) NEVER use your training knowledge about which team a player is on — this data changes constantly via trades. (4) If you cannot find a player name in the provided data, they are NOT playing today. Do not recommend them. Respond with valid JSON only, no markdown.",
           messages:[{role:"user",content:prompt}]
         }),
@@ -2681,7 +2675,7 @@ Respond ONLY with valid JSON:
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6", max_tokens:1500,
+          model:"claude-sonnet-4-6", max_tokens:3000,
           system:"Expert MLB HR prop analyst. Only use players explicitly listed. Weight split stats vs opposing pitcher hand most heavily. Valid JSON only.",
           messages:[{role:"user",content:prompt}]
         })
