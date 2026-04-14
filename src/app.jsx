@@ -40,7 +40,7 @@ const PANELS_CFG = [
     placeholder:"Ask about stocks, markets...",
   },
   {
-    id:"fitness", label:"FITNESS", icon:"⚡", color:"#00ff88", dim:"#00ff8820",
+    id:"fitness", label:"FITNESS", icon:"⚡", color:"#818cf8", dim:"#00ff8820",
     system:`You are an elite fitness and nutrition coach for ${NAME}. He runs MWF, lifts 5-6 days/week, weighs 216 lbs, body recomp goal. Split: legs/push/pull/shoulders/pull/push. Targets: 3300 kcal, 200g protein, 380g carbs, 90g fat. Proteins: chicken, fish, steak, shrimp (no eggs). Carbs: rice, potatoes, protein pasta. Snacks: Greek yogurt, peanut butter. Supplements: creatine 5g/day, D3+K2, magnesium glycinate. Be concise, expert, personalized.`,
     quickPrompts:["Today's nutrition plan","Recovery tips","Pre-workout fuel","Supplement timing"],
     placeholder:"Ask about training, nutrition...",
@@ -158,7 +158,7 @@ function SparkChart({ data, color, width=500, height=160 }) {
   const linePath = `M ${pts.join(" L ")}`;
   const areaPath = `M ${pad},${pad+H} L ${pts.join(" L ")} L ${pad+W},${pad+H} Z`;
   const isUp = prices[prices.length-1] >= prices[0];
-  const lineColor = isUp ? "#00ff88" : "#ff4444";
+  const lineColor = isUp ? "#818cf8" : "#ff4444";
   const areaColor = isUp ? "#00ff8815" : "#ff444415";
 
   // X axis labels
@@ -255,7 +255,7 @@ function StockChartModal({ stock, stockData, onClose }) {
             {d && (
               <div style={{marginLeft:12}}>
                 <div style={{fontSize:22,fontWeight:"bold",color:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{fmt(d.price)}</div>
-                <div style={{fontSize:11,color:up?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{fmtP(d.changePct)} TODAY</div>
+                <div style={{fontSize:11,color:up?"#818cf8":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{fmtP(d.changePct)} TODAY</div>
               </div>
             )}
           </div>
@@ -300,7 +300,7 @@ function StockChartModal({ stock, stockData, onClose }) {
                     {label:"PERIOD LOW",  val:`$${Math.min(...chartData.map(d=>d.l)).toFixed(2)}`},
                     {label:"PERIOD CHG",  val:fmtP(((chartData[chartData.length-1]?.c - chartData[0]?.o) / chartData[0]?.o)*100)},
                   ].map(({label,val})=>(
-                    <div key={label} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:"10px 12px",textAlign:"center"}}>
+                    <div key={label} style={{background:"#111427",border:"1px solid #0d2040",borderRadius:3,padding:"10px 12px",textAlign:"center"}}>
                       <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
                       <div style={{fontSize:13,color:"#a0c0e0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
                     </div>
@@ -314,7 +314,7 @@ function StockChartModal({ stock, stockData, onClose }) {
           {tab==="PORTFOLIO" && (
             <div>
               {saved.shares ? (
-                <div style={{background:"#0a1220",border:`1px solid ${sc}20`,borderRadius:3,padding:16,marginBottom:16}}>
+                <div style={{background:"#111427",border:`1px solid ${sc}20`,borderRadius:3,padding:16,marginBottom:16}}>
                   <div style={{fontSize:8,color:sc,letterSpacing:3,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>YOUR POSITION</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                     {[
@@ -332,7 +332,7 @@ function StockChartModal({ stock, stockData, onClose }) {
                   {pnl !== null && (
                     <div style={{marginTop:14,padding:"10px 14px",background:pnl>=0?"#00ff8810":"#ff444410",border:`1px solid ${pnl>=0?"#00ff8830":"#ff444430"}`,borderRadius:3}}>
                       <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:4}}>UNREALIZED P&L</div>
-                      <div style={{fontSize:20,fontWeight:"bold",color:pnl>=0?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>
+                      <div style={{fontSize:20,fontWeight:"bold",color:pnl>=0?"#818cf8":"#ff4444",fontFamily:"'Orbitron',monospace"}}>
                         {pnl>=0?"+":""}{pnl.toFixed(2)} <span style={{fontSize:12}}>({pnlPct>=0?"+":""}{pnlPct?.toFixed(2)}%)</span>
                       </div>
                     </div>
@@ -342,14 +342,14 @@ function StockChartModal({ stock, stockData, onClose }) {
               ) : (
                 <div style={{padding:"20px",textAlign:"center",color:"#1a2a4a",fontSize:9,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:16}}>NO POSITION TRACKED</div>
               )}
-              <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:16}}>
+              <div style={{background:"#111427",border:"1px solid #0d2040",borderRadius:3,padding:16}}>
                 <div style={{fontSize:8,color:"#2a3a5a",letterSpacing:3,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>LOG POSITION</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                   {[{key:"shares",label:"SHARES",val:shares,set:setShares},{key:"avgCost",label:"AVG COST ($)",val:avgCost,set:setAvgCost}].map(({key,label,val,set})=>(
                     <div key={key}>
                       <div style={{fontSize:7,color:"#1a2a4a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
                       <input type="number" value={val} onChange={e=>set(e.target.value)} placeholder="0"
-                        style={{width:"100%",background:"#050d18",border:"1px solid #0d2040",borderRadius:3,padding:"8px 10px",color:"#a0c0e0",fontSize:12,fontFamily:"'Orbitron',monospace",outline:"none",boxSizing:"border-box"}}/>
+                        style={{width:"100%",background:"#0d0f1e",border:"1px solid #0d2040",borderRadius:3,padding:"8px 10px",color:"#a0c0e0",fontSize:12,fontFamily:"'Orbitron',monospace",outline:"none",boxSizing:"border-box"}}/>
                     </div>
                   ))}
                 </div>
@@ -373,7 +373,7 @@ function StockChartModal({ stock, stockData, onClose }) {
                 {label:"SECTOR", val:stock.sector},
                 {label:"STATUS", val:"PREV CLOSE"},
               ].map(({label,val})=>(
-                <div key={label} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:"12px 14px"}}>
+                <div key={label} style={{background:"#111427",border:"1px solid #0d2040",borderRadius:3,padding:"12px 14px"}}>
                   <div style={{fontSize:7,color:"#2a3a5a",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>{label}</div>
                   <div style={{fontSize:15,color:"#c0d8f0",fontFamily:"'Orbitron',monospace",fontWeight:"bold"}}>{val}</div>
                 </div>
@@ -427,7 +427,7 @@ function MacroModal({ onClose }) {
   const reset = () => { const e={kcal:0,protein:0,carbs:0,fat:0}; setMacros(e); saveMacros(e); };
 
   const rings = [
-    { label:"KCAL", color:"#00ff88", cur:macros.kcal, goal:MACROS_GOAL.kcal },
+    { label:"KCAL", color:"#818cf8", cur:macros.kcal, goal:MACROS_GOAL.kcal },
     { label:"PROTEIN", color:"#f472b6", cur:macros.protein, goal:MACROS_GOAL.protein },
     { label:"CARBS", color:"#fbbf24", cur:macros.carbs, goal:MACROS_GOAL.carbs },
     { label:"FAT", color:"#38bdf8", cur:macros.fat, goal:MACROS_GOAL.fat },
@@ -436,10 +436,10 @@ function MacroModal({ onClose }) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:400,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={onClose}>
       <div style={{background:"linear-gradient(135deg,#050d10,#0a1628)",border:"1px solid #00ff8830",borderRadius:4,padding:28,width:360,position:"relative",boxShadow:"0 0 60px #00ff8815, inset 0 0 60px #00000040"}} onClick={e=>e.stopPropagation()}>
-        <HUDBrackets color="#00ff88" size={14}/>
+        <HUDBrackets color="#818cf8" size={14}/>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
           <div>
-            <div style={{fontSize:8,letterSpacing:4,color:"#00ff88",marginBottom:2}}>⚡ NUTRITION TRACKER</div>
+            <div style={{fontSize:8,letterSpacing:4,color:"#818cf8",marginBottom:2}}>⚡ NUTRITION TRACKER</div>
             <div style={{fontSize:10,color:"#334",letterSpacing:2}}>{new Date().toDateString().toUpperCase()}</div>
           </div>
           <button onClick={onClose} style={{background:"none",border:"1px solid #ffffff10",color:"#555",cursor:"pointer",fontSize:12,width:24,height:24,borderRadius:2,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
@@ -455,13 +455,13 @@ function MacroModal({ onClose }) {
             {["kcal","protein","carbs","fat"].map(k=>(
               <div key={k} style={{position:"relative"}}>
                 <input type="number" value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder="0"
-                  style={{width:"100%",background:"#0a1220",border:"1px solid #ffffff10",borderRadius:3,padding:"8px 10px",color:"#ccc",fontSize:11,fontFamily:"'Orbitron',monospace",outline:"none",boxSizing:"border-box"}}/>
+                  style={{width:"100%",background:"#111427",border:"1px solid #ffffff10",borderRadius:3,padding:"8px 10px",color:"#ccc",fontSize:11,fontFamily:"'Orbitron',monospace",outline:"none",boxSizing:"border-box"}}/>
                 <div style={{position:"absolute",top:2,right:6,fontSize:7,color:"#334",letterSpacing:1}}>{k.toUpperCase()}</div>
               </div>
             ))}
           </div>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={add} style={{flex:1,padding:"10px",background:"linear-gradient(135deg,#00ff8815,#00ff8808)",border:"1px solid #00ff8840",borderRadius:3,color:"#00ff88",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>+ LOG</button>
+            <button onClick={add} style={{flex:1,padding:"10px",background:"linear-gradient(135deg,#00ff8815,#00ff8808)",border:"1px solid #00ff8840",borderRadius:3,color:"#818cf8",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>+ LOG</button>
             <button onClick={reset} style={{padding:"10px 16px",background:"#ff444410",border:"1px solid #ff444430",borderRadius:3,color:"#ff4444",fontSize:11,cursor:"pointer",fontFamily:"'Orbitron',monospace"}}>CLR</button>
           </div>
         </div>
@@ -547,11 +547,11 @@ function Chat({ panel, contextStr }) {
       </div>
       <div style={{padding:"8px 10px",borderTop:`1px solid ${c}12`,display:"flex",gap:8,background:"#030810",flexShrink:0}}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")send();}} placeholder={panel.placeholder}
-          style={{flex:1,background:"#0a1220",border:`1px solid ${c}20`,borderRadius:3,padding:"8px 12px",color:"#dde8f5",fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.2s"}}
+          style={{flex:1,background:"#111427",border:`1px solid ${c}20`,borderRadius:3,padding:"8px 12px",color:"#dde8f5",fontSize:13,fontFamily:"'Inter',sans-serif",outline:"none",transition:"border-color 0.2s"}}
           onFocus={e=>e.target.style.borderColor=`${c}60`}
           onBlur={e=>e.target.style.borderColor=`${c}20`}/>
         <button onClick={()=>send()} disabled={loading||!input.trim()}
-          style={{padding:"8px 16px",background:loading||!input.trim()?"#0a1220":`linear-gradient(135deg,${c}25,${c}10)`,border:`1px solid ${loading||!input.trim()?"#1e2d4a":c+"50"}`,borderRadius:3,color:loading||!input.trim()?"#2a3a4a":c,cursor:loading||!input.trim()?"not-allowed":"pointer",fontSize:14,transition:"all 0.2s",boxShadow:loading||!input.trim()?"none":`0 0 15px ${c}20`}}>
+          style={{padding:"8px 16px",background:loading||!input.trim()?"#111427":`linear-gradient(135deg,${c}25,${c}10)`,border:`1px solid ${loading||!input.trim()?"#1e2d4a":c+"50"}`,borderRadius:3,color:loading||!input.trim()?"#2a3a4a":c,cursor:loading||!input.trim()?"not-allowed":"pointer",fontSize:14,transition:"all 0.2s",boxShadow:loading||!input.trim()?"none":`0 0 15px ${c}20`}}>
           →
         </button>
       </div>
@@ -611,8 +611,8 @@ function StockTicker({ stocks, loading, lastUpdated, onRefresh, onSelectStock })
                 <div style={{fontSize:12,color:"#a0c0e0",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{d?fmt(d.price):"—"}</div>
                 <div style={{fontSize:7,color:"#1a2a4a",fontFamily:"'Orbitron',monospace"}}>{d?`↑${fmt(d.high)}`:"—"}</div>
               </div>
-              <div style={{padding:"3px 8px",borderRadius:2,minWidth:58,textAlign:"center",background:d?(up?"#00ff8812":"#ff444412"):"#0a1220",border:d?`1px solid ${up?"#00ff8830":"#ff444430"}`:"1px solid #0d2040",boxShadow:d&&up?`0 0 10px #00ff8815`:d&&!up?`0 0 10px #ff444415`:"none"}}>
-                <div style={{fontSize:9,fontWeight:"bold",color:d?(up?"#00ff88":"#ff4444"):"#1a2a4a",fontFamily:"'Orbitron',monospace"}}>{d?fmtP(d.changePct):"—"}</div>
+              <div style={{padding:"3px 8px",borderRadius:2,minWidth:58,textAlign:"center",background:d?(up?"#00ff8812":"#ff444412"):"#111427",border:d?`1px solid ${up?"#00ff8830":"#ff444430"}`:"1px solid #0d2040",boxShadow:d&&up?`0 0 10px #00ff8815`:d&&!up?`0 0 10px #ff444415`:"none"}}>
+                <div style={{fontSize:9,fontWeight:"bold",color:d?(up?"#818cf8":"#ff4444"):"#1a2a4a",fontFamily:"'Orbitron',monospace"}}>{d?fmtP(d.changePct):"—"}</div>
               </div>
             </div>
           );
@@ -697,7 +697,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   const isNews = cfg.id==="news";
 
   return (
-    <div style={{position:"relative",background:`linear-gradient(135deg, #12152a 0%, #0e1122 50%, #111428 100%)`,border:`1px solid rgba(255,255,255,0.07)`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 60px ${c}20, inset 0 0 40px ${c}05`:`inset 0 0 30px #00000040`,cursor:isExpanded?"default":"pointer",minHeight:0}}
+    <div style={{position:"relative",background:`linear-gradient(135deg, #010408 0%, #020810 50%, #010608 100%)`,border:`1px solid ${c}25`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 60px ${c}20, inset 0 0 40px ${c}05`:`inset 0 0 30px #00000040`,cursor:isExpanded?"default":"pointer",minHeight:0}}
       onClick={!isExpanded?onExpand:undefined}>
       <HUDBrackets color={c} size={14} thickness={2}/>
       <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.03,backgroundImage:`linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px)`,backgroundSize:"40px 40px"}}/>
@@ -753,7 +753,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
 // ── Coming Soon ───────────────────────────────────────────────────────────────
 function ComingSoon({ tab, color, icon, features }) {
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#010308",position:"relative",overflow:"hidden"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0b0d1a",position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",inset:0,opacity:0.02,backgroundImage:"linear-gradient(#ffffff 1px,transparent 1px),linear-gradient(90deg,#ffffff 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
       <div style={{textAlign:"center",zIndex:1,animation:"fadeUp 0.5s ease"}}>
         <div style={{fontSize:40,marginBottom:16}}>{icon}</div>
@@ -761,7 +761,7 @@ function ComingSoon({ tab, color, icon, features }) {
         <div style={{fontSize:12,color:"#3a5070",letterSpacing:3,fontFamily:"'Inter',sans-serif",marginBottom:32}}>COMING SOON — UNDER CONSTRUCTION</div>
         <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
           {features.map(f=>(
-            <div key={f} style={{padding:"8px 16px",background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{f}</div>
+            <div key={f} style={{padding:"8px 16px",background:"#111427",border:"1px solid #0d2040",borderRadius:3,fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{f}</div>
           ))}
         </div>
       </div>
@@ -814,7 +814,7 @@ function FinanceTab() {
 
   const sections = ["OVERVIEW","BILLS","SUBSCRIPTIONS"];
 
-  const inputStyle = { width:"100%", background:"#0a1220", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
+  const inputStyle = { width:"100%", background:"#111427", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
   const labelStyle = { fontSize:10, color:"#3a5070", fontFamily:"'Inter',sans-serif", marginBottom:4, display:"block" };
   const selectStyle = { ...inputStyle, cursor:"pointer" };
 
@@ -835,7 +835,7 @@ function FinanceTab() {
   });
 
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#010308",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
       {/* Finance Header */}
       <div style={{flexShrink:0,padding:"14px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#030c18)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
@@ -859,7 +859,7 @@ function FinanceTab() {
       </div>
 
       {/* Section tabs */}
-      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
         {sections.map(s=>(
           <button key={s} onClick={()=>setActiveSection(s)} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:activeSection===s?"#38bdf810":"transparent",border:"none",borderBottom:activeSection===s?"2px solid #38bdf8":"2px solid transparent",color:activeSection===s?"#38bdf8":"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {s}
@@ -901,12 +901,12 @@ function FinanceTab() {
             </div>
 
             {/* Spending bar */}
-            <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:16}}>
+            <div style={{background:"#111427",border:"1px solid #0d2040",borderRadius:4,padding:16}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
                 <span style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>Monthly Breakdown</span>
                 <span style={{fontSize:13,fontWeight:"bold",color:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>${totalMonthly.toFixed(2)}/mo</span>
               </div>
-              <div style={{height:8,background:"#050d18",borderRadius:4,overflow:"hidden",display:"flex"}}>
+              <div style={{height:8,background:"#0d0f1e",borderRadius:4,overflow:"hidden",display:"flex"}}>
                 {totalMonthly>0 && <>
                   <div style={{width:`${(totalBills/totalMonthly)*100}%`,background:"#38bdf8",boxShadow:"0 0 8px #38bdf860",transition:"width 0.5s"}}/>
                   <div style={{width:`${(totalSubs/totalMonthly)*100}%`,background:"#c084fc",boxShadow:"0 0 8px #c084fc60",transition:"width 0.5s"}}/>
@@ -920,7 +920,7 @@ function FinanceTab() {
 
             {/* Recent bills */}
             {bills.length>0 && (
-              <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:16}}>
+              <div style={{background:"#111427",border:"1px solid #0d2040",borderRadius:4,padding:16}}>
                 <div style={{fontSize:9,color:"#38bdf860",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:12}}>UPCOMING BILLS</div>
                 {bills.slice(0,5).map(b=>(
                   <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #0d1a28"}}>
@@ -977,7 +977,7 @@ function FinanceTab() {
             )}
 
             {bills.map(b=>(
-              <div key={b.id} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"border-color 0.2s"}}
+              <div key={b.id} style={{background:"#111427",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",transition:"border-color 0.2s"}}
                 onMouseEnter={e=>e.currentTarget.style.borderColor="#38bdf830"}
                 onMouseLeave={e=>e.currentTarget.style.borderColor="#0d2040"}>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -987,7 +987,7 @@ function FinanceTab() {
                     <div style={{display:"flex",gap:8}}>
                       <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{b.category}</span>
                       {b.due&&<span style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>· Due {b.due}th</span>}
-                      {b.autopay&&<span style={{fontSize:10,color:"#00ff88",fontFamily:"'Inter',sans-serif"}}>· ✓ Autopay</span>}
+                      {b.autopay&&<span style={{fontSize:10,color:"#818cf8",fontFamily:"'Inter',sans-serif"}}>· ✓ Autopay</span>}
                     </div>
                   </div>
                 </div>
@@ -1009,7 +1009,7 @@ function FinanceTab() {
             </div>
 
             {showAddSub && (
-              <div style={{background:"#0a1220",border:"1px solid #c084fc25",borderRadius:4,padding:16,position:"relative"}}>
+              <div style={{background:"#111427",border:"1px solid #c084fc25",borderRadius:4,padding:16,position:"relative"}}>
                 <HUDBrackets color="#c084fc" size={10}/>
                 <div style={{fontSize:9,color:"#c084fc",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:14}}>NEW SUBSCRIPTION</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
@@ -1033,7 +1033,7 @@ function FinanceTab() {
               <div key={cat}>
                 <div style={{fontSize:9,color:"#c084fc60",letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:8,marginTop:4}}>{cat.toUpperCase()}</div>
                 {items.map(s=>(
-                  <div key={s.id} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,transition:"border-color 0.2s"}}
+                  <div key={s.id} style={{background:"#111427",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,transition:"border-color 0.2s"}}
                     onMouseEnter={e=>e.currentTarget.style.borderColor="#c084fc30"}
                     onMouseLeave={e=>e.currentTarget.style.borderColor="#0d2040"}>
                     <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -1089,7 +1089,7 @@ const saveJobs   = j  => { try { localStorage.setItem("jobs_applied",JSON.string
 const loadResume = () => { try { return localStorage.getItem("master_resume")||RESUME; } catch { return RESUME; }};
 const saveResumeFn = r => { try { localStorage.setItem("master_resume",r); } catch {} };
 
-const STATUS_COLORS_J = { Saved:"#c084fc", Applied:"#38bdf8", Interview:"#fbbf24", Offer:"#00ff88", Rejected:"#ff4444" };
+const STATUS_COLORS_J = { Saved:"#c084fc", Applied:"#38bdf8", Interview:"#fbbf24", Offer:"#818cf8", Rejected:"#ff4444" };
 const STATUSES_J = ["Saved","Applied","Interview","Offer","Rejected"];
 
 function JobsTab() {
@@ -1111,7 +1111,7 @@ function JobsTab() {
   const [aiMode, setAiMode]       = useState("SCORE");
 
   const C = "#c084fc";
-  const inputStyle  = { width:"100%", background:"#0a1220", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
+  const inputStyle  = { width:"100%", background:"#111427", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
   const labelStyle  = { fontSize:10, color:"#3a5070", fontFamily:"'Inter',sans-serif", marginBottom:4, display:"block" };
 
   const searchJobs = async (query) => {
@@ -1158,7 +1158,7 @@ function JobsTab() {
   const counts = STATUSES_J.reduce((acc,s)=>({...acc,[s]:jobs.filter(j=>j.status===s).length}),{});
 
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#010308",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
 
       {/* Header */}
       <div style={{flexShrink:0,padding:"14px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#0c0818)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -1177,7 +1177,7 @@ function JobsTab() {
       </div>
 
       {/* Section tabs */}
-      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
         {["SEARCH","TRACKER","RESUME"].map(s=>(
           <button key={s} onClick={()=>setSection(s)} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?"#c084fc10":"transparent",border:"none",borderBottom:section===s?"2px solid #c084fc":"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {s}
@@ -1195,18 +1195,18 @@ function JobsTab() {
             {/* Left: search + results */}
             <div style={{width:"45%",display:"flex",flexDirection:"column",borderRight:"1px solid #0a1828",overflow:"hidden"}}>
               {/* Search bar */}
-              <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+              <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
                 <div style={{display:"flex",gap:8,marginBottom:10}}>
                   <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>e.key==="Enter"&&searchJobs()} placeholder="Job title, keywords..." style={{...inputStyle,flex:1}}/>
                   <input value={searchLocation} onChange={e=>setSearchLocation(e.target.value)} placeholder="Location" style={{...inputStyle,width:130}}/>
-                  <button onClick={()=>searchJobs()} disabled={searchLoading||!searchQuery} style={{padding:"8px 14px",background:searchLoading||!searchQuery?"#0a1220":"#c084fc15",border:`1px solid ${searchLoading||!searchQuery?"#1a2a40":"#c084fc40"}`,borderRadius:3,color:searchLoading||!searchQuery?"#2a3a5a":C,cursor:searchLoading||!searchQuery?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,whiteSpace:"nowrap",transition:"all 0.2s"}}>
+                  <button onClick={()=>searchJobs()} disabled={searchLoading||!searchQuery} style={{padding:"8px 14px",background:searchLoading||!searchQuery?"#111427":"#c084fc15",border:`1px solid ${searchLoading||!searchQuery?"#1a2a40":"#c084fc40"}`,borderRadius:3,color:searchLoading||!searchQuery?"#2a3a5a":C,cursor:searchLoading||!searchQuery?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,whiteSpace:"nowrap",transition:"all 0.2s"}}>
                     {searchLoading?"···":"🔍 SEARCH"}
                   </button>
                 </div>
                 {/* Quick presets */}
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {JOB_PRESETS.map(p=>(
-                    <button key={p.label} onClick={()=>{setSearchQuery(p.query);searchJobs(p.query);}} style={{padding:"4px 10px",background:"#0a1220",border:"1px solid #1a2a40",borderRadius:20,color:"#4a6080",fontSize:10,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all 0.2s",display:"flex",alignItems:"center",gap:4}}
+                    <button key={p.label} onClick={()=>{setSearchQuery(p.query);searchJobs(p.query);}} style={{padding:"4px 10px",background:"#111427",border:"1px solid #1a2a40",borderRadius:20,color:"#4a6080",fontSize:10,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all 0.2s",display:"flex",alignItems:"center",gap:4}}
                       onMouseEnter={e=>{e.currentTarget.style.borderColor="#c084fc40";e.currentTarget.style.color=C;}}
                       onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a2a40";e.currentTarget.style.color="#4a6080";}}>
                       {p.icon} {p.label}
@@ -1228,11 +1228,11 @@ function JobsTab() {
                   return (
                     <div key={job.job_id||i} onClick={()=>{setSelectedJob(job);setAiResult("");}}
                       style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:isSelected?"#c084fc0a":"transparent",borderLeft:`3px solid ${isSelected?C:"transparent"}`}}
-                      onMouseEnter={e=>{if(!isSelected){e.currentTarget.style.background="#0a1220";}}}
+                      onMouseEnter={e=>{if(!isSelected){e.currentTarget.style.background="#111427";}}}
                       onMouseLeave={e=>{if(!isSelected){e.currentTarget.style.background="transparent";}}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
                         <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.3}}>{job.job_title}</div>
-                        {job.job_is_remote&&<span style={{fontSize:8,color:"#00ff88",background:"#00ff8810",border:"1px solid #00ff8825",padding:"2px 6px",borderRadius:10,whiteSpace:"nowrap",fontFamily:"'Orbitron',monospace",flexShrink:0}}>REMOTE</span>}
+                        {job.job_is_remote&&<span style={{fontSize:8,color:"#818cf8",background:"#00ff8810",border:"1px solid #00ff8825",padding:"2px 6px",borderRadius:10,whiteSpace:"nowrap",fontFamily:"'Orbitron',monospace",flexShrink:0}}>REMOTE</span>}
                       </div>
                       <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",marginBottom:4}}>{job.employer_name}</div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -1258,7 +1258,7 @@ function JobsTab() {
               ) : (
                 <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
                   {/* Job detail header */}
-                  <div style={{flexShrink:0,padding:"14px 16px",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+                  <div style={{flexShrink:0,padding:"14px 16px",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
                         <div style={{fontSize:15,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600",marginBottom:3}}>{selectedJob.job_title}</div>
@@ -1266,7 +1266,7 @@ function JobsTab() {
                       </div>
                       <div style={{display:"flex",gap:6,flexShrink:0}}>
                         <button onClick={()=>saveToTracker(selectedJob)} style={{padding:"6px 12px",background:"#c084fc15",border:"1px solid #c084fc40",borderRadius:3,color:C,fontSize:9,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>+ TRACK</button>
-                        {selectedJob.job_apply_link&&<a href={selectedJob.job_apply_link} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:"#00ff8815",border:"1px solid #00ff8840",borderRadius:3,color:"#00ff88",fontSize:9,textDecoration:"none",fontFamily:"'Orbitron',monospace",letterSpacing:1,display:"flex",alignItems:"center"}}>APPLY →</a>}
+                        {selectedJob.job_apply_link&&<a href={selectedJob.job_apply_link} target="_blank" rel="noreferrer" style={{padding:"6px 12px",background:"#00ff8815",border:"1px solid #00ff8840",borderRadius:3,color:"#818cf8",fontSize:9,textDecoration:"none",fontFamily:"'Orbitron',monospace",letterSpacing:1,display:"flex",alignItems:"center"}}>APPLY →</a>}
                       </div>
                     </div>
                     {/* AI action buttons */}
@@ -1274,9 +1274,9 @@ function JobsTab() {
                       {[
                         {mode:"SCORE",  label:"📊 SCORE MY FIT",    color:"#38bdf8"},
                         {mode:"RESUME", label:"📄 TAILOR RESUME",   color:C},
-                        {mode:"COVER",  label:"✉️ COVER LETTER",    color:"#00ff88"},
+                        {mode:"COVER",  label:"✉️ COVER LETTER",    color:"#818cf8"},
                       ].map(({mode,label,color})=>(
-                        <button key={mode} onClick={()=>runAI(mode)} disabled={aiLoading} style={{padding:"8px",background:aiLoading?"#0a1220":`${color}12`,border:`1px solid ${aiLoading?"#1a2a40":color+"35"}`,borderRadius:3,color:aiLoading?"#2a3a5a":color,fontSize:10,cursor:aiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1,transition:"all 0.2s"}}>
+                        <button key={mode} onClick={()=>runAI(mode)} disabled={aiLoading} style={{padding:"8px",background:aiLoading?"#111427":`${color}12`,border:`1px solid ${aiLoading?"#1a2a40":color+"35"}`,borderRadius:3,color:aiLoading?"#2a3a5a":color,fontSize:10,cursor:aiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:1,transition:"all 0.2s"}}>
                           {aiLoading&&aiMode===mode?"···":label}
                         </button>
                       ))}
@@ -1290,7 +1290,7 @@ function JobsTab() {
                     ) : aiResult ? (
                       <div>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                          <div style={{fontSize:9,color:aiMode==="SCORE"?"#38bdf8":aiMode==="RESUME"?C:"#00ff88",letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>
+                          <div style={{fontSize:9,color:aiMode==="SCORE"?"#38bdf8":aiMode==="RESUME"?C:"#818cf8",letterSpacing:3,fontFamily:"'Orbitron',monospace"}}>
                             {aiMode==="SCORE"?"📊 FIT SCORE":aiMode==="RESUME"?"📄 TAILORED RESUME":"✉️ COVER LETTER"}
                           </div>
                           <div style={{display:"flex",gap:6}}>
@@ -1321,7 +1321,7 @@ function JobsTab() {
           <div style={{flex:1,overflowY:"auto",padding:20,scrollbarWidth:"thin",scrollbarColor:"#0d2040 transparent"}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,marginBottom:16}}>
               {STATUSES_J.map(s=>(
-                <div key={s} style={{background:"#0a1220",border:`1px solid ${STATUS_COLORS_J[s]}25`,borderRadius:3,padding:"10px 8px",textAlign:"center"}}>
+                <div key={s} style={{background:"#111427",border:`1px solid ${STATUS_COLORS_J[s]}25`,borderRadius:3,padding:"10px 8px",textAlign:"center"}}>
                   <div style={{fontSize:20,fontWeight:"bold",color:STATUS_COLORS_J[s],fontFamily:"'Orbitron',monospace"}}>{counts[s]||0}</div>
                   <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>{s}</div>
                 </div>
@@ -1329,7 +1329,7 @@ function JobsTab() {
             </div>
             {jobs.length===0 && <div style={{textAlign:"center",padding:40,color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>No jobs tracked yet. Search and click + TRACK on jobs you're interested in.</div>}
             {jobs.map(j=>(
-              <div key={j.id} style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:8,transition:"border-color 0.2s"}}
+              <div key={j.id} style={{background:"#111427",border:"1px solid #0d2040",borderRadius:4,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginBottom:8,transition:"border-color 0.2s"}}
                 onMouseEnter={e=>e.currentTarget.style.borderColor="#c084fc25"}
                 onMouseLeave={e=>e.currentTarget.style.borderColor="#0d2040"}>
                 <div style={{display:"flex",alignItems:"center",gap:12,flex:1,minWidth:0}}>
@@ -1341,8 +1341,8 @@ function JobsTab() {
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                   {j.url&&<a href={j.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:C,textDecoration:"none",border:"1px solid #c084fc30",padding:"3px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>APPLY</a>}
-                  <select value={j.status} onChange={e=>updateStatus(j.id,e.target.value)} style={{background:"#050d18",border:`1px solid ${STATUS_COLORS_J[j.status]||"#333"}40`,borderRadius:2,color:STATUS_COLORS_J[j.status]||"#aaa",fontSize:10,cursor:"pointer",padding:"4px 6px",fontFamily:"'Orbitron',monospace",outline:"none"}}>
-                    {STATUSES_J.map(s=><option key={s} style={{background:"#050d18"}}>{s}</option>)}
+                  <select value={j.status} onChange={e=>updateStatus(j.id,e.target.value)} style={{background:"#0d0f1e",border:`1px solid ${STATUS_COLORS_J[j.status]||"#333"}40`,borderRadius:2,color:STATUS_COLORS_J[j.status]||"#aaa",fontSize:10,cursor:"pointer",padding:"4px 6px",fontFamily:"'Orbitron',monospace",outline:"none"}}>
+                    {STATUSES_J.map(s=><option key={s} style={{background:"#0d0f1e"}}>{s}</option>)}
                   </select>
                   <button onClick={()=>deleteJob(j.id)} style={{background:"#ff444410",border:"1px solid #ff444430",borderRadius:2,color:"#ff4444",fontSize:10,cursor:"pointer",padding:"4px 8px",fontFamily:"'Orbitron',monospace"}}>✕</button>
                 </div>
@@ -1367,7 +1367,7 @@ function JobsTab() {
               <textarea value={resume} onChange={e=>{setResume(e.target.value);saveResumeFn(e.target.value);}} rows={24}
                 style={{...inputStyle,resize:"vertical",lineHeight:1.7,fontSize:12}}/>
             ) : (
-              <div style={{background:"#0a1220",border:"1px solid #0d2040",borderRadius:4,padding:16,fontSize:12,color:"#8a9ab0",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>
+              <div style={{background:"#111427",border:"1px solid #0d2040",borderRadius:4,padding:16,fontSize:12,color:"#8a9ab0",lineHeight:1.8,whiteSpace:"pre-wrap",fontFamily:"'Inter',sans-serif"}}>
                 {resume}
               </div>
             )}
@@ -1789,11 +1789,11 @@ Respond ONLY with valid JSON, no markdown:
     setStatus(""); setParlayLoading(false);
   };
 
-  const CONF_COLORS = { HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35" };
-  const LEG_COLORS  = { 3:"#00ff88", 4:"#fbbf24", 5:"#c084fc" };
+  const CONF_COLORS = { HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35" };
+  const LEG_COLORS  = { 3:"#818cf8", 4:"#fbbf24", 5:"#c084fc" };
 
   const PickCard = ({ title, icon, color, items }) => (
-    <div style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
+    <div style={{background:"#111427",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
       <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{icon} {title}</div>
         <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>ACTIVE ROSTER · REAL STATS</div>
@@ -1825,7 +1825,7 @@ Respond ONLY with valid JSON, no markdown:
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {/* View toggle */}
-      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
         {[{id:"PICKS",label:"📊 ALL PICKS"},{id:"PARLAY",label:"🎯 TEAM PARLAY"}].map(v=>(
           <button key={v.id} onClick={()=>setActiveView(v.id)} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:2,cursor:"pointer",background:activeView===v.id?`${C}10`:"transparent",border:"none",borderBottom:activeView===v.id?`2px solid ${C}`:"2px solid transparent",color:activeView===v.id?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {v.label}
@@ -1836,13 +1836,13 @@ Respond ONLY with valid JSON, no markdown:
       {/* ── ALL PICKS VIEW ── */}
       {activeView==="PICKS" && (
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
             <div>
               <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily NBA Picks — Real Data</div>
               <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Active rosters · Injury report · Last 10 game averages</div>
             </div>
             <button onClick={generatePicks} disabled={loading||gamesLoading||!games.length}
-              style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap",flexShrink:0}}>
+              style={{padding:"10px 20px",background:loading||!games.length?"#111427":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap",flexShrink:0}}>
               {loading?"LOADING···":generated?"🔄 REGENERATE":"🏀 GENERATE PICKS"}
             </button>
           </div>
@@ -1853,7 +1853,7 @@ Respond ONLY with valid JSON, no markdown:
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
                 <PickCard title="POINTS"        icon="🏀" color={C}       items={picks.points}/>
                 <PickCard title="REBOUNDS"      icon="💪" color="#38bdf8" items={picks.rebounds}/>
-                <PickCard title="ASSISTS"       icon="🎯" color="#00ff88" items={picks.assists}/>
+                <PickCard title="ASSISTS"       icon="🎯" color="#818cf8" items={picks.assists}/>
                 <PickCard title="3-POINTERS"    icon="🌐" color="#fbbf24" items={picks.threes}/>
                 <PickCard title="PRA"           icon="⭐" color="#c084fc" items={picks.pra}/>
                 <PickCard title="DOUBLE-DOUBLE" icon="🔥" color="#f97316" items={picks.doubleDouble}/>
@@ -1866,16 +1866,16 @@ Respond ONLY with valid JSON, no markdown:
       {/* ── TEAM PARLAY VIEW ── */}
       {activeView==="PARLAY" && (
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+          <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
             <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",marginBottom:4}}>Same-Game Parlay Builder</div>
             <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:12}}>Select a team playing today — AI builds 3, 4, and 5-leg parlays using real roster stats</div>
             {/* Team selector */}
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {teamOptions.map(team=>(
                 <button key={team.id} onClick={()=>generateParlay(team)} disabled={parlayLoading}
-                  style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:selectedTeam?.id===team.id?`${C}20`:"#0a1220",border:`1px solid ${selectedTeam?.id===team.id?C+"60":"#1a2a40"}`,borderRadius:3,color:selectedTeam?.id===team.id?C:"#6a8090",cursor:parlayLoading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",fontSize:12,fontWeight:"500",transition:"all 0.2s"}}
+                  style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",background:selectedTeam?.id===team.id?`${C}20`:"#111427",border:`1px solid ${selectedTeam?.id===team.id?C+"60":"#1a2a40"}`,borderRadius:3,color:selectedTeam?.id===team.id?C:"#6a8090",cursor:parlayLoading?"not-allowed":"pointer",fontFamily:"'Inter',sans-serif",fontSize:12,fontWeight:"500",transition:"all 0.2s"}}
                   onMouseEnter={e=>{if(selectedTeam?.id!==team.id){e.currentTarget.style.background="#0d1a28";e.currentTarget.style.borderColor="#2a3a5a";}}}
-                  onMouseLeave={e=>{if(selectedTeam?.id!==team.id){e.currentTarget.style.background="#0a1220";e.currentTarget.style.borderColor="#1a2a40";}}}>
+                  onMouseLeave={e=>{if(selectedTeam?.id!==team.id){e.currentTarget.style.background="#111427";e.currentTarget.style.borderColor="#1a2a40";}}}>
                   {team.logo&&<img src={team.logo} style={{width:18,height:18,objectFit:"contain"}} alt=""/>}
                   <span>{team.name}</span>
                   <span style={{fontSize:10,color:"#3a5070"}}>vs {team.opponent}</span>
@@ -1915,7 +1915,7 @@ Respond ONLY with valid JSON, no markdown:
                 {(parlay.parlays||[]).map((p,pi)=>{
                   const legColor = LEG_COLORS[p.legs] || C;
                   return (
-                    <div key={pi} style={{background:"#0a1220",border:`1px solid ${legColor}25`,borderRadius:4,overflow:"hidden"}}>
+                    <div key={pi} style={{background:"#111427",border:`1px solid ${legColor}25`,borderRadius:4,overflow:"hidden"}}>
                       {/* Parlay header */}
                       <div style={{padding:"12px 16px",background:`${legColor}10`,borderBottom:`1px solid ${legColor}20`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                         <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -2375,10 +2375,10 @@ Respond ONLY with valid JSON, no markdown:
     setLoading(false);
   };
 
-  const CONF_COLORS = { HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35" };
+  const CONF_COLORS = { HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35" };
 
   const PickCard = ({ title, icon, color, items }) => (
-    <div style={{background:"#0a1220",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
+    <div style={{background:"#111427",border:`1px solid ${color}20`,borderRadius:4,overflow:"hidden"}}>
       <div style={{padding:"10px 14px",borderBottom:`1px solid ${color}15`,background:`${color}08`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontSize:11,color,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{icon} {title}</div>
         <div style={{fontSize:8,color:`${color}60`,fontFamily:"'Inter',sans-serif"}}>ACTIVE ROSTER · LIVE STATS</div>
@@ -2396,14 +2396,14 @@ Respond ONLY with valid JSON, no markdown:
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>{p.player}</div>
                 {p.verified===false && <span style={{fontSize:8,color:"#ff4444",background:"#ff444415",border:"1px solid #ff444430",padding:"1px 5px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>VERIFY</span>}
-                {p.verified===true && <span style={{fontSize:8,color:"#00ff88",background:"#00ff8815",border:"1px solid #00ff8830",padding:"1px 5px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>✓</span>}
+                {p.verified===true && <span style={{fontSize:8,color:"#818cf8",background:"#00ff8815",border:"1px solid #00ff8830",padding:"1px 5px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>✓</span>}
               </div>
               <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.team} · {p.matchup||`${p.pick} ${p.line}`}</div>
             </div>
             <div style={{textAlign:"right",flexShrink:0}}>
               <div style={{display:"flex",alignItems:"center",gap:4,justifyContent:"flex-end"}}>
                 <div style={{fontSize:13,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{p.odds}</div>
-                {p.realLine && <span style={{fontSize:7,color:"#00ff88",background:"#00ff8815",border:"1px solid #00ff8830",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>REAL</span>}
+                {p.realLine && <span style={{fontSize:7,color:"#818cf8",background:"#00ff8815",border:"1px solid #00ff8830",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>REAL</span>}
               </div>
               <div style={{fontSize:8,color:CONF_COLORS[p.confidence]||"#555",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{p.confidence}</div>
             </div>
@@ -2416,13 +2416,13 @@ Respond ONLY with valid JSON, no markdown:
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
         <div>
           <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>AI Daily MLB Picks — Real Data + Real Lines</div>
           <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Active rosters · Lineups · Pitcher stats · 14-day batting · Real sportsbook lines when available</div>
         </div>
         <button onClick={generatePicks} disabled={loading||gamesLoading||!games.length}
-          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap",flexShrink:0}}>
+          style={{padding:"10px 20px",background:loading||!games.length?"#111427":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s",whiteSpace:"nowrap",flexShrink:0}}>
           {loading?"LOADING···":generated?"🔄 REGENERATE":"⚾ GENERATE PICKS"}
         </button>
       </div>
@@ -2464,7 +2464,7 @@ Respond ONLY with valid JSON, no markdown:
             <PickCard title="TOTAL BASES" icon="💥" color="#c084fc" items={picks.totalBases}/>
             <PickCard title="DOUBLES"     icon="⚡" color="#fbbf24" items={picks.doubles}/>
             <div style={{gridColumn:"1/-1"}}>
-              <PickCard title="PITCHER STRIKEOUTS" icon="🔥" color="#00ff88" items={picks.strikeouts}/>
+              <PickCard title="PITCHER STRIKEOUTS" icon="🔥" color="#818cf8" items={picks.strikeouts}/>
             </div>
           </div>
         )}
@@ -2693,17 +2693,17 @@ Respond ONLY with valid JSON:
     setLoading(false);
   };
 
-  const CONF = {HIGH:"#00ff88", MED:"#fbbf24", LOW:"#ff6b35"};
+  const CONF = {HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35"};
 
   const PickCard = ({p, oppHand}) => (
-    <div style={{background:"#0a1220",border:`1px solid ${C}${p.rank===1?"40":"20"}`,borderRadius:4,padding:"12px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start",boxShadow:p.rank===1?`0 0 10px ${C}10`:undefined}}>
+    <div style={{background:"#111427",border:`1px solid ${C}${p.rank===1?"40":"20"}`,borderRadius:4,padding:"12px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start",boxShadow:p.rank===1?`0 0 10px ${C}10`:undefined}}>
       <div style={{width:34,height:34,borderRadius:"50%",background:p.rank===1?`${C}30`:`${C}15`,border:`2px solid ${p.rank===1?C:C+"40"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
         <span style={{fontSize:14,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace"}}>{p.rank}</span>
       </div>
       <div style={{flex:1,minWidth:0}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5,flexWrap:"wrap"}}>
           <span style={{fontSize:14,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
-          <span style={{fontSize:9,color:"#3a5070",background:"#050d18",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
+          <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
           <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:7,flexWrap:"wrap"}}>
@@ -2713,7 +2713,7 @@ Respond ONLY with valid JSON:
             {label:`vs${oppHand}HP HR`, val:p.oppHR,   hot:p.oppHR>=2},
             {label:"SPLIT ISO",val:p.oppISO, hot:parseFloat(p.oppISO)>=0.180},
           ].map(({label,val,hot})=>(
-            <div key={label} style={{background:"#050d18",border:`1px solid ${hot?"#f9731640":"#0a1828"}`,borderRadius:3,padding:"3px 10px",textAlign:"center"}}>
+            <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 10px",textAlign:"center"}}>
               <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
               <div style={{fontSize:13,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??"—"}</div>
             </div>
@@ -2730,7 +2730,7 @@ Respond ONLY with valid JSON:
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {/* Header */}
-      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
         <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>💣 HR Picks — By Matchup</div>
         <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Select a game → top 5 HR candidates for each team based on splits, park, weather, pitcher</div>
       </div>
@@ -2751,7 +2751,7 @@ Respond ONLY with valid JSON:
                 style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:loading?"not-allowed":"pointer",
                   background:isSelected?`${C}12`:"transparent",
                   borderLeft:`3px solid ${isSelected?C:"transparent"}`,transition:"all 0.15s"}}
-                onMouseEnter={e=>{if(!isSelected&&!loading)e.currentTarget.style.background="#0a1220";}}
+                onMouseEnter={e=>{if(!isSelected&&!loading)e.currentTarget.style.background="#111427";}}
                 onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                   <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.team?.abbreviation}</div>
@@ -2804,7 +2804,7 @@ Respond ONLY with valid JSON:
                     {label:"WEATHER", val:picks.weather, color:"#fbbf24"},
                     {label:"NOTE", val:picks.parkFactor>=115?"Extreme hitter's park — target power hitters":picks.parkFactor<=88?"Pitcher's park — lower HR probability":"Neutral park", color:"#8a9ab0"},
                   ].map(({label,val,sub,color})=>(
-                    <div key={label} style={{background:"#050d18",border:"1px solid #0a1828",borderRadius:3,padding:"8px 12px"}}>
+                    <div key={label} style={{background:"#0d0f1e",border:"1px solid #0a1828",borderRadius:3,padding:"8px 12px"}}>
                       <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
                       <div style={{fontSize:11,color,fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.4}}>{val}</div>
                       {sub&&<div style={{fontSize:9,color:"#3a5070",marginTop:2}}>{sub}</div>}
@@ -3045,15 +3045,15 @@ function CheatSheet({ games, gamesLoading, C }) {
   };
 
   // Color helpers
-  const avgColor  = v => { const n=parseFloat(v); if(n>=0.280)return"#00ff88"; if(n<=0.210)return"#ff4444"; return"#c8d8f0"; };
-  const opsColor  = v => { const n=parseFloat(v); if(n>=0.850)return"#00ff88"; if(n<=0.650)return"#ff4444"; return"#c8d8f0"; };
-  const eraColor  = v => { const n=parseFloat(v); if(n<=3.00)return"#00ff88"; if(n>=5.00)return"#ff4444"; return"#c8d8f0"; };
-  const k9Color   = v => { const n=parseFloat(v); if(n>=9.5)return"#00ff88"; if(n<=6.0)return"#ff4444"; return"#c8d8f0"; };
-  const whipColor = v => { const n=parseFloat(v); if(n<=1.10)return"#00ff88"; if(n>=1.50)return"#ff4444"; return"#c8d8f0"; };
+  const avgColor  = v => { const n=parseFloat(v); if(n>=0.280)return"#818cf8"; if(n<=0.210)return"#ff4444"; return"#c8d8f0"; };
+  const opsColor  = v => { const n=parseFloat(v); if(n>=0.850)return"#818cf8"; if(n<=0.650)return"#ff4444"; return"#c8d8f0"; };
+  const eraColor  = v => { const n=parseFloat(v); if(n<=3.00)return"#818cf8"; if(n>=5.00)return"#ff4444"; return"#c8d8f0"; };
+  const k9Color   = v => { const n=parseFloat(v); if(n>=9.5)return"#818cf8"; if(n<=6.0)return"#ff4444"; return"#c8d8f0"; };
+  const whipColor = v => { const n=parseFloat(v); if(n<=1.10)return"#818cf8"; if(n>=1.50)return"#ff4444"; return"#c8d8f0"; };
 
   const C2 = "#f97316";
   const TH = ({children, left}) => (
-    <th style={{padding:"6px 10px",fontSize:9,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:left?"left":"center",borderRight:"1px solid #0a1828",whiteSpace:"nowrap",background:"#050d18",position:"sticky",top:0,zIndex:1}}>
+    <th style={{padding:"6px 10px",fontSize:9,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:left?"left":"center",borderRight:"1px solid #0a1828",whiteSpace:"nowrap",background:"#0d0f1e",position:"sticky",top:0,zIndex:1}}>
       {children}
     </th>
   );
@@ -3072,7 +3072,7 @@ function CheatSheet({ games, gamesLoading, C }) {
     if (!pitcher) return null;
     const handColor = pitcher.hand==="L"?"#38bdf8":"#f97316";
     return (
-      <div style={{background:"#0a1220",border:`1px solid ${C2}20`,borderRadius:4,overflow:"hidden",marginBottom:12}}>
+      <div style={{background:"#111427",border:`1px solid ${C2}20`,borderRadius:4,overflow:"hidden",marginBottom:12}}>
         {/* Pitcher header */}
         <div style={{padding:"10px 14px",background:`${C2}08`,borderBottom:`1px solid ${C2}15`,display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:28,height:28,borderRadius:"50%",background:`${handColor}20`,border:`1px solid ${handColor}40`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -3084,7 +3084,7 @@ function CheatSheet({ games, gamesLoading, C }) {
           </div>
           <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
             {[{label:"ERA",val:pitcher.era,color:eraColor(pitcher.era)},{label:"WHIP",val:pitcher.whip,color:whipColor(pitcher.whip)},{label:"K/9",val:pitcher.k9,color:k9Color(pitcher.k9)},{label:"BB/9",val:pitcher.bb9}].map(({label,val,color})=>(
-              <div key={label} style={{textAlign:"center",background:"#050d18",border:"1px solid #0a1828",borderRadius:3,padding:"4px 10px"}}>
+              <div key={label} style={{textAlign:"center",background:"#0d0f1e",border:"1px solid #0a1828",borderRadius:3,padding:"4px 10px"}}>
                 <div style={{fontSize:8,color:"#3a5070",fontFamily:"'Orbitron',monospace",marginBottom:2}}>{label}</div>
                 <div style={{fontSize:14,fontWeight:"bold",color:color||"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{val}</div>
               </div>
@@ -3094,7 +3094,7 @@ function CheatSheet({ games, gamesLoading, C }) {
         {/* Splits table */}
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead>
-            <tr style={{background:"#050d18"}}>
+            <tr style={{background:"#0d0f1e"}}>
               <TH left>SPLIT</TH>
               <TH>AB</TH>
               <TH>AVG</TH>
@@ -3155,22 +3155,22 @@ function CheatSheet({ games, gamesLoading, C }) {
       const c = color||(active?C:"#3a5070");
       return (
         <th onClick={()=>{ if(sortBy===field) setSortDir(d=>d==="asc"?"desc":"asc"); else {setSortBy(field);setSortDir("desc");} }}
-          style={{padding:"6px 10px",fontSize:9,color:active?c:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:last?"none":"1px solid #0a1828",background:active?"#0d1828":"#050d18",whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",transition:"all 0.15s"}}>
+          style={{padding:"6px 10px",fontSize:9,color:active?c:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"center",borderRight:last?"none":"1px solid #0a1828",background:active?"#0d1828":"#0d0f1e",whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",transition:"all 0.15s"}}>
           {label} {active?(sortDir==="desc"?"▼":"▲"):""}
         </th>
       );
     };
 
-    const isoColor = v => { const n=parseFloat(v); if(n>=0.200)return"#00ff88"; if(n<=0.100)return"#ff4444"; return"#c8d8f0"; };
-    const hhColor  = v => { const n=parseFloat(v); if(n>=45)return"#00ff88"; if(n<=30)return"#ff4444"; return"#c8d8f0"; };
-    const brColor  = v => { const n=parseFloat(v); if(n>=12)return"#00ff88"; if(n<=5)return"#ff4444"; return"#c8d8f0"; };
+    const isoColor = v => { const n=parseFloat(v); if(n>=0.200)return"#818cf8"; if(n<=0.100)return"#ff4444"; return"#c8d8f0"; };
+    const hhColor  = v => { const n=parseFloat(v); if(n>=45)return"#818cf8"; if(n<=30)return"#ff4444"; return"#c8d8f0"; };
+    const brColor  = v => { const n=parseFloat(v); if(n>=12)return"#818cf8"; if(n<=5)return"#ff4444"; return"#c8d8f0"; };
 
     return (
-      <div style={{background:"#0a1220",border:"1px solid #0a1828",borderRadius:4,overflow:"hidden",marginBottom:12}}>
-        <div style={{padding:"8px 14px",background:"#050d18",borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+      <div style={{background:"#111427",border:"1px solid #0a1828",borderRadius:4,overflow:"hidden",marginBottom:12}}>
+        <div style={{padding:"8px 14px",background:"#0d0f1e",borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <div style={{fontSize:11,color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{teamName.toUpperCase()}</div>
           {confirmed
-            ? <span style={{fontSize:9,color:"#00ff88",background:"#00ff8815",border:"1px solid #00ff8830",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ CONFIRMED LINEUP</span>
+            ? <span style={{fontSize:9,color:"#818cf8",background:"#00ff8815",border:"1px solid #00ff8830",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ CONFIRMED LINEUP</span>
             : <span style={{fontSize:9,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>PROJECTED</span>
           }
           <div style={{marginLeft:"auto",fontSize:10,color:splitColor,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>FACING {pitcherHand==="L"?"LHP":"RHP"}</div>
@@ -3181,7 +3181,7 @@ function CheatSheet({ games, gamesLoading, C }) {
             <thead>
               <tr>
                 <SortTH label="#"         field="order"/>
-                <th style={{padding:"6px 10px",fontSize:9,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"left",borderRight:"1px solid #0a1828",background:"#050d18",whiteSpace:"nowrap",minWidth:130}}>BATTER</th>
+                <th style={{padding:"6px 10px",fontSize:9,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",textAlign:"left",borderRight:"1px solid #0a1828",background:"#0d0f1e",whiteSpace:"nowrap",minWidth:130}}>BATTER</th>
                 <TH>B</TH>
                 <SortTH label="SZN AVG"   field="seasonAvg"/>
                 <SortTH label="SZN HR"    field="seasonHR"/>
@@ -3227,7 +3227,7 @@ function CheatSheet({ games, gamesLoading, C }) {
                     <TD val={b.barrel}    color={brColor(b.barrel)}/>
                     <TD val={b.xBA}       color={avgColor(b.xBA)}/>
                     <TD val={b.xSLG}      color={opsColor(b.xSLG)}/>
-                    <TD val={b.avgEV}     color={parseFloat(b.avgEV)>=92?"#00ff88":parseFloat(b.avgEV)<=85?"#ff4444":"#c8d8f0"}/>
+                    <TD val={b.avgEV}     color={parseFloat(b.avgEV)>=92?"#818cf8":parseFloat(b.avgEV)<=85?"#ff4444":"#c8d8f0"}/>
                     <TD val={b.last7Avg}  color={avgColor(b.last7Avg)} bold={parseFloat(b.last7Avg)>=0.300} bg={parseFloat(b.last7Avg)>=0.350?"#00ff8815":parseFloat(b.last7Avg)<=0.150?"#ff444415":undefined}/>
                     <TD val={b.last7HR}   color={b.last7HR>=2?"#f97316":undefined} bold={b.last7HR>=2}/>
                     <TD val={b.last7OPS}  color={opsColor(b.last7OPS)} bold={parseFloat(b.last7OPS)>=0.900}/>
@@ -3250,13 +3250,13 @@ function CheatSheet({ games, gamesLoading, C }) {
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       {/* Header */}
-      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#02040a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
         <div>
           <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>MLB Cheat Sheet</div>
           <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Pitcher ERA/WHIP/K9 · vs LHB/RHB splits · Batter splits vs LHP/RHP · Confirmed lineups</div>
         </div>
         <button onClick={load} disabled={loading||gamesLoading||!games.length}
-          style={{padding:"10px 20px",background:loading||!games.length?"#0a1220":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,whiteSpace:"nowrap",flexShrink:0}}>
+          style={{padding:"10px 20px",background:loading||!games.length?"#111427":`${C}15`,border:`1px solid ${loading||!games.length?"#1a2a40":C+"40"}`,borderRadius:3,color:loading||!games.length?"#2a3a5a":C,fontSize:10,cursor:loading||!games.length?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,whiteSpace:"nowrap",flexShrink:0}}>
           {loading?"LOADING···":sheets.length?"🔄 REFRESH":"📋 LOAD CHEAT SHEET"}
         </button>
       </div>
@@ -3289,13 +3289,13 @@ function CheatSheet({ games, gamesLoading, C }) {
             {sheets.map((s,i)=>(
               <div key={s.gamePk} onClick={()=>{ setSelectedGame(s); setAwaySortBy("order"); setAwaySortDir("asc"); setHomeSortBy("order"); setHomeSortDir("asc"); }}
                 style={{padding:"10px 12px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:selectedGame?.gamePk===s.gamePk?`${C}12`:"transparent",borderLeft:`3px solid ${selectedGame?.gamePk===s.gamePk?C:"transparent"}`}}
-                onMouseEnter={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="#0a1220";}}
+                onMouseEnter={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="#111427";}}
                 onMouseLeave={e=>{if(selectedGame?.gamePk!==s.gamePk)e.currentTarget.style.background="transparent";}}>
                 <div style={{fontSize:12,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500",marginBottom:2}}>{s.awayAbbr} @ {s.homeAbbr}</div>
                 <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{s.gameTime}</div>
                 {s.venue&&<div style={{fontSize:9,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginTop:2}}>{s.venue}</div>}
                 <div style={{display:"flex",gap:4,marginTop:4}}>
-                  {s.awayLineupConfirmed&&<span style={{fontSize:7,color:"#00ff88",background:"#00ff8815",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ LINE</span>}
+                  {s.awayLineupConfirmed&&<span style={{fontSize:7,color:"#818cf8",background:"#00ff8815",padding:"1px 4px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>✓ LINE</span>}
                 </div>
               </div>
             ))}
@@ -3316,12 +3316,12 @@ function CheatSheet({ games, gamesLoading, C }) {
                   <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:4}}>{selectedGame.venue}</div>
                   {selectedGame.park && (
                     <div style={{marginBottom:4}}>
-                      <span style={{fontSize:9,color:selectedGame.park.hr>=110?"#f97316":selectedGame.park.hr<=90?"#38bdf8":"#8a9ab0",background:selectedGame.park.hr>=110?"#f9731615":selectedGame.park.hr<=90?"#38bdf815":"#0a1220",border:`1px solid ${selectedGame.park.hr>=110?"#f9731630":selectedGame.park.hr<=90?"#38bdf830":"#1a2a40"}`,padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>
+                      <span style={{fontSize:9,color:selectedGame.park.hr>=110?"#f97316":selectedGame.park.hr<=90?"#38bdf8":"#8a9ab0",background:selectedGame.park.hr>=110?"#f9731615":selectedGame.park.hr<=90?"#38bdf815":"#111427",border:`1px solid ${selectedGame.park.hr>=110?"#f9731630":selectedGame.park.hr<=90?"#38bdf830":"#1a2a40"}`,padding:"2px 8px",borderRadius:2,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>
                         {selectedGame.park.flag} · HR Factor: {selectedGame.park.hr}
                       </span>
                     </div>
                   )}
-                  <div style={{fontSize:9,color:selectedGame.status==="Live"?"#00ff88":"#2a3a55",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{selectedGame.status==="Live"?"🔴 LIVE":selectedGame.status==="Final"?"FINAL":"SCHEDULED"}</div>
+                  <div style={{fontSize:9,color:selectedGame.status==="Live"?"#818cf8":"#2a3a55",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{selectedGame.status==="Live"?"🔴 LIVE":selectedGame.status==="Final"?"FINAL":"SCHEDULED"}</div>
                 </div>
                 <div style={{textAlign:"center",flex:1}}>
                   <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:4}}>HOME</div>
@@ -3580,17 +3580,17 @@ Only recommend players from the lists above.`;
   const propsLoading = sport==="MLB" ? mlbPropsLoading : nbaPropsLoading;
 
   const StatBadge = ({label,val,color="#c8d8f0"}) => (
-    <div style={{textAlign:"center",background:"#050d18",border:"1px solid #0d2040",borderRadius:3,padding:"6px 10px",minWidth:52}}>
+    <div style={{textAlign:"center",background:"#0d0f1e",border:"1px solid #0d2040",borderRadius:3,padding:"6px 10px",minWidth:52}}>
       <div style={{fontSize:8,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:2}}>{label}</div>
       <div style={{fontSize:13,fontWeight:"bold",color,fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
     </div>
   );
 
   const PitcherCard = ({pitcher, side}) => {
-    if (!pitcher) return <div style={{flex:1,background:"#0a1220",border:"1px solid #0d2040",borderRadius:3,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>TBD</div></div>;
+    if (!pitcher) return <div style={{flex:1,background:"#111427",border:"1px solid #0d2040",borderRadius:3,padding:10,textAlign:"center"}}><div style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>TBD</div></div>;
     const stats = pitcher.stats?.[0]?.stats || {};
     return (
-      <div style={{flex:1,background:"#0a1220",border:`1px solid ${C}20`,borderRadius:3,padding:10}}>
+      <div style={{flex:1,background:"#111427",border:`1px solid ${C}20`,borderRadius:3,padding:10}}>
         <div style={{fontSize:8,color:C,letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:4}}>{side} SP</div>
         <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"600",marginBottom:6}}>{pitcher.fullName}</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -3608,7 +3608,7 @@ Only recommend players from the lists above.`;
       {propLoading&&<div style={{padding:30,textAlign:"center",color,letterSpacing:4,fontSize:12,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace"}}>LOADING PROPS...</div>}
       {!propLoading&&propsList.length===0&&<div style={{textAlign:"center",padding:40}}><div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>No props available right now.</div><div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif"}}>Props are typically available a few hours before game time.</div></div>}
       {propsList.map((game,i)=>(
-        <div key={game.id||i} style={{background:"#0a1220",border:`1px solid ${color}15`,borderRadius:4,padding:14,marginBottom:12}}>
+        <div key={game.id||i} style={{background:"#111427",border:`1px solid ${color}15`,borderRadius:4,padding:14,marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
             <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{game.away_team} @ {game.home_team}</div>
             <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>{new Date(game.commence_time).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}</div>
@@ -3620,9 +3620,9 @@ Only recommend players from the lists above.`;
                   <div style={{fontSize:8,color:`${color}70`,letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:6}}>{mkt.key.replace("batter_","").replace("player_","").replace(/_/g," ").toUpperCase()}</div>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                     {mkt.outcomes?.slice(0,8).map((o,j)=>(
-                      <div key={j} style={{background:"#050d18",border:`1px solid ${o.name==="Over"?"#00ff8825":"#ff444425"}`,borderRadius:3,padding:"6px 10px",minWidth:90}}>
+                      <div key={j} style={{background:"#0d0f1e",border:`1px solid ${o.name==="Over"?"#00ff8825":"#ff444425"}`,borderRadius:3,padding:"6px 10px",minWidth:90}}>
                         <div style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif",marginBottom:2}}>{o.description||o.name}</div>
-                        <div style={{fontSize:11,color:o.name==="Over"?"#00ff88":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{o.name} {o.point} <span style={{fontSize:9}}>{o.price>0?"+":""}{o.price}</span></div>
+                        <div style={{fontSize:11,color:o.name==="Over"?"#818cf8":"#ff4444",fontFamily:"'Orbitron',monospace"}}>{o.name} {o.point} <span style={{fontSize:9}}>{o.price>0?"+":""}{o.price}</span></div>
                       </div>
                     ))}
                   </div>
@@ -3636,7 +3636,7 @@ Only recommend players from the lists above.`;
   );
 
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#010308",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
 
       {/* Header with sport selector */}
       <div style={{flexShrink:0,padding:"10px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#100808)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -3646,7 +3646,7 @@ Only recommend players from the lists above.`;
         </div>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {/* Sport toggle */}
-          <div style={{display:"flex",background:"#0a1220",border:"1px solid #1a2a40",borderRadius:4,overflow:"hidden"}}>
+          <div style={{display:"flex",background:"#111427",border:"1px solid #1a2a40",borderRadius:4,overflow:"hidden"}}>
             {[{id:"MLB",icon:"⚾",color:MLB_C},{id:"NBA",icon:"🏀",color:NBA_C}].map(s=>(
               <button key={s.id} onClick={()=>{setSport(s.id);setSection("TODAY");}} style={{padding:"8px 20px",background:sport===s.id?`${s.color}20`:"transparent",border:"none",borderRight:s.id==="MLB"?"1px solid #1a2a40":"none",color:sport===s.id?s.color:"#3a5070",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:11,letterSpacing:2,transition:"all 0.2s",display:"flex",alignItems:"center",gap:6}}>
                 <span>{s.icon}</span><span>{s.id}</span>
@@ -3654,7 +3654,7 @@ Only recommend players from the lists above.`;
             ))}
           </div>
           {/* Date toggle */}
-          <div style={{display:"flex",background:"#0a1220",border:"1px solid #1a2a40",borderRadius:4,overflow:"hidden"}}>
+          <div style={{display:"flex",background:"#111427",border:"1px solid #1a2a40",borderRadius:4,overflow:"hidden"}}>
             {["TODAY","TOMORROW"].map((d,i)=>(
               <button key={d} onClick={()=>setSelectedDate(d)} style={{padding:"8px 16px",background:selectedDate===d?`${C}20`:"transparent",border:"none",borderRight:i===0?"1px solid #1a2a40":"none",color:selectedDate===d?C:"#3a5070",cursor:"pointer",fontFamily:"'Orbitron',monospace",fontSize:10,letterSpacing:1,transition:"all 0.2s"}}>
                 {d}
@@ -3670,7 +3670,7 @@ Only recommend players from the lists above.`;
       </div>
 
       {/* Section tabs */}
-      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
         {(sport==="MLB" ? ["TODAY","PROPS","TOP PICKS","HR PICKS","CHEAT SHEET"] : ["TODAY","PROPS","TOP PICKS"]).map(s=>(
           <button key={s} onClick={()=>{setSection(s);if(s==="PROPS"){sport==="MLB"?fetchMlbProps():fetchNbaProps();}}} style={{flex:1,padding:"10px",fontSize:9,letterSpacing:3,cursor:"pointer",background:section===s?`${C}10`:"transparent",border:"none",borderBottom:section===s?`2px solid ${C}`:"2px solid transparent",color:section===s?C:"#2a3a5a",fontFamily:"'Orbitron',monospace",transition:"all 0.2s"}}>
             {s}
@@ -3694,10 +3694,10 @@ Only recommend players from the lists above.`;
                 return (
                   <div key={game.gamePk} onClick={()=>{setSelectedMlbGame(game);setMlbAiInsight("");}}
                     style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:isSelected?`${C}08`:"transparent",borderLeft:`3px solid ${isSelected?C:"transparent"}`}}
-                    onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background="#0a1220";}}
+                    onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background="#111427";}}
                     onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                      <span style={{fontSize:9,color:status==="Live"?"#00ff88":status==="Final"?"#555":C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{status==="Live"?"🔴 LIVE":status==="Final"?"FINAL":gameTime}</span>
+                      <span style={{fontSize:9,color:status==="Live"?"#818cf8":status==="Final"?"#555":C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{status==="Live"?"🔴 LIVE":status==="Final"?"FINAL":gameTime}</span>
                       {game.venue?.name&&<span style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{game.venue.name}</span>}
                     </div>
                     {(() => {
@@ -3718,11 +3718,11 @@ Only recommend players from the lists above.`;
                           {showScore ? (
                             <div style={{textAlign:"center",flexShrink:0}}>
                               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                                <div style={{fontSize:20,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{awayScore??0}</div>
+                                <div style={{fontSize:20,fontWeight:"bold",color:isLive?"#818cf8":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{awayScore??0}</div>
                                 <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>-</div>
-                                <div style={{fontSize:20,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{homeScore??0}</div>
+                                <div style={{fontSize:20,fontWeight:"bold",color:isLive?"#818cf8":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{homeScore??0}</div>
                               </div>
-                              {isLive && inning && <div style={{fontSize:8,color:"#00ff88",fontFamily:"'Orbitron',monospace",textAlign:"center"}}>{half?.toUpperCase()?.slice(0,3)} {inning}</div>}
+                              {isLive && inning && <div style={{fontSize:8,color:"#818cf8",fontFamily:"'Orbitron',monospace",textAlign:"center"}}>{half?.toUpperCase()?.slice(0,3)} {inning}</div>}
                             </div>
                           ) : (
                             <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
@@ -3743,14 +3743,14 @@ Only recommend players from the lists above.`;
                 <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",padding:20}}><div><div style={{fontSize:32,marginBottom:12}}>⚾</div><div style={{color:"#2a3a55",fontFamily:"'Inter',sans-serif",fontSize:13}}>Select a game to see pitcher details<br/>and get AI prop analysis</div></div></div>
               ):(
                 <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                  <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+                  <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
                     <div style={{fontSize:9,color:`${C}60`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>PITCHER MATCHUP</div>
                     <div style={{display:"flex",gap:10,marginBottom:12}}>
                       <PitcherCard pitcher={selectedMlbGame.teams?.away?.probablePitcher} side="AWAY"/>
                       <div style={{display:"flex",alignItems:"center",fontSize:16,color:"#2a3a55",fontFamily:"'Orbitron',monospace",flexShrink:0}}>VS</div>
                       <PitcherCard pitcher={selectedMlbGame.teams?.home?.probablePitcher} side="HOME"/>
                     </div>
-                    <button onClick={()=>getMlbAiInsight(selectedMlbGame)} disabled={mlbAiLoading} style={{width:"100%",padding:"10px",background:mlbAiLoading?"#0a1220":`${C}15`,border:`1px solid ${mlbAiLoading?"#1a2a40":C+"40"}`,borderRadius:3,color:mlbAiLoading?"#2a3a5a":C,fontSize:10,cursor:mlbAiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
+                    <button onClick={()=>getMlbAiInsight(selectedMlbGame)} disabled={mlbAiLoading} style={{width:"100%",padding:"10px",background:mlbAiLoading?"#111427":`${C}15`,border:`1px solid ${mlbAiLoading?"#1a2a40":C+"40"}`,borderRadius:3,color:mlbAiLoading?"#2a3a5a":C,fontSize:10,cursor:mlbAiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
                       {mlbAiLoading?"ANALYZING···":"🤖 GET AI PROP ANALYSIS"}
                     </button>
                   </div>
@@ -3789,11 +3789,11 @@ Only recommend players from the lists above.`;
                 return (
                   <div key={game.id} onClick={()=>{setSelectedNbaGame(game);setNbaAiInsight("");}}
                     style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:"pointer",transition:"all 0.15s",background:isSelected?`${NBA_C}08`:"transparent",borderLeft:`3px solid ${isSelected?NBA_C:"transparent"}`}}
-                    onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background="#0a1220";}}
+                    onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background="#111427";}}
                     onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-                      <span style={{fontSize:9,color:isLive?"#00ff88":isFinal?"#555":NBA_C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{isLive?"🔴 LIVE":isFinal?"FINAL":gameTime}</span>
-                      {isLive&&<span style={{fontSize:9,color:"#00ff88",fontFamily:"'Orbitron',monospace"}}>{comp?.status?.displayClock} · Q{comp?.status?.period}</span>}
+                      <span style={{fontSize:9,color:isLive?"#818cf8":isFinal?"#555":NBA_C,fontFamily:"'Orbitron',monospace",letterSpacing:1}}>{isLive?"🔴 LIVE":isFinal?"FINAL":gameTime}</span>
+                      {isLive&&<span style={{fontSize:9,color:"#818cf8",fontFamily:"'Orbitron',monospace"}}>{comp?.status?.displayClock} · Q{comp?.status?.period}</span>}
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
                       <div style={{flex:1}}>
@@ -3812,8 +3812,8 @@ Only recommend players from the lists above.`;
                       </div>
                       {(isLive||isFinal)&&(
                         <div style={{textAlign:"right"}}>
-                          <div style={{fontSize:18,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.score}</div>
-                          <div style={{fontSize:18,fontWeight:"bold",color:isLive?"#00ff88":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.score}</div>
+                          <div style={{fontSize:18,fontWeight:"bold",color:isLive?"#818cf8":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.score}</div>
+                          <div style={{fontSize:18,fontWeight:"bold",color:isLive?"#818cf8":"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.score}</div>
                         </div>
                       )}
                     </div>
@@ -3831,10 +3831,10 @@ Only recommend players from the lists above.`;
                 const isLive=comp?.status?.type?.state==="in";
                 return (
                   <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-                    <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#02040a"}}>
+                    <div style={{flexShrink:0,padding:14,borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
                       <div style={{display:"flex",gap:10,marginBottom:12}}>
                         {[away,home].map((team,i)=>(
-                          <div key={i} style={{flex:1,background:"#0a1220",border:`1px solid ${NBA_C}20`,borderRadius:3,padding:10}}>
+                          <div key={i} style={{flex:1,background:"#111427",border:`1px solid ${NBA_C}20`,borderRadius:3,padding:10}}>
                             <div style={{fontSize:8,color:`${NBA_C}60`,letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:6}}>{i===0?"AWAY":"HOME"}</div>
                             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
                               {team?.team?.logo&&<img src={team.team.logo} style={{width:24,height:24,objectFit:"contain"}} alt=""/>}
@@ -3843,11 +3843,11 @@ Only recommend players from the lists above.`;
                                 <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{team?.records?.[0]?.summary}</div>
                               </div>
                             </div>
-                            {isLive&&<div style={{fontSize:22,fontWeight:"bold",color:"#00ff88",fontFamily:"'Orbitron',monospace"}}>{team?.score}</div>}
+                            {isLive&&<div style={{fontSize:22,fontWeight:"bold",color:"#818cf8",fontFamily:"'Orbitron',monospace"}}>{team?.score}</div>}
                           </div>
                         ))}
                       </div>
-                      <button onClick={()=>getNbaAiInsight(selectedNbaGame)} disabled={nbaAiLoading} style={{width:"100%",padding:"10px",background:nbaAiLoading?"#0a1220":`${NBA_C}15`,border:`1px solid ${nbaAiLoading?"#1a2a40":NBA_C+"40"}`,borderRadius:3,color:nbaAiLoading?"#2a3a5a":NBA_C,fontSize:10,cursor:nbaAiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
+                      <button onClick={()=>getNbaAiInsight(selectedNbaGame)} disabled={nbaAiLoading} style={{width:"100%",padding:"10px",background:nbaAiLoading?"#111427":`${NBA_C}15`,border:`1px solid ${nbaAiLoading?"#1a2a40":NBA_C+"40"}`,borderRadius:3,color:nbaAiLoading?"#2a3a5a":NBA_C,fontSize:10,cursor:nbaAiLoading?"not-allowed":"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2,transition:"all 0.2s"}}>
                         {nbaAiLoading?"ANALYZING···":"🤖 GET AI PROP ANALYSIS"}
                       </button>
                     </div>
@@ -3955,172 +3955,173 @@ export default function App() {
   };
 
   if (booting) return (
-    <div style={{height:"100vh",width:"100vw",background:"#0d0f1a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",position:"relative",overflow:"hidden"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&amp;family=DM+Mono:wght@400;500&amp;family=Syne:wght@700;800&amp;display=swap" rel="stylesheet"/>
-      <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 30% 50%,rgba(99,102,241,0.15) 0%,transparent 60%),radial-gradient(ellipse at 70% 20%,rgba(139,92,246,0.1) 0%,transparent 50%)"}}/>
-      <div style={{position:"absolute",width:300,height:300,borderRadius:"50%",border:"1px solid rgba(99,102,241,0.1)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",animation:"ping 3s ease-out infinite"}}/>
-      <div style={{position:"absolute",width:500,height:500,borderRadius:"50%",border:"1px solid rgba(99,102,241,0.05)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",animation:"ping 3s ease-out infinite",animationDelay:"0.5s"}}/>
-      <div style={{textAlign:"center",zIndex:1}}>
-        <div style={{fontSize:11,letterSpacing:6,color:"rgba(99,102,241,0.6)",marginBottom:16,fontFamily:"'DM Mono',monospace"}}>INITIALIZING SYSTEMS</div>
-        <div style={{fontSize:48,fontFamily:"'Syne',sans-serif",fontWeight:800,letterSpacing:-1,color:"#fff",marginBottom:6}}>MISSION<span style={{color:"#6366f1"}}>.</span>CTRL</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.3)",letterSpacing:2,marginBottom:40,fontFamily:"'DM Mono',monospace"}}>PERSONAL COMMAND CENTER</div>
-        <div style={{width:240,height:2,background:"rgba(255,255,255,0.05)",borderRadius:999,overflow:"hidden",margin:"0 auto"}}>
-          <div style={{height:"100%",width:"100%",background:"linear-gradient(90deg,#6366f1,#8b5cf6)",borderRadius:999,animation:"bootbar 1.8s ease forwards",transform:"translateX(-100%)"}}/>
-        </div>
+    <div style={{height:"100vh",width:"100vw",background:"#000408",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Share Tech Mono',monospace",position:"relative",overflow:"hidden"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
+      {/* Grid overlay */}
+      <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.04) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
+      {/* Scan lines */}
+      <div style={{position:"absolute",inset:0,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.3) 2px,rgba(0,0,0,0.3) 4px)",pointerEvents:"none"}}/>
+      {/* Corner brackets */}
+      {[["0 0","borderTop","borderLeft"],["0 auto 0 0","borderTop","borderRight"],["auto 0 0","borderBottom","borderLeft"],["auto 0 0 auto","borderBottom","borderRight"]].map(([m,b1,b2],i)=>(
+        <div key={i} style={{position:"absolute",margin:m,width:60,height:60,[b1]:"2px solid rgba(0,180,255,0.6)",[b2]:"2px solid rgba(0,180,255,0.6)"}}/>
+      ))}
+      <div style={{fontSize:9,letterSpacing:8,color:"rgba(0,180,255,0.4)",marginBottom:20}}>INITIALIZING COMMAND SYSTEMS</div>
+      <div style={{fontSize:52,fontFamily:"'Bebas Neue',monospace",letterSpacing:12,color:"#00b4ff",textShadow:"0 0 40px rgba(0,180,255,0.8),0 0 80px rgba(0,180,255,0.3)",marginBottom:4}}>MISSION CTRL</div>
+      <div style={{fontSize:9,letterSpacing:6,color:"rgba(0,180,255,0.3)",marginBottom:40}}>PERSONAL COMMAND CENTER v3.8</div>
+      <div style={{width:280,position:"relative"}}>
+        <div style={{width:"100%",height:1,background:"rgba(0,180,255,0.15)"}}/>
+        <div style={{height:1,background:"linear-gradient(90deg,transparent,#00b4ff,transparent)",width:"100%",animation:"bootbar 1.8s ease forwards",position:"absolute",top:0}}/>
       </div>
-      <style>{`
-        @keyframes bootbar{from{transform:translateX(-100%)}to{transform:translateX(0)}}
-        @keyframes ping{0%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
-      `}</style>
+      <div style={{marginTop:12,fontSize:8,letterSpacing:3,color:"rgba(0,180,255,0.3)"}}>AUTHENTICATING OPERATOR · · ·</div>
+      <style>{`@keyframes bootbar{from{width:0%;opacity:0}to{width:100%;opacity:1}} @keyframes flicker{0%,100%{opacity:1}92%{opacity:0.97}95%{opacity:0.6}}`}</style>
     </div>
   );
 
-  const NAV_ITEMS = [
-    {id:"HOME",  icon:"⊞", label:"Home"},
-    {id:"FINANCE",icon:"◈", label:"Finance"},
-    {id:"JOBS",  icon:"◉", label:"Jobs"},
-    {id:"HEALTH",icon:"♥", label:"Health"},
-    {id:"TRAVEL",icon:"◎", label:"Travel"},
-    {id:"SPORTS",icon:"⚾", label:"Sports"},
-  ];
-  const TAB_COLORS = {HOME:"#6366f1",FINANCE:"#06b6d4",JOBS:"#a855f7",HEALTH:"#ec4899",TRAVEL:"#f59e0b",SPORTS:"#f97316"};
-  const AC = TAB_COLORS[activeTab] || "#6366f1";
-
   return (
-    <div style={{height:"100vh",width:"100vw",background:"#0d0f1a",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",display:"flex",overflow:"hidden",position:"relative"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&amp;family=DM+Mono:wght@400;500&amp;family=Syne:wght@700;800&amp;display=swap" rel="stylesheet"/>
+    <div style={{height:"100vh",width:"100vw",background:"#000408",color:"#a0c4d8",fontFamily:"'Share Tech Mono',monospace",display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
+
+      {/* Global background grid */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.03) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
+      {/* Scan lines */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px)"}}/>
+      {/* Vignette */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.6) 100%)"}}/>
 
       <style>{`
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
-        *{box-sizing:border-box}
+        @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+        @keyframes hudglow{0%,100%{box-shadow:0 0 8px rgba(0,180,255,0.3)}50%{box-shadow:0 0 16px rgba(0,180,255,0.6)}}
+        * { box-sizing: border-box; }
         ::-webkit-scrollbar{width:4px;height:4px}
-        ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
-        ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.15)}
-        .nav-item{transition:all 0.2s}
-        .nav-item:hover{background:rgba(255,255,255,0.05)!important}
+        ::-webkit-scrollbar-track{background:rgba(0,180,255,0.05)}
+        ::-webkit-scrollbar-thumb{background:rgba(0,180,255,0.2);border-radius:2px}
+        .hud-btn:hover{background:rgba(0,180,255,0.08)!important;color:#00b4ff!important}
       `}</style>
 
-      {/* ── SIDEBAR ──────────────────────────────────────────────────────────── */}
-      <div style={{width:220,flexShrink:0,height:"100vh",background:"#0a0c18",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",zIndex:20}}>
-        {/* Logo */}
-        <div style={{padding:"24px 20px 20px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:22,fontFamily:"'Syne',sans-serif",fontWeight:800,letterSpacing:-0.5,color:"#fff"}}>
-            Mission<span style={{color:AC}}>.</span>Ctrl
-          </div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",letterSpacing:1,marginTop:2,fontFamily:"'DM Mono',monospace"}}>COMMAND CENTER</div>
+      {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
+      <div style={{flexShrink:0,height:56,borderBottom:"1px solid rgba(0,180,255,0.15)",display:"flex",alignItems:"stretch",background:"rgba(0,4,8,0.98)",zIndex:10,position:"relative"}}>
+        {/* Accent line */}
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.4),rgba(0,255,180,0.2),transparent)"}}/>
+        {/* Sweep effect */}
+        <div style={{position:"absolute",top:0,bottom:0,width:60,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.03),transparent)",animation:"sweep 4s linear infinite",pointerEvents:"none"}}/>
+
+        {/* LOGO */}
+        <div style={{flexShrink:0,padding:"0 20px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)",position:"relative"}}>
+          <div style={{fontSize:7,letterSpacing:5,color:"rgba(0,180,255,0.4)",marginBottom:1}}>SYSTEM</div>
+          <div style={{fontSize:18,fontFamily:"'Bebas Neue',monospace",letterSpacing:6,color:"#00b4ff",textShadow:"0 0 20px rgba(0,180,255,0.6)"}}>MISSION<span style={{color:"rgba(0,255,180,0.8)"}}>·</span>CTRL</div>
         </div>
 
-        {/* Operator card */}
-        <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${AC},${AC}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#fff",flexShrink:0}}>T</div>
-            <div>
-              <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.2}}>{NAME}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:1}}>Data Analyst I</div>
-            </div>
+        {/* OPERATOR */}
+        <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
+          <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>OPERATOR</div>
+          <div style={{fontSize:12,fontFamily:"'Rajdhani',sans-serif",fontWeight:600,letterSpacing:2}}>
+            <span style={{color:"rgba(160,196,216,0.5)"}}>{getGreeting()}, </span>
+            <span style={{color:"#6366f1",textShadow:"0 0 12px rgba(0,255,180,0.5)"}}>{NAME}</span>
           </div>
         </div>
 
-        {/* Nav */}
-        <div style={{flex:1,padding:"12px 12px",overflowY:"auto"}}>
-          <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.2)",padding:"4px 8px",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>NAVIGATION</div>
-          {NAV_ITEMS.map(tab=>{
-            const active = activeTab===tab.id;
-            const tc = TAB_COLORS[tab.id];
-            return (
-              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="nav-item" style={{
-                width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
-                borderRadius:8,border:"none",cursor:"pointer",marginBottom:2,textAlign:"left",
-                background:active?`${tc}15`:"transparent",
-                color:active?tc:"rgba(255,255,255,0.45)",
-                position:"relative",overflow:"hidden",
-              }}>
-                {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:18,borderRadius:999,background:tc,boxShadow:`0 0 8px ${tc}`}}/>}
-                <span style={{fontSize:14,opacity:active?1:0.7}}>{tab.icon}</span>
-                <span style={{fontSize:13,fontWeight:active?600:400}}>{tab.label}</span>
-                {active&&<div style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:tc,boxShadow:`0 0 6px ${tc}`,animation:"blink 2s infinite"}}/>}
-              </button>
-            );
-          })}
+        {/* UPTIME */}
+        <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
+          <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>UPTIME</div>
+          <div style={{fontSize:12,color:"rgba(0,180,255,0.6)",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
+        </div>
 
-          {/* Status section */}
-          <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.2)",padding:"16px 8px 4px",fontFamily:"'DM Mono',monospace"}}>SYSTEMS</div>
-          {PANELS_CFG.map(p=>(
-            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",borderRadius:6,marginBottom:1}}>
-              <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 6px ${p.color}`,flexShrink:0,animation:"blink 2s infinite"}}/>
-              <span style={{fontSize:11,color:"rgba(255,255,255,0.35)",flex:1}}>{p.label}</span>
-              <span style={{fontSize:9,color:"rgba(255,255,255,0.2)",fontFamily:"'DM Mono',monospace"}}>LIVE</span>
+        {/* NUTRITION */}
+        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid rgba(0,180,255,0.1)",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid rgba(0,180,255,0.1)",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:5}}>
+            <span style={{fontSize:7,letterSpacing:3,color:"rgba(0,255,180,0.6)",fontFamily:"'Share Tech Mono',monospace"}}>⚡ NUTRITION</span>
+            <span style={{fontSize:7,color:"rgba(0,180,255,0.3)",fontFamily:"'Share Tech Mono',monospace"}}>{kcalPct}%</span>
+          </div>
+          <div style={{display:"flex",gap:3,alignItems:"center"}}>
+            {[{c:"#6366f1",v:macroSnap.kcal,g:MACROS_GOAL.kcal},{c:"#f472b6",v:macroSnap.protein,g:MACROS_GOAL.protein},{c:"#fbbf24",v:macroSnap.carbs,g:MACROS_GOAL.carbs},{c:"#00b4ff",v:macroSnap.fat,g:MACROS_GOAL.fat}].map(({c,v,g},i)=>(
+              <div key={i} style={{width:36,height:3,background:"rgba(0,180,255,0.08)",position:"relative",overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${Math.min((v/g)*100,100)}%`,background:c,boxShadow:`0 0 6px ${c}`}}/>
+              </div>
+            ))}
+          </div>
+        </button>
+
+        {/* CENTER — panel status */}
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:0}}>
+          {PANELS_CFG.map((p,i)=>(
+            <div key={p.id} style={{textAlign:"center",padding:"0 16px",borderRight:i<3?"1px solid rgba(0,180,255,0.08)":"none"}}>
+              <div style={{fontSize:7,color:p.color,opacity:0.5,letterSpacing:3,whiteSpace:"nowrap",marginBottom:3,fontFamily:"'Share Tech Mono',monospace"}}>{p.label}</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 8px ${p.color}`,animation:"blink 2s infinite"}}/>
+                <span style={{fontSize:7,color:"rgba(0,180,255,0.3)",letterSpacing:2,fontFamily:"'Share Tech Mono',monospace"}}>ONLINE</span>
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Bottom uptime */}
-        <div style={{padding:"12px 20px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.2)",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>UPTIME</div>
-          <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontFamily:"'DM Mono',monospace",fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
+        {/* WEATHER */}
+        {weather&&(
+          <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
+            <div style={{fontSize:16}}>{weather.icon}</div>
+            <div style={{fontSize:9,color:"#00b4ff",letterSpacing:2,fontFamily:"'Rajdhani',sans-serif",fontWeight:600}}>{weather.temp}°F</div>
+          </div>
+        )}
+
+        {/* CLOCK */}
+        <div style={{flexShrink:0,padding:"0 20px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end"}}>
+          <div style={{fontSize:20,fontFamily:"'Bebas Neue',monospace",letterSpacing:3,color:"#c8e8f8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px rgba(0,180,255,0.3)"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
+          <div style={{fontSize:7,color:"rgba(0,180,255,0.3)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
         </div>
       </div>
 
-      {/* ── MAIN AREA ────────────────────────────────────────────────────────── */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-
-        {/* ── TOP HEADER ───────────────────────────────────────────────────── */}
-        <div style={{flexShrink:0,height:64,padding:"0 28px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(10,12,24,0.8)",backdropFilter:"blur(20px)",zIndex:10}}>
-          {/* Left - page title */}
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div>
-              <div style={{fontSize:18,fontFamily:"'Syne',sans-serif",fontWeight:700,color:"#fff",lineHeight:1}}>{NAV_ITEMS.find(t=>t.id===activeTab)?.label}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:2,fontFamily:"'DM Mono',monospace"}}>{time.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"}).toUpperCase()}</div>
-            </div>
-          </div>
-
-          {/* Center — macro pill */}
-          <button onClick={()=>setShowMacros(true)} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 16px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,cursor:"pointer",color:"inherit"}}>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.4)",fontFamily:"'DM Mono',monospace"}}>NUTRITION</span>
-            <div style={{display:"flex",gap:4,alignItems:"center"}}>
-              {[{c:"#6366f1",v:macroSnap.kcal,g:MACROS_GOAL.kcal},{c:"#ec4899",v:macroSnap.protein,g:MACROS_GOAL.protein},{c:"#f59e0b",v:macroSnap.carbs,g:MACROS_GOAL.carbs},{c:"#06b6d4",v:macroSnap.fat,g:MACROS_GOAL.fat}].map(({c,v,g},i)=>(
-                <div key={i} style={{width:40,height:4,background:"rgba(255,255,255,0.06)",borderRadius:999,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${Math.min((v/g)*100,100)}%`,background:c,borderRadius:999}}/>
-                </div>
-              ))}
-            </div>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.4)",fontFamily:"'DM Mono',monospace"}}>{kcalPct}%</span>
-          </button>
-
-          {/* Right — clock + weather */}
-          <div style={{display:"flex",alignItems:"center",gap:16}}>
-            {weather&&(
-              <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:"rgba(255,255,255,0.04)",borderRadius:8,border:"1px solid rgba(255,255,255,0.06)"}}>
-                <span style={{fontSize:16}}>{weather.icon}</span>
-                <span style={{fontSize:13,fontWeight:500,color:"rgba(255,255,255,0.6)"}}>{weather.temp}°F</span>
-              </div>
-            )}
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:20,fontWeight:700,color:"#fff",fontVariantNumeric:"tabular-nums",fontFamily:"'DM Mono',monospace",lineHeight:1}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.25)",marginTop:2,letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>{getGreeting().toUpperCase()}</div>
-            </div>
-          </div>
-        </div>
-
+      {/* ── NAV BAR ─────────────────────────────────────────────────────────── */}
+      <div style={{flexShrink:0,height:38,borderBottom:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"stretch",background:"rgba(0,2,6,0.95)",zIndex:10,position:"relative"}}>
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.1),transparent)"}}/>
+        {[
+          {id:"HOME",  icon:"⊞", label:"HOME BASE"},
+          {id:"FINANCE",icon:"◈", label:"FINANCE"},
+          {id:"JOBS",  icon:"◉", label:"JOBS"},
+          {id:"HEALTH",icon:"♥", label:"HEALTH"},
+          {id:"TRAVEL",icon:"◎", label:"TRAVEL"},
+          {id:"SPORTS",icon:"⚾", label:"SPORTS"},
+        ].map((tab,i)=>{
+          const active = activeTab===tab.id;
+          const colors = {HOME:"#6366f1",FINANCE:"#00b4ff",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24",SPORTS:"#f97316"};
+          const tc = colors[tab.id];
+          return (
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="hud-btn" style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              background:active?`rgba(${tc==="#6366f1"?"0,255,180":tc==="#00b4ff"?"0,180,255":tc==="#c084fc"?"192,132,252":tc==="#f472b6"?"244,114,182":tc==="#fbbf24"?"251,191,36":"249,115,22"},0.07)`:"transparent",
+              border:"none",
+              borderBottom:active?`2px solid ${tc}`:"2px solid transparent",
+              borderRight:i<5?"1px solid rgba(0,180,255,0.08)":"none",
+              color:active?tc:"rgba(0,180,255,0.25)",
+              cursor:"pointer",
+              transition:"all 0.2s",
+              padding:"0 8px",
+              position:"relative",
+              overflow:"hidden",
+            }}>
+              {active&&<div style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:"60%",height:1,background:tc,boxShadow:`0 0 10px ${tc}`,filter:"blur(1px)"}}/>}
+              <span style={{fontSize:10,fontFamily:"'Share Tech Mono',monospace",opacity:active?1:0.5}}>{tab.icon}</span>
+              <span style={{fontSize:8,letterSpacing:3,fontFamily:"'DM Sans',sans-serif",fontWeight:active?600:400,fontSize:11}}>{tab.label}</span>
+              {active&&<div style={{width:4,height:4,borderRadius:"50%",background:tc,boxShadow:`0 0 8px ${tc}`,animation:"blink 2s infinite"}}/>}
+            </button>
+          );
+        })}
+      </div>
       {/* TAB CONTENT */}
       {activeTab==="HOME" && (
         <>
           {/* GRID */}
-          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:12,padding:16,background:"#0d0f1a",minHeight:0,overflow:"hidden",zIndex:1}}>
+          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#000206",minHeight:0,overflow:"hidden",zIndex:1}}>
             {PANELS_CFG.map(cfg=>{
               if(expanded&&expanded!==cfg.id) return null;
               return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
             })}
           </div>
           {/* BOTTOM BAR */}
-          <div style={{flexShrink:0,padding:"6px 20px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(10,12,24,0.95)",zIndex:10}}>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.2)",fontFamily:"'DM Mono',monospace"}}>{expanded?`◈ Focused: ${expanded.toUpperCase()} — click ✕ to return`:"◈ Click panel to focus · ⤢ Expand"}</div>
-            <div style={{display:"flex",gap:12}}>
-              {[["SYS","#6366f1"],["AI","#a855f7"],["MKT","#06b6d4"],["NEWS","#f97316"]].map(([label,color])=>(
+          <div style={{flexShrink:0,padding:"4px 20px",borderTop:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(0,2,6,0.95)",zIndex:10}}>
+            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
+            <div style={{display:"flex",gap:16}}>
+              {[["SYS","#6366f1"],["AI","#c084fc"],["MKT","#00b4ff"],["NEWS","#f97316"]].map(([label,color])=>(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:4}}>
                   <div style={{width:4,height:4,borderRadius:"50%",background:color,boxShadow:`0 0 5px ${color}`,animation:"blink 2s infinite"}}/>
                   <span style={{fontSize:7,color:"#0d1a30",letterSpacing:2}}>{label}</span>
@@ -4173,7 +4174,5 @@ export default function App() {
         button{font-family:'Inter',sans-serif;} .orb{font-family:'Orbitron',monospace;}
       `}</style>
     </div>
-    </div>
-  </div>
   );
 }
