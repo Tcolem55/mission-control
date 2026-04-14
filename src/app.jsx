@@ -697,7 +697,7 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
   const isNews = cfg.id==="news";
 
   return (
-    <div style={{position:"relative",background:`linear-gradient(135deg, #04080f 0%, #060c18 50%, #040810 100%)`,border:`1px solid ${c}25`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 60px ${c}20, inset 0 0 40px ${c}05`:`inset 0 0 30px #00000040`,cursor:isExpanded?"default":"pointer",minHeight:0}}
+    <div style={{position:"relative",background:`linear-gradient(135deg, #12152a 0%, #0e1122 50%, #111428 100%)`,border:`1px solid rgba(255,255,255,0.07)`,display:"flex",flexDirection:"column",overflow:"hidden",transition:"all 0.5s cubic-bezier(0.16,1,0.3,1)",boxShadow:isExpanded?`0 0 60px ${c}20, inset 0 0 40px ${c}05`:`inset 0 0 30px #00000040`,cursor:isExpanded?"default":"pointer",minHeight:0}}
       onClick={!isExpanded?onExpand:undefined}>
       <HUDBrackets color={c} size={14} thickness={2}/>
       <div style={{position:"absolute",inset:0,pointerEvents:"none",opacity:0.03,backgroundImage:`linear-gradient(${c} 1px, transparent 1px), linear-gradient(90deg, ${c} 1px, transparent 1px)`,backgroundSize:"40px 40px"}}/>
@@ -709,8 +709,8 @@ function Panel({ cfg, isExpanded, onExpand, onCollapse, extraProps }) {
             {cfg.icon}
           </div>
           <div>
-            <div style={{fontSize:9,letterSpacing:4,color:c,fontWeight:"bold",fontFamily:"'Orbitron',monospace"}}>{cfg.label}</div>
-            <div style={{fontSize:8,color:`${c}70`,letterSpacing:2,fontFamily:"'Inter',sans-serif"}}>SYSTEM ACTIVE</div>
+            <div style={{fontSize:9,letterSpacing:4,color:c,fontWeight:"bold",fontFamily:"'Share Tech Mono',monospace",textShadow:`0 0 8px ${c}60`}}>{cfg.label}</div>
+            <div style={{fontSize:8,color:`${c}70`,letterSpacing:2,fontFamily:"'Share Tech Mono',monospace"}}>SYSTEM ACTIVE</div>
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -3955,129 +3955,172 @@ export default function App() {
   };
 
   if (booting) return (
-    <div style={{height:"100vh",width:"100vw",background:"#02040a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Orbitron',monospace"}}>
-      <div style={{fontSize:8,letterSpacing:8,color:"#00ff8840",marginBottom:16,animation:"pulse 1s infinite"}}>INITIALIZING</div>
-      <div style={{fontSize:28,fontWeight:"bold",letterSpacing:6,color:"#00ff88",marginBottom:8,textShadow:"0 0 30px #00ff8860"}}>MISSION CTRL</div>
-      <div style={{fontSize:10,letterSpacing:4,color:"#334",marginBottom:32}}>PERSONAL COMMAND CENTER</div>
-      <div style={{width:200,height:2,background:"#0a1a0a",borderRadius:1,overflow:"hidden"}}>
-        <div style={{height:"100%",background:"linear-gradient(90deg,#00ff88,#38bdf8)",borderRadius:1,animation:"bootbar 1.8s ease forwards"}}/>
+    <div style={{height:"100vh",width:"100vw",background:"#0d0f1a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",position:"relative",overflow:"hidden"}}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 30% 50%,rgba(99,102,241,0.15) 0%,transparent 60%),radial-gradient(ellipse at 70% 20%,rgba(139,92,246,0.1) 0%,transparent 50%)"}}/>
+      <div style={{position:"absolute",width:300,height:300,borderRadius:"50%",border:"1px solid rgba(99,102,241,0.1)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",animation:"ping 3s ease-out infinite"}}/>
+      <div style={{position:"absolute",width:500,height:500,borderRadius:"50%",border:"1px solid rgba(99,102,241,0.05)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",animation:"ping 3s ease-out infinite",animationDelay:"0.5s"}}/>
+      <div style={{textAlign:"center",zIndex:1}}>
+        <div style={{fontSize:11,letterSpacing:6,color:"rgba(99,102,241,0.6)",marginBottom:16,fontFamily:"'DM Mono',monospace"}}>INITIALIZING SYSTEMS</div>
+        <div style={{fontSize:48,fontFamily:"'Syne',sans-serif",fontWeight:800,letterSpacing:-1,color:"#fff",marginBottom:6}}>MISSION<span style={{color:"#6366f1"}}>.</span>CTRL</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.3)",letterSpacing:2,marginBottom:40,fontFamily:"'DM Mono',monospace"}}>PERSONAL COMMAND CENTER</div>
+        <div style={{width:240,height:2,background:"rgba(255,255,255,0.05)",borderRadius:999,overflow:"hidden",margin:"0 auto"}}>
+          <div style={{height:"100%",width:"100%",background:"linear-gradient(90deg,#6366f1,#8b5cf6)",borderRadius:999,animation:"bootbar 1.8s ease forwards",transform:"translateX(-100%)"}}/>
+        </div>
       </div>
-      <style>{`@keyframes bootbar{from{width:0}to{width:100%}}`}</style>
+      <style>{`
+        @keyframes bootbar{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+        @keyframes ping{0%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-50%) scale(1.5);opacity:0}}
+      `}</style>
     </div>
   );
 
-  return (
-    <div style={{height:"100vh",width:"100vw",background:"#02040a",color:"#e8e8f0",fontFamily:"'Orbitron',monospace",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
-      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:200,background:"repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.015) 3px,rgba(0,0,0,0.015) 4px)"}}/>
-      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,opacity:0.02,backgroundImage:"linear-gradient(#00ff88 1px,transparent 1px),linear-gradient(90deg,#00ff88 1px,transparent 1px)",backgroundSize:"60px 60px"}}/>
+  const NAV_ITEMS = [
+    {id:"HOME",  icon:"⊞", label:"Home"},
+    {id:"FINANCE",icon:"◈", label:"Finance"},
+    {id:"JOBS",  icon:"◉", label:"Jobs"},
+    {id:"HEALTH",icon:"♥", label:"Health"},
+    {id:"TRAVEL",icon:"◎", label:"Travel"},
+    {id:"SPORTS",icon:"⚾", label:"Sports"},
+  ];
+  const TAB_COLORS = {HOME:"#6366f1",FINANCE:"#06b6d4",JOBS:"#a855f7",HEALTH:"#ec4899",TRAVEL:"#f59e0b",SPORTS:"#f97316"};
+  const AC = TAB_COLORS[activeTab] || "#6366f1";
 
-      {/* TOP BAR */}
-      <div style={{flexShrink:0,padding:"0 16px",height:52,borderBottom:"1px solid #0a1828",display:"flex",alignItems:"center",gap:0,background:"linear-gradient(90deg,#02040a,#030810,#02040a)",zIndex:10,position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#00ff8840,#38bdf840,transparent)"}}/>
-        <div style={{flexShrink:0,paddingRight:16,borderRight:"1px solid #0a1828"}}>
-          <div style={{fontSize:8,letterSpacing:3,color:"#00ff8860",fontFamily:"'Inter',sans-serif"}}>SYSTEM</div>
-          <div style={{fontSize:14,fontWeight:"900",letterSpacing:3,color:"#00ff88",textShadow:"0 0 20px #00ff8840"}}>MISSION<span style={{color:"#38bdf8"}}>·</span>CTRL</div>
+  return (
+    <div style={{height:"100vh",width:"100vw",background:"#0d0f1a",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",display:"flex",overflow:"hidden",position:"relative"}}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+
+      <style>{`
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:4px}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.15)}
+        .nav-item{transition:all 0.2s}
+        .nav-item:hover{background:rgba(255,255,255,0.05)!important}
+      `}</style>
+
+      {/* ── SIDEBAR ──────────────────────────────────────────────────────────── */}
+      <div style={{width:220,flexShrink:0,height:"100vh",background:"#0a0c18",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",zIndex:20}}>
+        {/* Logo */}
+        <div style={{padding:"24px 20px 20px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontSize:22,fontFamily:"'Syne',sans-serif",fontWeight:800,letterSpacing:-0.5,color:"#fff"}}>
+            Mission<span style={{color:AC}}>.</span>Ctrl
+          </div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",letterSpacing:1,marginTop:2,fontFamily:"'DM Mono',monospace"}}>COMMAND CENTER</div>
         </div>
-        <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
-          <div style={{fontSize:8,letterSpacing:2,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>OPERATOR</div>
-          <div style={{fontSize:11,letterSpacing:2,fontWeight:"bold"}}>
-            <span style={{color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{getGreeting()}, </span>
-            <span style={{color:"#00ff88",textShadow:"0 0 15px #00ff8860"}}>{NAME}</span>
+
+        {/* Operator card */}
+        <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${AC},${AC}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:"#fff",flexShrink:0}}>T</div>
+            <div>
+              <div style={{fontSize:13,fontWeight:600,color:"#fff",lineHeight:1.2}}>{NAME}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.35)",marginTop:1}}>Data Analyst I</div>
+            </div>
           </div>
         </div>
-        <div style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid #0a1828"}}>
-          <div style={{fontSize:8,letterSpacing:2,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>UPTIME</div>
-          <div style={{fontSize:11,color:"#00ff8870",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
-        </div>
-        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"4px 16px",borderRight:"1px solid #0a1828",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid #0a1828",textAlign:"left"}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:4}}>
-            <span style={{fontSize:9,letterSpacing:1,color:"#00ff8890",fontFamily:"'Inter',sans-serif",fontWeight:"600"}}>⚡ NUTRITION</span>
-            <span style={{fontSize:7,color:"#1a2a4a"}}>{kcalPct}% · {protPct}%P</span>
-          </div>
-          <div style={{display:"flex",gap:3,alignItems:"center"}}>
-            {[{c:"#00ff88",v:macroSnap.kcal,g:MACROS_GOAL.kcal},{c:"#f472b6",v:macroSnap.protein,g:MACROS_GOAL.protein},{c:"#fbbf24",v:macroSnap.carbs,g:MACROS_GOAL.carbs},{c:"#38bdf8",v:macroSnap.fat,g:MACROS_GOAL.fat}].map(({c,v,g},i)=>(
-              <div key={i} style={{width:32,height:4,background:"#0a1220",borderRadius:2,overflow:"hidden"}}>
-                <div style={{height:"100%",width:`${Math.min((v/g)*100,100)}%`,background:c,borderRadius:2,boxShadow:`0 0 4px ${c}`}}/>
-              </div>
-            ))}
-          </div>
-        </button>
-        <div style={{display:"flex",gap:0,flex:1,justifyContent:"center"}}>
-          {PANELS_CFG.map((p,i)=>(
-            <div key={p.id} style={{textAlign:"center",padding:"0 14px",borderRight:i<3?"1px solid #0a1828":"none"}}>
-              <div style={{fontSize:7,color:p.color,opacity:0.6,letterSpacing:2,whiteSpace:"nowrap",marginBottom:2}}>{p.icon} {p.label}</div>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
-                <div style={{width:4,height:4,borderRadius:"50%",background:p.color,boxShadow:`0 0 6px ${p.color}`,animation:"blink 2s infinite"}}/>
-                <span style={{fontSize:8,color:"#2a4060",letterSpacing:1,fontFamily:"'Inter',sans-serif"}}>ONLINE</span>
-              </div>
+
+        {/* Nav */}
+        <div style={{flex:1,padding:"12px 12px",overflowY:"auto"}}>
+          <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.2)",padding:"4px 8px",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>NAVIGATION</div>
+          {NAV_ITEMS.map(tab=>{
+            const active = activeTab===tab.id;
+            const tc = TAB_COLORS[tab.id];
+            return (
+              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="nav-item" style={{
+                width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
+                borderRadius:8,border:"none",cursor:"pointer",marginBottom:2,textAlign:"left",
+                background:active?`${tc}15`:"transparent",
+                color:active?tc:"rgba(255,255,255,0.45)",
+                position:"relative",overflow:"hidden",
+              }}>
+                {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:18,borderRadius:999,background:tc,boxShadow:`0 0 8px ${tc}`}}/>}
+                <span style={{fontSize:14,opacity:active?1:0.7}}>{tab.icon}</span>
+                <span style={{fontSize:13,fontWeight:active?600:400}}>{tab.label}</span>
+                {active&&<div style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:tc,boxShadow:`0 0 6px ${tc}`,animation:"blink 2s infinite"}}/>}
+              </button>
+            );
+          })}
+
+          {/* Status section */}
+          <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.2)",padding:"16px 8px 4px",fontFamily:"'DM Mono',monospace"}}>SYSTEMS</div>
+          {PANELS_CFG.map(p=>(
+            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 12px",borderRadius:6,marginBottom:1}}>
+              <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 6px ${p.color}`,flexShrink:0,animation:"blink 2s infinite"}}/>
+              <span style={{fontSize:11,color:"rgba(255,255,255,0.35)",flex:1}}>{p.label}</span>
+              <span style={{fontSize:9,color:"rgba(255,255,255,0.2)",fontFamily:"'DM Mono',monospace"}}>LIVE</span>
             </div>
           ))}
         </div>
-        {weather&&(
-          <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid #0a1828",textAlign:"center"}}>
-            <div style={{fontSize:18}}>{weather.icon}</div>
-            <div style={{fontSize:9,color:"#38bdf8",letterSpacing:1}}>{weather.temp}°F</div>
-          </div>
-        )}
-        <div style={{flexShrink:0,padding:"0 0 0 16px",borderLeft:"1px solid #0a1828",textAlign:"right"}}>
-          <div style={{fontSize:16,fontWeight:"bold",letterSpacing:2,color:"#c8d8e8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px #38bdf840"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
-          <div style={{fontSize:7,color:"#1a2a4a",letterSpacing:2}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
+
+        {/* Bottom uptime */}
+        <div style={{padding:"12px 20px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.2)",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>UPTIME</div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",fontFamily:"'DM Mono',monospace",fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
       </div>
 
-      {/* NAV BAR */}
-      <div style={{flexShrink:0,height:40,borderBottom:"1px solid #0a1828",display:"flex",alignItems:"stretch",background:"#02040a",zIndex:10,position:"relative"}}>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,#0a1828,transparent)"}}/>
-        {[
-          {id:"HOME",  icon:"⊞", label:"HOME BASE"},
-          {id:"FINANCE",icon:"💳", label:"FINANCE"},
-          {id:"JOBS",  icon:"💼", label:"JOBS"},
-          {id:"HEALTH",icon:"🏋️", label:"HEALTH"},
-          {id:"TRAVEL",icon:"✈️", label:"TRAVEL"},
-          {id:"SPORTS",icon:"⚾", label:"SPORTS"},
-        ].map((tab,i)=>{
-          const active = activeTab===tab.id;
-          const colors = {HOME:"#00ff88",FINANCE:"#38bdf8",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24",SPORTS:"#f97316"};
-          const tc = colors[tab.id];
-          return (
-            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{
-              flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6,
-              background: active?`${tc}10`:"transparent",
-              border:"none",
-              borderBottom: active?`2px solid ${tc}`:"2px solid transparent",
-              borderRight: i<5?"1px solid #0a1828":"none",
-              color: active?tc:"#2a3a5a",
-              cursor:"pointer",
-              transition:"all 0.2s",
-              padding:"0 8px",
-            }}
-            onMouseEnter={e=>{if(!active){e.currentTarget.style.background=`${tc}08`;e.currentTarget.style.color=`${tc}80`;}}}
-            onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="#2a3a5a";}}}>
-              <span style={{fontSize:13}}>{tab.icon}</span>
-              <span style={{fontSize:9,letterSpacing:2,fontFamily:"'Orbitron',monospace",fontWeight:active?"bold":"normal"}}>{tab.label}</span>
-              {active && <div style={{width:4,height:4,borderRadius:"50%",background:tc,boxShadow:`0 0 6px ${tc}`,animation:"blink 2s infinite"}}/>}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── MAIN AREA ────────────────────────────────────────────────────────── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
 
+        {/* ── TOP HEADER ───────────────────────────────────────────────────── */}
+        <div style={{flexShrink:0,height:64,padding:"0 28px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(10,12,24,0.8)",backdropFilter:"blur(20px)",zIndex:10}}>
+          {/* Left - page title */}
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div>
+              <div style={{fontSize:18,fontFamily:"'Syne',sans-serif",fontWeight:700,color:"#fff",lineHeight:1}}>{NAV_ITEMS.find(t=>t.id===activeTab)?.label}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:2,fontFamily:"'DM Mono',monospace"}}>{time.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"}).toUpperCase()}</div>
+            </div>
+          </div>
+
+          {/* Center — macro pill */}
+          <button onClick={()=>setShowMacros(true)} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 16px",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:10,cursor:"pointer",color:"inherit"}}>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.4)",fontFamily:"'DM Mono',monospace"}}>NUTRITION</span>
+            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              {[{c:"#6366f1",v:macroSnap.kcal,g:MACROS_GOAL.kcal},{c:"#ec4899",v:macroSnap.protein,g:MACROS_GOAL.protein},{c:"#f59e0b",v:macroSnap.carbs,g:MACROS_GOAL.carbs},{c:"#06b6d4",v:macroSnap.fat,g:MACROS_GOAL.fat}].map(({c,v,g},i)=>(
+                <div key={i} style={{width:40,height:4,background:"rgba(255,255,255,0.06)",borderRadius:999,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${Math.min((v/g)*100,100)}%`,background:c,borderRadius:999}}/>
+                </div>
+              ))}
+            </div>
+            <span style={{fontSize:11,color:"rgba(255,255,255,0.4)",fontFamily:"'DM Mono',monospace"}}>{kcalPct}%</span>
+          </button>
+
+          {/* Right — clock + weather */}
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            {weather&&(
+              <div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:"rgba(255,255,255,0.04)",borderRadius:8,border:"1px solid rgba(255,255,255,0.06)"}}>
+                <span style={{fontSize:16}}>{weather.icon}</span>
+                <span style={{fontSize:13,fontWeight:500,color:"rgba(255,255,255,0.6)"}}>{weather.temp}°F</span>
+              </div>
+            )}
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:20,fontWeight:700,color:"#fff",fontVariantNumeric:"tabular-nums",fontFamily:"'DM Mono',monospace",lineHeight:1}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.25)",marginTop:2,letterSpacing:1,fontFamily:"'DM Mono',monospace"}}>{getGreeting().toUpperCase()}</div>
+            </div>
+          </div>
+        </div>
       {/* TAB CONTENT */}
       {activeTab==="HOME" && (
         <>
           {/* GRID */}
-          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#010308",minHeight:0,overflow:"hidden",zIndex:1}}>
+          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:12,padding:16,background:"#0d0f1a",minHeight:0,overflow:"hidden",zIndex:1}}>
             {PANELS_CFG.map(cfg=>{
               if(expanded&&expanded!==cfg.id) return null;
               return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
             })}
           </div>
           {/* BOTTOM BAR */}
-          <div style={{flexShrink:0,padding:"4px 16px",borderTop:"1px solid #0a1828",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#02040a",zIndex:10}}>
-            <div style={{fontSize:9,color:"#2a3a55",letterSpacing:2,fontFamily:"'Inter',sans-serif"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
+          <div style={{flexShrink:0,padding:"6px 20px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(10,12,24,0.95)",zIndex:10}}>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.2)",fontFamily:"'DM Mono',monospace"}}>{expanded?`◈ Focused: ${expanded.toUpperCase()} — click ✕ to return`:"◈ Click panel to focus · ⤢ Expand"}</div>
             <div style={{display:"flex",gap:12}}>
-              {[["SYS","#00ff88"],["AI","#c084fc"],["MKT","#38bdf8"],["NEWS","#fb923c"]].map(([label,color])=>(
-                <div key={label} style={{display:"flex",alignItems:"center",gap:3}}>
+              {[["SYS","#6366f1"],["AI","#a855f7"],["MKT","#06b6d4"],["NEWS","#f97316"]].map(([label,color])=>(
+                <div key={label} style={{display:"flex",alignItems:"center",gap:4}}>
                   <div style={{width:4,height:4,borderRadius:"50%",background:color,boxShadow:`0 0 5px ${color}`,animation:"blink 2s infinite"}}/>
                   <span style={{fontSize:7,color:"#0d1a30",letterSpacing:2}}>{label}</span>
                 </div>
