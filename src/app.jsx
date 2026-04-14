@@ -4000,8 +4000,75 @@ export default function App() {
         .hud-btn:hover{background:rgba(0,180,255,0.08)!important;color:#00b4ff!important}
       `}</style>
 
-      {/* ── MAIN COLUMN ── */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+      {/* ── SIDEBAR ── */}
+      <div style={{width:200,flexShrink:0,height:"100vh",background:"rgba(8,10,20,0.98)",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",zIndex:20,position:"relative"}}>
+        {/* Logo */}
+        <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontSize:8,letterSpacing:5,color:"rgba(129,140,248,0.4)",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>SYSTEM</div>
+          <div style={{fontSize:18,fontFamily:"'Syne',sans-serif",fontWeight:800,letterSpacing:-0.5,color:"#fff"}}>Mission<span style={{color:"#6366f1"}}>.</span>Ctrl</div>
+        </div>
+        {/* Operator */}
+        <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{NAME.charAt(0)}</div>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:"#fff",lineHeight:1.2,fontFamily:"'DM Sans',sans-serif"}}>{NAME}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:1,fontFamily:"'DM Mono',monospace"}}>ANALYST I</div>
+            </div>
+          </div>
+        </div>
+        {/* Nav items */}
+        <div style={{flex:1,padding:"12px 8px",overflowY:"auto"}}>
+          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"4px 8px",marginBottom:6,fontFamily:"'DM Mono',monospace"}}>NAVIGATION</div>
+          {[
+            {id:"HOME",icon:"⊞",label:"Home Base"},
+            {id:"FINANCE",icon:"◈",label:"Finance"},
+            {id:"JOBS",icon:"◉",label:"Jobs"},
+            {id:"HEALTH",icon:"♥",label:"Health"},
+            {id:"TRAVEL",icon:"◎",label:"Travel"},
+            {id:"SPORTS",icon:"⚾",label:"Sports"},
+          ].map(tab=>{
+            const active=activeTab===tab.id;
+            const cols={HOME:"#6366f1",FINANCE:"#06b6d4",JOBS:"#a855f7",HEALTH:"#ec4899",TRAVEL:"#f59e0b",SPORTS:"#f97316"};
+            const tc=cols[tab.id];
+            return (
+              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{
+                width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 10px",
+                borderRadius:8,border:"none",cursor:"pointer",marginBottom:2,textAlign:"left",
+                background:active?`${tc}18`:"transparent",
+                color:active?tc:"rgba(255,255,255,0.4)",
+                position:"relative",transition:"all 0.15s",
+              }}
+              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="rgba(255,255,255,0.7)";}}}
+              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.4)";}}}
+              >
+                {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:16,borderRadius:999,background:tc,boxShadow:`0 0 8px ${tc}`}}/>}
+                <span style={{fontSize:13,paddingLeft:active?4:0}}>{tab.icon}</span>
+                <span style={{fontSize:12,fontWeight:active?600:400,fontFamily:"'DM Sans',sans-serif"}}>{tab.label}</span>
+                {active&&<div style={{marginLeft:"auto",width:5,height:5,borderRadius:"50%",background:tc,boxShadow:`0 0 6px ${tc}`,animation:"blink 2s infinite"}}/>}
+              </button>
+            );
+          })}
+          {/* System status */}
+          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"14px 8px 6px",fontFamily:"'DM Mono',monospace"}}>SYSTEMS</div>
+          {PANELS_CFG.map(p=>(
+            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 10px",marginBottom:1}}>
+              <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 5px ${p.color}`,flexShrink:0,animation:"blink 2s infinite"}}/>
+              <span style={{fontSize:10,color:"rgba(255,255,255,0.3)",flex:1,fontFamily:"'DM Mono',monospace"}}>{p.label}</span>
+              <span style={{fontSize:8,color:"rgba(255,255,255,0.15)",fontFamily:"'DM Mono',monospace"}}>LIVE</span>
+            </div>
+          ))}
+        </div>
+        {/* Uptime */}
+        <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontSize:8,color:"rgba(255,255,255,0.2)",marginBottom:3,letterSpacing:3,fontFamily:"'DM Mono',monospace"}}>UPTIME</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",fontFamily:"'DM Mono',monospace",fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
+        </div>
+      </div>
+
+
+   {/* ── MAIN COLUMN ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0,height:"100vh"}}>
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <div style={{flexShrink:0,height:56,borderBottom:"1px solid rgba(0,180,255,0.15)",display:"flex",alignItems:"stretch",background:"rgba(0,4,8,0.98)",zIndex:10,position:"relative"}}>
         {/* Accent line */}
@@ -4073,77 +4140,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── SIDEBAR ── */}
-      <div style={{width:200,flexShrink:0,height:"100vh",background:"rgba(8,10,20,0.98)",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",zIndex:20,position:"relative"}}>
-        {/* Logo */}
-        <div style={{padding:"20px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:8,letterSpacing:5,color:"rgba(129,140,248,0.4)",marginBottom:4,fontFamily:"'DM Mono',monospace"}}>SYSTEM</div>
-          <div style={{fontSize:18,fontFamily:"'Syne',sans-serif",fontWeight:800,letterSpacing:-0.5,color:"#fff"}}>Mission<span style={{color:"#6366f1"}}>.</span>Ctrl</div>
-        </div>
-        {/* Operator */}
-        <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:"#fff",flexShrink:0}}>{NAME.charAt(0)}</div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,color:"#fff",lineHeight:1.2,fontFamily:"'DM Sans',sans-serif"}}>{NAME}</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:1,fontFamily:"'DM Mono',monospace"}}>ANALYST I</div>
-            </div>
-          </div>
-        </div>
-        {/* Nav items */}
-        <div style={{flex:1,padding:"12px 8px",overflowY:"auto"}}>
-          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"4px 8px",marginBottom:6,fontFamily:"'DM Mono',monospace"}}>NAVIGATION</div>
-          {[
-            {id:"HOME",icon:"⊞",label:"Home Base"},
-            {id:"FINANCE",icon:"◈",label:"Finance"},
-            {id:"JOBS",icon:"◉",label:"Jobs"},
-            {id:"HEALTH",icon:"♥",label:"Health"},
-            {id:"TRAVEL",icon:"◎",label:"Travel"},
-            {id:"SPORTS",icon:"⚾",label:"Sports"},
-          ].map(tab=>{
-            const active=activeTab===tab.id;
-            const cols={HOME:"#6366f1",FINANCE:"#06b6d4",JOBS:"#a855f7",HEALTH:"#ec4899",TRAVEL:"#f59e0b",SPORTS:"#f97316"};
-            const tc=cols[tab.id];
-            return (
-              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{
-                width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 10px",
-                borderRadius:8,border:"none",cursor:"pointer",marginBottom:2,textAlign:"left",
-                background:active?`${tc}18`:"transparent",
-                color:active?tc:"rgba(255,255,255,0.4)",
-                position:"relative",transition:"all 0.15s",
-              }}
-              onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="rgba(255,255,255,0.7)";}}}
-              onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.4)";}}}
-              >
-                {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:16,borderRadius:999,background:tc,boxShadow:`0 0 8px ${tc}`}}/>}
-                <span style={{fontSize:13,paddingLeft:active?4:0}}>{tab.icon}</span>
-                <span style={{fontSize:12,fontWeight:active?600:400,fontFamily:"'DM Sans',sans-serif"}}>{tab.label}</span>
-                {active&&<div style={{marginLeft:"auto",width:5,height:5,borderRadius:"50%",background:tc,boxShadow:`0 0 6px ${tc}`,animation:"blink 2s infinite"}}/>}
-              </button>
-            );
-          })}
-          {/* System status */}
-          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"14px 8px 6px",fontFamily:"'DM Mono',monospace"}}>SYSTEMS</div>
-          {PANELS_CFG.map(p=>(
-            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 10px",marginBottom:1}}>
-              <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 5px ${p.color}`,flexShrink:0,animation:"blink 2s infinite"}}/>
-              <span style={{fontSize:10,color:"rgba(255,255,255,0.3)",flex:1,fontFamily:"'DM Mono',monospace"}}>{p.label}</span>
-              <span style={{fontSize:8,color:"rgba(255,255,255,0.15)",fontFamily:"'DM Mono',monospace"}}>LIVE</span>
-            </div>
-          ))}
-        </div>
-        {/* Uptime */}
-        <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:8,color:"rgba(255,255,255,0.2)",marginBottom:3,letterSpacing:3,fontFamily:"'DM Mono',monospace"}}>UPTIME</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",fontFamily:"'DM Mono',monospace",fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
-        </div>
-      </div>
-
+   
 
       {activeTab==="HOME" && (
         <>
           {/* GRID */}
-          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#000206",minHeight:0,overflow:"hidden",zIndex:1}}>
+          <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:8,padding:12,background:"#0b0d1a",minHeight:0,overflow:"hidden",zIndex:1}}>
             {PANELS_CFG.map(cfg=>{
               if(expanded&&expanded!==cfg.id) return null;
               return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
