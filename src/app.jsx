@@ -4105,6 +4105,7 @@ export default function App() {
             </div>
           </div>
         </div>
+        </div></div></div></div>
       {/* TAB CONTENT */}
       {activeTab==="HOME" && (
         <>
@@ -4172,5 +4173,7 @@ export default function App() {
         button{font-family:'Inter',sans-serif;} .orb{font-family:'Orbitron',monospace;}
       `}</style>
     </div>
+    </div>
+  </div>
   );
 }
