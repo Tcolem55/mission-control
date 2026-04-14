@@ -386,7 +386,6 @@ function StockChartModal({ stock, stockData, onClose }) {
         </div>
       </div>
     </div>
-      </div>
   );
 }
 
