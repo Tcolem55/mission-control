@@ -4000,6 +4000,8 @@ export default function App() {
         .hud-btn:hover{background:rgba(0,180,255,0.08)!important;color:#00b4ff!important}
       `}</style>
 
+      {/* ── MAIN COLUMN ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
       {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <div style={{flexShrink:0,height:56,borderBottom:"1px solid rgba(0,180,255,0.15)",display:"flex",alignItems:"stretch",background:"rgba(0,4,8,0.98)",zIndex:10,position:"relative"}}>
         {/* Accent line */}
@@ -4137,8 +4139,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── MAIN COLUMN ── */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+
       {activeTab==="HOME" && (
         <>
           {/* GRID */}
