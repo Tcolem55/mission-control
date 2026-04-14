@@ -3956,7 +3956,7 @@ export default function App() {
 
   if (booting) return (
     <div style={{height:"100vh",width:"100vw",background:"#0d0f1a",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif",position:"relative",overflow:"hidden"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&amp;family=DM+Mono:wght@400;500&amp;family=Syne:wght@700;800&amp;display=swap" rel="stylesheet"/>
       <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at 30% 50%,rgba(99,102,241,0.15) 0%,transparent 60%),radial-gradient(ellipse at 70% 20%,rgba(139,92,246,0.1) 0%,transparent 50%)"}}/>
       <div style={{position:"absolute",width:300,height:300,borderRadius:"50%",border:"1px solid rgba(99,102,241,0.1)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",animation:"ping 3s ease-out infinite"}}/>
       <div style={{position:"absolute",width:500,height:500,borderRadius:"50%",border:"1px solid rgba(99,102,241,0.05)",top:"50%",left:"50%",transform:"translate(-50%,-50%)",animation:"ping 3s ease-out infinite",animationDelay:"0.5s"}}/>
@@ -3988,7 +3988,7 @@ export default function App() {
 
   return (
     <div style={{height:"100vh",width:"100vw",background:"#0d0f1a",color:"#e2e8f0",fontFamily:"'DM Sans',sans-serif",display:"flex",overflow:"hidden",position:"relative"}}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&amp;family=DM+Mono:wght@400;500&amp;family=Syne:wght@700;800&amp;display=swap" rel="stylesheet"/>
 
       <style>{`
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
