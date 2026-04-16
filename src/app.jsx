@@ -3884,6 +3884,448 @@ Only recommend players from the lists above.`;
   );
 }
 
+
+// ── Trading Tab — 0DTE Signal Feed ───────────────────────────────────────────
+const WATCHLIST_TICKERS_0DTE = ["SPY","QQQ","NVDA","PLTR","MSFT","AMD","TSLA","AAPL","META","GLD","TLT","IWM"];
+
+function TradingTab() {
+  const [signals, setSignals]         = useState([]);
+  const [loading, setLoading]         = useState(false);
+  const [filter, setFilter]           = useState("ALL");
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [marketData, setMarketData]   = useState({});
+  const [activeSection, setActiveSection] = useState("FEED");
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("signal_history") || "[]"); } catch { return []; }
+  });
+
+  const CALL_C = "#00e5a0";
+  const PUT_C  = "#ff3d5a";
+  const MED_C  = "#f0b429";
+
+  useEffect(() => { generateSignals(); }, []);
+
+  const generateSignals = async () => {
+    setLoading(true); setSignals([]);
+    const priceMap = {};
+    try {
+      await Promise.all(WATCHLIST_TICKERS_0DTE.slice(0, 6).map(async t => {
+        const r = await fetch(`/api/stocks?ticker=${t}`);
+        const d = await r.json();
+        if (d.results?.[0]) priceMap[t] = d.results[0];
+      }));
+    } catch {}
+    setMarketData(priceMap);
+
+    const priceCtx = Object.entries(priceMap).map(([t, d]) =>
+      `${t}: $${d.c?.toFixed(2)} (${d.c > d.o ? "+" : ""}${(((d.c - d.o) / d.o) * 100).toFixed(2)}%)`
+    ).join(", ");
+
+    const now = new Date();
+    const prompt = `You are an elite 0DTE options trader analyzing real-time market conditions.
+
+TODAY'S LIVE PRICES: ${priceCtx || "Market data unavailable — use typical ranges"}
+TIME: ${now.toLocaleTimeString()} ET
+
+Generate 4-6 realistic 0DTE options signals. Include a mix of calls and puts, 1-2 HIGH conviction plays, and 1 speculative/lottery play. Strikes should be 0-3% OTM for high conf, 2-5% OTM for speculative.
+
+Respond ONLY with valid JSON array, no markdown:
+[{
+  "id": 1,
+  "ticker": "SPY",
+  "type": "PUT",
+  "strike": 520,
+  "stockPrice": 523.40,
+  "entryLow": 1.20,
+  "entryHigh": 1.50,
+  "entryMid": 1.35,
+  "target1": 2.80,
+  "target2": 4.50,
+  "stop": 0.55,
+  "delta": -0.38,
+  "iv": 68,
+  "flowSize": "$6.2M",
+  "flowType": "SWEEP",
+  "flowTags": ["UNUSUAL FLOW", "SWEEP x2"],
+  "darkPool": true,
+  "reason": "Detailed reasoning referencing price levels and flow",
+  "confidence": 82,
+  "conviction": "HIGH",
+  "signalTime": "09:47 AM",
+  "riskReward": "2.8:1"
+}]
+
+conviction must be HIGH (>75%), MED (55-75%), or LOW (<55%). Make signals realistic and specific.`;
+
+    try {
+      const res = await fetch('/api/claude', {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6", max_tokens: 2000,
+          system: "Expert 0DTE options trader. Generate realistic, specific trading signals. Valid JSON array only, no markdown, no preamble.",
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || "").join("") || "[]";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const start = clean.indexOf("[");
+      const end = clean.lastIndexOf("]");
+      if (start !== -1 && end !== -1) {
+        const parsed = JSON.parse(clean.slice(start, end + 1));
+        if (Array.isArray(parsed)) { setSignals(parsed); setLastRefresh(new Date().toLocaleTimeString()); }
+      }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const markPlaced = (signal) => {
+    const entry = { ...signal, placedAt: new Date().toLocaleString(), status: "OPEN" };
+    const updated = [entry, ...history].slice(0, 50);
+    setHistory(updated);
+    try { localStorage.setItem("signal_history", JSON.stringify(updated)); } catch {}
+  };
+
+  const updateStatus = (uid, status) => {
+    const updated = history.map(h => h.id === uid.id && h.placedAt === uid.placedAt ? { ...h, status } : h);
+    setHistory(updated);
+    try { localStorage.setItem("signal_history", JSON.stringify(updated)); } catch {}
+  };
+
+  const filtered = signals.filter(s => {
+    if (filter === "CALLS") return s.type === "CALL";
+    if (filter === "PUTS")  return s.type === "PUT";
+    if (filter === "HIGH")  return s.conviction === "HIGH";
+    return true;
+  });
+
+  const typeColor = t => t === "CALL" ? CALL_C : PUT_C;
+  const confColor = c => c >= 75 ? CALL_C : c >= 55 ? MED_C : PUT_C;
+  const winTrades = history.filter(h => h.status === "WIN");
+  const closedTrades = history.filter(h => h.status !== "OPEN");
+  const winRate = closedTrades.length > 0 ? Math.round((winTrades.length / closedTrades.length) * 100) : 0;
+
+  const FlowTag = ({ tag }) => {
+    const col = tag.includes("UNUSUAL") ? MED_C : tag.includes("SWEEP") ? CALL_C : "#c084fc";
+    const icon = tag.includes("UNUSUAL") ? "⚡" : tag.includes("SWEEP") ? "🌊" : "🌑";
+    return (
+      <div style={{ fontSize: 8, letterSpacing: 1, padding: "2px 8px", borderRadius: 2, whiteSpace: "nowrap",
+        background: `${col}12`, color: col, border: `1px solid ${col}28`, flexShrink: 0 }}>
+        {icon} {tag}
+      </div>
+    );
+  };
+
+  const SignalCard = ({ s, idx }) => {
+    const tc = typeColor(s.type);
+    const cc = confColor(s.confidence);
+    const pnl1 = s.entryMid ? ((s.target1 - s.entryMid) / s.entryMid * 100).toFixed(0) : 0;
+    const pnl2 = s.entryMid ? ((s.target2 - s.entryMid) / s.entryMid * 100).toFixed(0) : 0;
+    const stopPct = s.entryMid ? Math.abs(((s.stop - s.entryMid) / s.entryMid) * 100).toFixed(0) : 0;
+    const isTracked = history.some(h => h.id === s.id && h.signalTime === s.signalTime);
+
+    return (
+      <div style={{ background: "#0c0f1a", border: `1px solid ${s.conviction === "HIGH" ? tc + "35" : "rgba(255,255,255,0.07)"}`,
+        borderLeft: `3px solid ${tc}`, borderRadius: 6, overflow: "hidden", marginBottom: 10,
+        animation: `fadeUp 0.4s ease ${idx * 0.08}s both`, position: "relative" }}>
+        {s.conviction === "HIGH" && (
+          <div style={{ position: "absolute", top: 10, right: 12, fontSize: 8, letterSpacing: 2,
+            color: MED_C, background: "rgba(240,180,41,0.1)", border: "1px solid rgba(240,180,41,0.28)",
+            padding: "2px 8px", borderRadius: 2 }}>HIGH CONVICTION</div>
+        )}
+        {/* Main row */}
+        <div style={{ padding: "14px 18px", display: "grid", gridTemplateColumns: "auto 1fr auto auto", gap: 16, alignItems: "center" }}>
+          {/* Ticker + type */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: "#fff", letterSpacing: -0.5, lineHeight: 1, fontFamily: "'Orbitron',monospace" }}>{s.ticker}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "2px 10px", borderRadius: 2,
+              background: `${tc}18`, color: tc }}>{s.type}</div>
+          </div>
+          {/* Details */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: -0.3, fontFamily: "'Orbitron',monospace" }}>
+              ${s.strike}{s.type === "CALL" ? "C" : "P"}
+              <span style={{ fontSize: 11, color: "#3a4a62", fontWeight: 400, marginLeft: 8 }}>EXP TODAY · 0DTE</span>
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {[
+                { l: "STOCK", v: `$${s.stockPrice?.toFixed(2)}`, c: "#c8d4e8" },
+                { l: "DELTA", v: s.delta, c: "#c8d4e8" },
+                { l: "IV", v: `${s.iv}%`, c: s.iv > 80 ? PUT_C : MED_C },
+                { l: "FLOW", v: `${s.flowSize} ${s.flowType}`, c: tc },
+                { l: "TIME", v: s.signalTime, c: "#3a4a62" },
+                { l: "R/R", v: s.riskReward, c: CALL_C },
+              ].map(({ l, v, c }) => (
+                <div key={l} style={{ display: "flex", gap: 4, fontSize: 10 }}>
+                  <span style={{ color: "#3a4a62", letterSpacing: 1 }}>{l}:</span>
+                  <span style={{ color: c, fontWeight: 500 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Entry */}
+          <div style={{ textAlign: "center", padding: "0 16px", borderLeft: "1px solid rgba(255,255,255,0.06)", borderRight: "1px solid rgba(255,255,255,0.06)" }}>
+            <div style={{ fontSize: 8, color: "#3a4a62", letterSpacing: 2, marginBottom: 4 }}>ENTRY RANGE</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#fff", lineHeight: 1, fontFamily: "'Orbitron',monospace" }}>${s.entryMid?.toFixed(2)}</div>
+            <div style={{ fontSize: 9, color: "#3a4a62", marginTop: 2 }}>${s.entryLow}–${s.entryHigh}</div>
+          </div>
+          {/* Levels */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 7, minWidth: 110 }}>
+            {[
+              { l: "T1",   v: `$${s.target1?.toFixed(2)}`, pct: `+${pnl1}%`, c: CALL_C },
+              { l: "T2",   v: `$${s.target2?.toFixed(2)}`, pct: `+${pnl2}%`, c: CALL_C },
+              { l: "STOP", v: `$${s.stop?.toFixed(2)}`,    pct: `-${stopPct}%`, c: PUT_C },
+            ].map(({ l, v, pct, c }) => (
+              <div key={l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 9, color: "#3a4a62", letterSpacing: 1 }}>{l}</span>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: c, fontFamily: "'Orbitron',monospace" }}>{v}</span>
+                  <span style={{ fontSize: 9, color: c, opacity: 0.6, marginLeft: 4 }}>{pct}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Reasoning */}
+        <div style={{ padding: "10px 18px", borderTop: "1px solid rgba(255,255,255,0.05)",
+          background: "rgba(0,0,0,0.2)", display: "flex", gap: 16, alignItems: "flex-start" }}>
+          <div style={{ flex: 1, fontSize: 11, color: "#5a7090", lineHeight: 1.7 }}>
+            {s.reason?.split(/(\$[\w.]+|\d+[%Mx]|support|resistance|sweep|dark pool|block)/gi).map((part, i) => {
+              const isHL = /(\$[\w.]+|\d+[%Mx]|support|resistance|sweep|dark pool|block)/i.test(part);
+              return <span key={i} style={isHL ? { color: "#c8d4e8", fontWeight: 500 } : {}}>{part}</span>;
+            })}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, flexShrink: 0 }}>
+            {(s.flowTags || []).map((tag, i) => <FlowTag key={i} tag={tag} />)}
+            {s.darkPool && <FlowTag tag="DARK POOL" />}
+          </div>
+        </div>
+        {/* Confidence + action */}
+        <div style={{ padding: "8px 18px", borderTop: "1px solid rgba(255,255,255,0.05)",
+          display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 9, color: "#3a4a62", letterSpacing: 2, minWidth: 90 }}>CONFIDENCE</span>
+          <div style={{ flex: 1, height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 999, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${s.confidence}%`, background: cc, borderRadius: 999, boxShadow: `0 0 8px ${cc}60` }} />
+          </div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: cc, minWidth: 36, fontFamily: "'Orbitron',monospace" }}>{s.confidence}%</span>
+          {!isTracked ? (
+            <button onClick={() => markPlaced(s)} style={{ padding: "6px 18px", borderRadius: 3,
+              border: `1px solid ${tc}40`, background: `${tc}15`, color: tc, fontSize: 9,
+              cursor: "pointer", fontFamily: "'Share Tech Mono',monospace", letterSpacing: 2,
+              fontWeight: 700, transition: "all 0.15s", whiteSpace: "nowrap" }}
+              onMouseEnter={e => e.currentTarget.style.background = `${tc}28`}
+              onMouseLeave={e => e.currentTarget.style.background = `${tc}15`}>
+              TRACK TRADE →
+            </button>
+          ) : (
+            <div style={{ fontSize: 9, color: CALL_C, letterSpacing: 2, padding: "6px 14px",
+              background: "rgba(0,229,160,0.08)", border: "1px solid rgba(0,229,160,0.2)", borderRadius: 3 }}>
+              ✓ TRACKING
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#060810",
+      overflow: "hidden", animation: "fadeUp 0.4s ease", fontFamily: "'Share Tech Mono',monospace" }}>
+
+      {/* Header */}
+      <div style={{ flexShrink: 0, padding: "14px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)",
+        background: "linear-gradient(90deg,#060810,#0a0d18)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 9, letterSpacing: 4, color: "rgba(0,229,160,0.5)", marginBottom: 2 }}>📡 TRADING MODULE</div>
+          <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: 3, color: "#fff", fontFamily: "'Bebas Neue',monospace" }}>
+            0DTE <span style={{ color: CALL_C }}>SIGNAL</span> FEED
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* Live prices */}
+          <div style={{ display: "flex", gap: 16 }}>
+            {Object.entries(marketData).slice(0, 3).map(([t, d]) => {
+              const chg = d.c && d.o ? ((d.c - d.o) / d.o) * 100 : 0;
+              return (
+                <div key={t} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 8, color: "#3a4a62", letterSpacing: 2, marginBottom: 2 }}>{t}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: chg >= 0 ? CALL_C : PUT_C, fontFamily: "'Orbitron',monospace" }}>
+                    ${d.c?.toFixed(2)} <span style={{ fontSize: 9 }}>{chg >= 0 ? "+" : ""}{chg.toFixed(1)}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(0,229,160,0.08)",
+            border: "1px solid rgba(0,229,160,0.22)", padding: "6px 14px", borderRadius: 4,
+            fontSize: 9, letterSpacing: 2, color: CALL_C }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: CALL_C,
+              boxShadow: `0 0 8px ${CALL_C}`, animation: "blink 1.5s infinite" }} />
+            LIVE SIGNALS
+          </div>
+          <button onClick={generateSignals} disabled={loading} style={{
+            padding: "8px 18px", background: loading ? "#111427" : "rgba(0,229,160,0.12)",
+            border: `1px solid ${loading ? "#1a2a40" : "rgba(0,229,160,0.3)"}`, borderRadius: 3,
+            color: loading ? "#3a4a62" : CALL_C, fontSize: 9, cursor: loading ? "not-allowed" : "pointer",
+            letterSpacing: 2, fontFamily: "'Share Tech Mono',monospace", transition: "all 0.2s" }}>
+            {loading ? "SCANNING···" : "↻ REFRESH"}
+          </button>
+        </div>
+      </div>
+
+      {/* Section tabs */}
+      <div style={{ flexShrink: 0, display: "flex", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "#08090f" }}>
+        {[
+          { id: "FEED",    label: "📡 SIGNAL FEED" },
+          { id: "TRACKER", label: "📋 MY TRADES" },
+          { id: "STATS",   label: "📊 PERFORMANCE" },
+        ].map(t => (
+          <button key={t.id} onClick={() => setActiveSection(t.id)} style={{
+            flex: 1, padding: "10px", fontSize: 9, letterSpacing: 2, cursor: "pointer",
+            background: activeSection === t.id ? "rgba(0,229,160,0.08)" : "transparent", border: "none",
+            borderBottom: activeSection === t.id ? `2px solid ${CALL_C}` : "2px solid transparent",
+            color: activeSection === t.id ? CALL_C : "#3a4a62",
+            fontFamily: "'Share Tech Mono',monospace", transition: "all 0.2s" }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* ── SIGNAL FEED ── */}
+      {activeSection === "FEED" && (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Summary row */}
+          <div style={{ flexShrink: 0, display: "grid", gridTemplateColumns: "repeat(4,1fr)",
+            borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.3)" }}>
+            {[
+              { label: "SIGNALS TODAY", val: signals.length, sub: `${signals.filter(s => s.type === "CALL").length} calls · ${signals.filter(s => s.type === "PUT").length} puts`, c: CALL_C },
+              { label: "HIGH CONVICTION", val: signals.filter(s => s.conviction === "HIGH").length, sub: "strong setups", c: MED_C },
+              { label: "TRACKING", val: history.filter(h => h.status === "OPEN").length, sub: "open trades", c: "#c8d4e8" },
+              { label: "WIN RATE", val: winRate ? `${winRate}%` : "—", sub: `${winTrades.length} wins`, c: winRate >= 60 ? CALL_C : winRate > 0 ? MED_C : "#3a4a62" },
+            ].map(({ label, val, sub, c }) => (
+              <div key={label} style={{ padding: "12px 20px", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+                <div style={{ fontSize: 8, color: "#3a4a62", letterSpacing: 3, marginBottom: 5 }}>{label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: c, lineHeight: 1, fontFamily: "'Orbitron',monospace" }}>{val}</div>
+                <div style={{ fontSize: 9, color: "#3a4a62", marginTop: 3 }}>{sub}</div>
+              </div>
+            ))}
+          </div>
+          {/* Filter bar */}
+          <div style={{ flexShrink: 0, padding: "10px 20px", borderBottom: "1px solid rgba(255,255,255,0.05)",
+            display: "flex", gap: 8, alignItems: "center", background: "#08090f" }}>
+            {[
+              { id: "ALL",  label: "ALL SIGNALS" },
+              { id: "CALLS", label: "CALLS" },
+              { id: "PUTS",  label: "PUTS" },
+              { id: "HIGH",  label: "HIGH CONVICTION" },
+            ].map(f => (
+              <button key={f.id} onClick={() => setFilter(f.id)} style={{
+                padding: "5px 14px", borderRadius: 3, border: "1px solid", fontSize: 9, letterSpacing: 2,
+                cursor: "pointer", fontFamily: "'Share Tech Mono',monospace", transition: "all 0.15s",
+                borderColor: filter === f.id ? (f.id === "PUTS" ? PUT_C : CALL_C) : "rgba(255,255,255,0.08)",
+                background: filter === f.id ? (f.id === "PUTS" ? `${PUT_C}15` : `${CALL_C}12`) : "transparent",
+                color: filter === f.id ? (f.id === "PUTS" ? PUT_C : CALL_C) : "#3a4a62",
+              }}>{f.label}</button>
+            ))}
+            <div style={{ flex: 1 }} />
+            {lastRefresh && <div style={{ fontSize: 9, color: "#3a4a62" }}>Last refresh: {lastRefresh}</div>}
+          </div>
+          {/* Cards */}
+          <div style={{ flex: 1, overflowY: "auto", padding: 16, scrollbarWidth: "thin" }}>
+            {loading && (
+              <div style={{ padding: 60, textAlign: "center" }}>
+                <div style={{ fontSize: 13, color: CALL_C, letterSpacing: 4, animation: "pulse 1s infinite", marginBottom: 12 }}>SCANNING MARKET···</div>
+                <div style={{ fontSize: 11, color: "#3a4a62" }}>Analyzing flow · Checking price levels · Building signals</div>
+              </div>
+            )}
+            {!loading && filtered.length === 0 && (
+              <div style={{ padding: 60, textAlign: "center", color: "#3a4a62", fontSize: 12 }}>No signals match filter. Try ALL.</div>
+            )}
+            {!loading && filtered.map((s, i) => <SignalCard key={`${s.id}-${i}`} s={s} idx={i} />)}
+            {!loading && filtered.length > 0 && (
+              <div style={{ padding: "12px 16px", background: "rgba(255,61,90,0.05)",
+                border: "1px solid rgba(255,61,90,0.15)", borderRadius: 4, fontSize: 10,
+                color: "#5a3040", lineHeight: 1.6, marginTop: 4 }}>
+                ⚠️ NOT FINANCIAL ADVICE. 0DTE options are high-risk instruments. Always manage position size. AI-generated for informational purposes only.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MY TRADES ── */}
+      {activeSection === "TRACKER" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: 20, scrollbarWidth: "thin" }}>
+          {history.length === 0 ? (
+            <div style={{ padding: 60, textAlign: "center", color: "#3a4a62", fontSize: 12, lineHeight: 2 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📋</div>
+              No trades tracked yet.<br />Click "TRACK TRADE →" on any signal to log it here.
+            </div>
+          ) : history.map((h, i) => {
+            const tc = h.type === "CALL" ? CALL_C : PUT_C;
+            const sc = h.status === "WIN" ? CALL_C : h.status === "LOSS" ? PUT_C : MED_C;
+            return (
+              <div key={i} style={{ background: "#0c0f1a", border: "1px solid rgba(255,255,255,0.07)",
+                borderLeft: `3px solid ${tc}`, borderRadius: 5, padding: "12px 18px", marginBottom: 8,
+                display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 80 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", fontFamily: "'Orbitron',monospace" }}>{h.ticker}</div>
+                  <div style={{ fontSize: 9, color: tc, letterSpacing: 1, background: `${tc}15`,
+                    padding: "1px 6px", borderRadius: 2, width: "fit-content" }}>{h.type}</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: "#fff", marginBottom: 3, fontFamily: "'Orbitron',monospace" }}>
+                    ${h.strike}{h.type === "CALL" ? "C" : "P"} · Entry ${h.entryMid?.toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#3a4a62" }}>Tracked: {h.placedAt}</div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {h.status === "OPEN" && (<>
+                    <button onClick={() => updateStatus({ id: h.id, placedAt: h.placedAt }, "WIN")} style={{
+                      padding: "5px 12px", background: "rgba(0,229,160,0.12)", border: "1px solid rgba(0,229,160,0.3)",
+                      borderRadius: 3, color: CALL_C, fontSize: 9, cursor: "pointer", fontFamily: "'Share Tech Mono',monospace" }}>✓ WIN</button>
+                    <button onClick={() => updateStatus({ id: h.id, placedAt: h.placedAt }, "LOSS")} style={{
+                      padding: "5px 12px", background: "rgba(255,61,90,0.1)", border: "1px solid rgba(255,61,90,0.3)",
+                      borderRadius: 3, color: PUT_C, fontSize: 9, cursor: "pointer", fontFamily: "'Share Tech Mono',monospace" }}>✗ LOSS</button>
+                  </>)}
+                  <div style={{ fontSize: 11, fontWeight: 700, color: sc, padding: "5px 12px",
+                    background: `${sc}12`, border: `1px solid ${sc}30`, borderRadius: 3, letterSpacing: 2 }}>{h.status}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── PERFORMANCE ── */}
+      {activeSection === "STATS" && (
+        <div style={{ flex: 1, overflowY: "auto", padding: 20, scrollbarWidth: "thin" }}>
+          {closedTrades.length === 0 ? (
+            <div style={{ padding: 60, textAlign: "center", color: "#3a4a62", fontSize: 12, lineHeight: 2 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+              No closed trades yet.<br />Track signals and mark wins/losses to see stats.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+              {[
+                { label: "TOTAL TRACKED", val: history.length, c: "#c8d4e8" },
+                { label: "WIN RATE", val: `${winRate}%`, c: winRate >= 60 ? CALL_C : winRate > 0 ? MED_C : PUT_C },
+                { label: "WINS", val: winTrades.length, c: CALL_C },
+                { label: "LOSSES", val: history.filter(h => h.status === "LOSS").length, c: PUT_C },
+                { label: "OPEN", val: history.filter(h => h.status === "OPEN").length, c: MED_C },
+                { label: "BEST TICKER", val: winTrades[0]?.ticker || "—", c: CALL_C },
+              ].map(({ label, val, c }) => (
+                <div key={label} style={{ background: "#0c0f1a", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5, padding: "16px 20px" }}>
+                  <div style={{ fontSize: 8, color: "#3a4a62", letterSpacing: 3, marginBottom: 6 }}>{label}</div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: c, fontFamily: "'Orbitron',monospace" }}>{val}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
@@ -4076,6 +4518,7 @@ export default function App() {
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.1),transparent)"}}/>
         {[
           {id:"HOME",  icon:"⊞", label:"HOME BASE"},
+          {id:"TRADING",icon:"📡", label:"TRADING"},
           {id:"FINANCE",icon:"◈", label:"FINANCE"},
           {id:"JOBS",  icon:"◉", label:"JOBS"},
           {id:"HEALTH",icon:"♥", label:"HEALTH"},
@@ -4083,7 +4526,7 @@ export default function App() {
           {id:"SPORTS",icon:"⚾", label:"SPORTS"},
         ].map((tab,i)=>{
           const active = activeTab===tab.id;
-          const colors = {HOME:"#6366f1",FINANCE:"#00b4ff",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24",SPORTS:"#f97316"};
+          const colors = {HOME:"#6366f1",TRADING:"#00e5a0",FINANCE:"#00b4ff",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24",SPORTS:"#f97316"};
           const tc = colors[tab.id];
           return (
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="hud-btn" style={{
@@ -4132,6 +4575,7 @@ export default function App() {
         </>
       )}
 
+      {activeTab==="TRADING" && <TradingTab />}
       {activeTab==="FINANCE" && <FinanceTab />}
       {activeTab==="JOBS" && <JobsTab />}
       {activeTab==="HEALTH" && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
