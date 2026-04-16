@@ -1158,7 +1158,7 @@ function JobsTab() {
   const counts = STATUSES_J.reduce((acc,s)=>({...acc,[s]:jobs.filter(j=>j.status===s).length}),{});
 
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden"}}>
 
       {/* Header */}
       <div style={{flexShrink:0,padding:"14px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#0c0818)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -3903,7 +3903,13 @@ function TradingTab() {
   const PUT_C  = "#ff3d5a";
   const MED_C  = "#f0b429";
 
-  useEffect(() => { generateSignals(); }, []);
+  const hasGenerated = useRef(false);
+  useEffect(() => {
+    if (!hasGenerated.current) {
+      hasGenerated.current = true;
+      generateSignals();
+    }
+  }, []);
 
   const generateSignals = async () => {
     setLoading(true); setSignals([]); setSignalError("");
@@ -4050,7 +4056,7 @@ Generate all 5 signals in that format.`;
         border:`1px solid ${s.conviction==="HIGH"?tc+"35":"rgba(255,255,255,0.07)"}`,
         borderLeft:`3px solid ${tc}`,
         borderRadius:4,overflow:"hidden",
-        animation:`fadeUp 0.4s ease ${idx*0.07}s both`,
+        // no animation - prevents flash on filter change
         position:"relative",marginBottom:10,
       }}>
         {s.conviction==="HIGH" && (
