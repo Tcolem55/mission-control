@@ -3957,7 +3957,13 @@ Strikes 0-5% OTM from stock price. Entry premiums $0.40-$4.00 range. Targets 1.5
 
 IMPORTANT: Respond with ONLY a JSON array. No text before or after. No markdown. Start with [ and end with ].
 
-[{"id":1,"ticker":"SPY","type":"PUT","strike":528,"stockPrice":531.20,"entryLow":1.45,"entryHigh":1.75,"entryMid":1.60,"target1":3.20,"target2":5.50,"stop":0.65,"delta":-0.38,"iv":18,"flowSize":"$8.4M","flowType":"SWEEP","flowTags":["UNUSUAL FLOW","SWEEP x3"],"darkPool":true,"reason":"your specific reasoning here","confidence":84,"conviction":"HIGH","signalTime":"${etTime}","riskReward":"2.9:1"}]
+[{"id":1,"ticker":"SPY","type":"PUT","strike":528,"stockPrice":531.20,"entryLow":1.45,"entryHigh":1.75,"entryMid":1.60,"stockTarget1":525.00,"stockTarget2":520.00,"stockStop":533.50,"delta":-0.38,"iv":18,"flowSize":"$8.4M","flowType":"SWEEP","flowTags":["UNUSUAL FLOW","SWEEP x3"],"darkPool":true,"reason":"your specific reasoning here","confidence":84,"conviction":"HIGH","signalTime":"${etTime}","riskReward":"2.9:1"}]
+
+Fields:
+- stockTarget1: first stock price target (for CALL = above current, for PUT = below current)
+- stockTarget2: second stock price target (further move in same direction)
+- stockStop: stock price where you'd exit the trade (for CALL = below current, for PUT = above current)
+- entryMid: the option premium you pay (realistic 0DTE price)
 
 Generate all 5 signals in that format.`;
 
@@ -4046,9 +4052,10 @@ Generate all 5 signals in that format.`;
   const SignalCard = ({s, idx}) => {
     const tc  = typeColor(s.type);
     const cc  = confColor(s.confidence);
-    const p1  = ((s.target1 - s.entryMid) / s.entryMid * 100).toFixed(0);
-    const p2  = ((s.target2 - s.entryMid) / s.entryMid * 100).toFixed(0);
-    const pStop = Math.abs(((s.stop - s.entryMid)/s.entryMid)*100).toFixed(0);
+    // Stock price move % from current price
+    const p1    = s.stockTarget1 && s.stockPrice ? ((s.stockTarget1 - s.stockPrice) / s.stockPrice * 100).toFixed(1) : null;
+    const p2    = s.stockTarget2 && s.stockPrice ? ((s.stockTarget2 - s.stockPrice) / s.stockPrice * 100).toFixed(1) : null;
+    const pStop = s.stockStop    && s.stockPrice ? ((s.stockStop    - s.stockPrice) / s.stockPrice * 100).toFixed(1) : null;
     const isTracked = history.some(h=>h.id===s.id&&h.signalTime===s.signalTime);
     return (
       <div style={{
@@ -4098,16 +4105,16 @@ Generate all 5 signals in that format.`;
           </div>
           {/* Entry */}
           <div style={{textAlign:"center",padding:"0 14px",borderLeft:"1px solid rgba(255,255,255,0.06)",borderRight:"1px solid rgba(255,255,255,0.06)"}}>
-            <div style={{fontSize:8,color:"#3a4a62",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>ENTRY</div>
+            <div style={{fontSize:8,color:"#3a4a62",letterSpacing:2,marginBottom:4,fontFamily:"'Orbitron',monospace"}}>PREMIUM</div>
             <div style={{fontSize:20,fontWeight:800,color:"#fff",lineHeight:1,fontFamily:"'Orbitron',monospace"}}>${s.entryMid?.toFixed(2)}</div>
             <div style={{fontSize:9,color:"#3a4a62",marginTop:2,fontFamily:"'Inter',sans-serif"}}>${s.entryLow}–${s.entryHigh}</div>
           </div>
           {/* Levels */}
           <div style={{display:"flex",flexDirection:"column",gap:6,minWidth:110}}>
             {[
-              {l:"T1",  v:`$${s.target1?.toFixed(2)}`, pct:`+${p1}%`,   c:CALL_C},
-              {l:"T2",  v:`$${s.target2?.toFixed(2)}`, pct:`+${p2}%`,   c:CALL_C},
-              {l:"STOP",v:`$${s.stop?.toFixed(2)}`,    pct:`-${pStop}%`, c:PUT_C},
+              {l:"T1",   v:s.stockTarget1?`$${s.stockTarget1?.toFixed(2)}`:"—", pct:p1?`${Number(p1)>=0?"+":""}${p1}%`:"",  c:CALL_C},
+              {l:"T2",   v:s.stockTarget2?`$${s.stockTarget2?.toFixed(2)}`:"—", pct:p2?`${Number(p2)>=0?"+":""}${p2}%`:"",  c:CALL_C},
+              {l:"STOP", v:s.stockStop   ?`$${s.stockStop?.toFixed(2)}`:"—",    pct:pStop?`${Number(pStop)>=0?"+":""}${pStop}%`:"", c:PUT_C},
             ].map(({l,v,pct,c})=>(
               <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
                 <span style={{fontSize:9,color:"#3a4a62",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{l}</span>
