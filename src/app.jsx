@@ -2493,6 +2493,7 @@ function HRTeamPicker({ C, games }) {
   const [loading, setLoading]           = useState(false);
   const [status, setStatus]             = useState("");
   const [log, setLog]                   = useState([]);
+  const [view, setView]                 = useState("COMBINED"); // COMBINED | TEAMS
 
   const addLog = msg => setLog(prev=>[...prev, msg]);
 
@@ -2657,18 +2658,18 @@ Respond ONLY with valid JSON:
   "awaySP":"${awaySPCtx}",
   "homeSP":"${homeSPCtx}",
   "awayPicks":[
-    {"rank":1,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"Specific reason referencing splits, park, weather","confidence":"HIGH"},
-    {"rank":2,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"HIGH"},
-    {"rank":3,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
-    {"rank":4,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
-    {"rank":5,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"LOW"}
+    {"rank":1,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+180","reason":"Specific reason referencing splits, park, weather","confidence":"HIGH"},
+    {"rank":2,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+220","reason":"reason","confidence":"HIGH"},
+    {"rank":3,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+280","reason":"reason","confidence":"MED"},
+    {"rank":4,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+350","reason":"reason","confidence":"MED"},
+    {"rank":5,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+450","reason":"reason","confidence":"LOW"}
   ],
   "homePicks":[
-    {"rank":1,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"HIGH"},
-    {"rank":2,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"HIGH"},
-    {"rank":3,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
-    {"rank":4,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
-    {"rank":5,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"LOW"}
+    {"rank":1,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+200","reason":"reason","confidence":"HIGH"},
+    {"rank":2,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+240","reason":"reason","confidence":"HIGH"},
+    {"rank":3,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+300","reason":"reason","confidence":"MED"},
+    {"rank":4,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+380","reason":"reason","confidence":"MED"},
+    {"rank":5,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+480","reason":"reason","confidence":"LOW"}
   ]
 }`;
 
@@ -2796,7 +2797,7 @@ Respond ONLY with valid JSON:
           {!loading && picks && (
             <div>
               {/* Game header */}
-              <div style={{background:`linear-gradient(90deg,${C}12,transparent)`,border:`1px solid ${C}25`,borderRadius:4,padding:"12px 18px",marginBottom:14}}>
+              <div style={{background:`linear-gradient(90deg,${C}12,transparent)`,border:`1px solid ${C}25`,borderRadius:4,padding:"12px 18px",marginBottom:10}}>
                 <div style={{fontSize:16,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:6}}>{picks.game}</div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
                   {[
@@ -2813,29 +2814,122 @@ Respond ONLY with valid JSON:
                 </div>
               </div>
 
-              {/* Side by side picks */}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-                {/* Away team */}
-                <div>
-                  <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
-                    <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.awayTeam?.toUpperCase()} — AWAY</div>
-                    <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.homeSP}</div>
-                  </div>
-                  {(picks.awayPicks||[]).map((p,i)=>(
-                    <PickCard key={i} p={p} oppHand={picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
-                  ))}
-                </div>
-                {/* Home team */}
-                <div>
-                  <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
-                    <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.homeTeam?.toUpperCase()} — HOME</div>
-                    <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.awaySP}</div>
-                  </div>
-                  {(picks.homePicks||[]).map((p,i)=>(
-                    <PickCard key={i} p={p} oppHand={picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
-                  ))}
-                </div>
+              {/* View toggle */}
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                {[{id:"COMBINED",label:"⚡ COMBINED RANKING"},{id:"TEAMS",label:"👥 BY TEAM"}].map(v=>(
+                  <button key={v.id} onClick={()=>setView(v.id)} style={{
+                    padding:"7px 20px",borderRadius:3,border:"1px solid",fontSize:10,letterSpacing:2,cursor:"pointer",
+                    fontFamily:"'Orbitron',monospace",transition:"all 0.15s",
+                    borderColor:view===v.id?C+"60":"rgba(255,255,255,0.1)",
+                    background:view===v.id?`${C}15`:"transparent",
+                    color:view===v.id?C:"#3a5070",
+                  }}>{v.label}</button>
+                ))}
               </div>
+
+              {/* COMBINED VIEW — all players ranked 1-10 by HR odds */}
+              {view==="COMBINED" && (() => {
+                const awayHand = picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R";
+                const homeHand = picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R";
+                const combined = [
+                  ...(picks.awayPicks||[]).map(p=>({...p, oppHand:awayHand})),
+                  ...(picks.homePicks||[]).map(p=>({...p, oppHand:homeHand})),
+                ].sort((a,b)=>{
+                  // Sort by odds (lower absolute number = better odds = higher rank)
+                  const parseOdds = o => { if(!o) return 9999; const n=parseInt(o.replace("+","").replace("-","")); return o.startsWith("-")?-n:n; };
+                  return parseOdds(a.hrOdds) - parseOdds(b.hrOdds);
+                }).map((p,i)=>({...p, combinedRank:i+1}));
+
+                const CONF = {HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35"};
+                return (
+                  <div>
+                    <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>
+                      ALL {combined.length} PLAYERS — RANKED BEST ODDS TO HIT HR
+                    </div>
+                    {combined.map((p,i)=>{
+                      const isTop3 = i < 3;
+                      const rankColor = i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
+                      return (
+                        <div key={i} style={{
+                          background:"#111427",
+                          border:`1px solid ${isTop3?rankColor+"40":"rgba(255,255,255,0.06)"}`,
+                          borderLeft:`3px solid ${rankColor}`,
+                          borderRadius:4,padding:"10px 14px",marginBottom:6,
+                          display:"flex",alignItems:"center",gap:12,
+                          boxShadow:isTop3?`0 0 12px ${rankColor}15`:undefined,
+                        }}>
+                          {/* Rank badge */}
+                          <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,
+                            background:isTop3?`${rankColor}25`:"#0d0f1e",
+                            border:`2px solid ${isTop3?rankColor:rankColor+"40"}`,
+                            display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            <span style={{fontSize:13,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
+                          </div>
+                          {/* Player info */}
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                              <span style={{fontSize:14,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
+                              <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
+                              <span style={{fontSize:9,padding:"1px 7px",borderRadius:2,fontFamily:"'Orbitron',monospace",
+                                color:p.team===picks.awayTeam?"#38bdf8":"#f472b6",
+                                background:p.team===picks.awayTeam?"#38bdf815":"#f472b615",
+                                border:`1px solid ${p.team===picks.awayTeam?"#38bdf830":"#f472b630"}`
+                              }}>{p.team===picks.awayTeam?"AWAY":"HOME"} · {p.team?.split(" ").slice(-1)[0]}</span>
+                              <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
+                            </div>
+                            <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
+                          </div>
+                          {/* Stats */}
+                          <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                            {[
+                              {label:"SZN HR",  val:p.seasonHR,  hot:p.seasonHR>=5},
+                              {label:"ISO",     val:p.iso,       hot:parseFloat(p.iso)>=0.180},
+                              {label:`vs${p.oppHand}HP`, val:p.oppHR, hot:p.oppHR>=2},
+                            ].map(({label,val,hot})=>(
+                              <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 8px",textAlign:"center",minWidth:44}}>
+                                <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                                <div style={{fontSize:12,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Odds */}
+                          <div style={{flexShrink:0,textAlign:"center",minWidth:64,
+                            background:isTop3?`${rankColor}12`:"#0d0f1e",
+                            border:`1px solid ${isTop3?rankColor+"40":"rgba(255,255,255,0.07)"}`,
+                            borderRadius:4,padding:"6px 10px"}}>
+                            <div style={{fontSize:8,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:2}}>HR ODDS</div>
+                            <div style={{fontSize:16,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* TEAMS VIEW — side by side */}
+              {view==="TEAMS" && (
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                  <div>
+                    <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
+                      <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.awayTeam?.toUpperCase()} — AWAY</div>
+                      <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.homeSP}</div>
+                    </div>
+                    {(picks.awayPicks||[]).map((p,i)=>(
+                      <PickCard key={i} p={p} oppHand={picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
+                      <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.homeTeam?.toUpperCase()} — HOME</div>
+                      <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.awaySP}</div>
+                    </div>
+                    {(picks.homePicks||[]).map((p,i)=>(
+                      <PickCard key={i} p={p} oppHand={picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
