@@ -1384,6 +1384,7 @@ function JobsTab() {
 
 
 
+
 // ── Safe JSON parser — handles Claude's occasional malformed JSON ─────────────
 function safeParseJSON(text) {
   let cleaned = text;
@@ -3152,6 +3153,7 @@ Generate exactly 6 picks.`;
   );
 }
 
+
 // ── Cheat Sheet ───────────────────────────────────────────────────────────────
 function CheatSheet({ games, gamesLoading, C }) {
   const [sheets, setSheets]       = useState([]);
@@ -4192,6 +4194,7 @@ Only recommend players from the lists above.`;
   );
 }
 
+
 // ── Trading Tab — 0DTE Signal Feed ───────────────────────────────────────────
 const SIGNAL_TICKERS = ["SPY","QQQ","NVDA","PLTR","MSFT","AMD","TSLA","AAPL","META","GLD","TLT","IWM"];
 
@@ -4692,6 +4695,8 @@ Generate all 5 signals in that format.`;
 // ── Main App ──────────────────────────────────────────────────────────────────
 // ── Main App ──────────────────────────────────────────────────────────────────
 
+
+
 export default function App() {
   const [time, setTime]           = useState(new Date());
   const [uptime, setUptime]       = useState(0);
@@ -4749,7 +4754,6 @@ export default function App() {
   };
 
   const kcalPct = Math.min(Math.round((macroSnap.kcal/MACROS_GOAL.kcal)*100),100);
-  const protPct = Math.min(Math.round((macroSnap.protein/MACROS_GOAL.protein)*100),100);
 
   const extraProps = {
     stocks, stockLoading, stockUpdated, stockContext,
@@ -4783,8 +4787,6 @@ export default function App() {
   return (
     <div style={{height:"100vh",width:"100vw",background:"#000408",color:"#a0c4d8",fontFamily:"'Share Tech Mono',monospace",display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
       <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
-
-      {/* Global background */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.03) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px)"}}/>
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.6) 100%)"}}/>
@@ -4793,25 +4795,23 @@ export default function App() {
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
         @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         * { box-sizing: border-box; }
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-track{background:rgba(0,180,255,0.05)}
         ::-webkit-scrollbar-thumb{background:rgba(0,180,255,0.2);border-radius:2px}
         .hud-btn:hover{background:rgba(0,180,255,0.08)!important;color:#00b4ff!important}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         input::placeholder{color:#3a5070;font-family:'Inter',sans-serif;}
       `}</style>
 
-      {/* ── TOP BAR ── */}
+      {/* TOP BAR */}
       <div style={{flexShrink:0,height:56,borderBottom:"1px solid rgba(0,180,255,0.15)",display:"flex",alignItems:"stretch",background:"rgba(0,4,8,0.98)",zIndex:10,position:"relative"}}>
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.4),rgba(0,255,180,0.2),transparent)"}}/>
         <div style={{position:"absolute",top:0,bottom:0,width:60,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.03),transparent)",animation:"sweep 4s linear infinite",pointerEvents:"none"}}/>
-        {/* LOGO */}
         <div style={{flexShrink:0,padding:"0 20px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:5,color:"rgba(0,180,255,0.4)",marginBottom:1}}>SYSTEM</div>
           <div style={{fontSize:18,fontFamily:"'Bebas Neue',monospace",letterSpacing:6,color:"#00b4ff",textShadow:"0 0 20px rgba(0,180,255,0.6)"}}>MISSION<span style={{color:"rgba(0,255,180,0.8)"}}>·</span>CTRL</div>
         </div>
-        {/* OPERATOR */}
         <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>OPERATOR</div>
           <div style={{fontSize:12,fontFamily:"'Rajdhani',sans-serif",fontWeight:600,letterSpacing:2}}>
@@ -4819,12 +4819,10 @@ export default function App() {
             <span style={{color:"#6366f1",textShadow:"0 0 12px rgba(0,255,180,0.5)"}}>{NAME}</span>
           </div>
         </div>
-        {/* UPTIME */}
         <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>UPTIME</div>
           <div style={{fontSize:12,color:"rgba(0,180,255,0.6)",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
-        {/* NUTRITION */}
         <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid rgba(0,180,255,0.1)",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:5}}>
             <span style={{fontSize:7,letterSpacing:3,color:"rgba(0,255,180,0.6)",fontFamily:"'Share Tech Mono',monospace"}}>⚡ NUTRITION</span>
@@ -4838,7 +4836,6 @@ export default function App() {
             ))}
           </div>
         </button>
-        {/* CENTER — panel status */}
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:0}}>
           {PANELS_CFG.map((p,i)=>(
             <div key={p.id} style={{textAlign:"center",padding:"0 16px",borderRight:i<3?"1px solid rgba(0,180,255,0.08)":"none"}}>
@@ -4850,21 +4847,19 @@ export default function App() {
             </div>
           ))}
         </div>
-        {/* WEATHER */}
         {weather&&(
           <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
             <div style={{fontSize:16}}>{weather.icon}</div>
             <div style={{fontSize:9,color:"#00b4ff",letterSpacing:2,fontFamily:"'Rajdhani',sans-serif",fontWeight:600}}>{weather.temp}°F</div>
           </div>
         )}
-        {/* CLOCK */}
         <div style={{flexShrink:0,padding:"0 20px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end"}}>
           <div style={{fontSize:20,fontFamily:"'Bebas Neue',monospace",letterSpacing:3,color:"#c8e8f8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px rgba(0,180,255,0.3)"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
           <div style={{fontSize:7,color:"rgba(0,180,255,0.3)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
         </div>
       </div>
 
-      {/* ── NAV BAR ── */}
+      {/* NAV BAR */}
       <div style={{flexShrink:0,height:38,borderBottom:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"stretch",background:"rgba(0,2,6,0.95)",zIndex:10,position:"relative"}}>
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.1),transparent)"}}/>
         {[
@@ -4882,8 +4877,7 @@ export default function App() {
           return (
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="hud-btn" style={{
               flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              background:active?`${tc}12`:"transparent",
-              border:"none",
+              background:active?`${tc}12`:"transparent",border:"none",
               borderBottom:active?`2px solid ${tc}`:"2px solid transparent",
               borderRight:i<6?"1px solid rgba(0,180,255,0.08)":"none",
               color:active?tc:"rgba(0,180,255,0.25)",
@@ -4898,7 +4892,7 @@ export default function App() {
         })}
       </div>
 
-      {/* ── TAB CONTENT ── */}
+      {/* TAB CONTENT */}
       {activeTab==="HOME" && (
         <>
           <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#000206",minHeight:0,overflow:"hidden",zIndex:1}}>
@@ -4908,7 +4902,7 @@ export default function App() {
             })}
           </div>
           <div style={{flexShrink:0,padding:"4px 20px",borderTop:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(0,2,6,0.95)",zIndex:10}}>
-            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
+            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART"}</div>
             <div style={{display:"flex",gap:16}}>
               {[["SYS","#6366f1"],["AI","#c084fc"],["MKT","#00b4ff"],["NEWS","#f97316"]].map(([label,color])=>(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:4}}>
@@ -4920,7 +4914,6 @@ export default function App() {
           </div>
         </>
       )}
-
       {activeTab==="TRADING" && <TradingTab />}
       {activeTab==="FINANCE" && <FinanceTab />}
       {activeTab==="JOBS"    && <JobsTab />}
@@ -4928,10 +4921,9 @@ export default function App() {
       {activeTab==="TRAVEL"  && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
       {activeTab==="SPORTS"  && <SportsTab />}
 
-      {/* Article Modal */}
       {selectedArticle&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={()=>setSelectedArticle(null)}>
-          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",boxShadow:"0 0 60px #fb923c10",position:"relative"}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",position:"relative"}} onClick={e=>e.stopPropagation()}>
             <HUDBrackets color="#fb923c" size={12}/>
             <div style={{fontSize:7,color:"#fb923c",letterSpacing:4,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>🌐 INTEL REPORT</div>
             <div style={{fontSize:14,color:"#e0d4c4",lineHeight:1.6,marginBottom:12,fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{selectedArticle.title}</div>
@@ -4943,7 +4935,6 @@ export default function App() {
           </div>
         </div>
       )}
-
       {selectedStock&&<StockChartModal stock={selectedStock} stockData={stocks[selectedStock.ticker]} onClose={()=>setSelectedStock(null)}/>}
       {showMacros&&<MacroModal onClose={()=>setShowMacros(false)}/>}
     </div>
