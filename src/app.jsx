@@ -2493,7 +2493,9 @@ function HRTeamPicker({ C, games }) {
   const [loading, setLoading]           = useState(false);
   const [status, setStatus]             = useState("");
   const [log, setLog]                   = useState([]);
-  const [view, setView]                 = useState("COMBINED"); // COMBINED | TEAMS
+  const [view, setView]                 = useState("COMBINED"); // COMBINED | TEAMS | SLATE
+  const [slatePicks, setSlatePicks]     = useState([]);
+  const [slateLoading, setSlateLoading] = useState(false);
 
   const addLog = msg => setLog(prev=>[...prev, msg]);
 
@@ -2696,6 +2698,137 @@ Respond ONLY with valid JSON:
 
   const CONF = {HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35"};
 
+  // ── Generate slate-wide rankings across ALL today's games ──────────────────
+  const generateSlate = async () => {
+    if (!games.length) return;
+    setSlateLoading(true); setSlatePicks([]);
+    setView("SLATE");
+
+    try {
+      const gameContexts = [];
+      const SKIP = ["P","SP","RP","CL"];
+
+      for (const game of games.slice(0,8)) {
+        const away     = game.teams?.away;
+        const home     = game.teams?.home;
+        const awayId   = away?.team?.id;
+        const homeId   = home?.team?.id;
+        const awayName = away?.team?.name;
+        const homeName = home?.team?.name;
+        const awaySP   = away?.probablePitcher;
+        const homeSP   = home?.probablePitcher;
+        const venue    = game.venue?.name || "";
+        const PARK_HR  = {"Chase Field":105,"Truist Park":103,"Camden Yards":105,"Fenway Park":104,"Wrigley Field":108,"Guaranteed Rate Field":108,"Great American Ball Park":118,"Progressive Field":96,"Coors Field":138,"Comerica Park":88,"Minute Maid Park":102,"Kauffman Stadium":93,"Angel Stadium":95,"Dodger Stadium":96,"LoanDepart Park":82,"American Family Field":107,"Target Field":94,"Citi Field":95,"Yankee Stadium":112,"Citizens Bank Park":114,"PNC Park":94,"Petco Park":88,"Oracle Park":85,"T-Mobile Park":87,"Busch Stadium":90,"Tropicana Field":96,"Globe Life Field":98,"Rogers Centre":110,"Nationals Park":98};
+        const parkFactor = PARK_HR[venue] || 100;
+
+        // Get pitcher hands
+        let awaySPHand = "R", homeSPHand = "R";
+        try {
+          const [aBio, hBio] = await Promise.allSettled([
+            awaySP?.id ? fetch(`https://statsapi.mlb.com/api/v1/people/${awaySP.id}`).then(r=>r.json()) : Promise.resolve(null),
+            homeSP?.id ? fetch(`https://statsapi.mlb.com/api/v1/people/${homeSP.id}`).then(r=>r.json()) : Promise.resolve(null),
+          ]);
+          if (aBio.value?.people?.[0]?.pitchHand?.code) awaySPHand = aBio.value.people[0].pitchHand.code;
+          if (hBio.value?.people?.[0]?.pitchHand?.code) homeSPHand = hBio.value.people[0].pitchHand.code;
+        } catch {}
+
+        // Get rosters
+        let awayHitters = [], homeHitters = [];
+        try {
+          const [aR, hR] = await Promise.allSettled([
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayId}/roster?rosterType=active&hydrate=person`).then(r=>r.json()),
+            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeId}/roster?rosterType=active&hydrate=person`).then(r=>r.json()),
+          ]);
+          awayHitters = (aR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:awayName}));
+          homeHitters = (hR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:homeName}));
+        } catch {}
+
+        // Get splits for top hitters only (4 per team for speed)
+        const fetchSplits = async (hitters, oppHand, teamName) => {
+          const out = [];
+          await Promise.allSettled(hitters.slice(0,4).map(async h => {
+            try {
+              const [sRes, spRes] = await Promise.allSettled([
+                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=season&group=hitting&season=2026`),
+                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`),
+              ]);
+              const sD  = await sRes.value?.json();
+              const spD = await spRes.value?.json();
+              const s   = sD?.stats?.[0]?.splits?.[0]?.stat || {};
+              const spl = spD?.stats?.[0]?.splits || [];
+              const opp = spl.find(x=>x.split?.code===(oppHand==="L"?"vl":"vr"))?.stat || {};
+              const iso    = s.slg&&s.avg?(parseFloat(s.slg)-parseFloat(s.avg)).toFixed(3):"0.000";
+              const oppISO = opp.slg&&opp.avg?(parseFloat(opp.slg)-parseFloat(opp.avg)).toFixed(3):"0.000";
+              out.push({
+                name:h.name, pos:h.pos, team:teamName,
+                oppTeam: teamName===awayName?homeName:awayName,
+                sp: teamName===awayName?(homeSP?.fullName||"TBD"):(awaySP?.fullName||"TBD"),
+                spHand: oppHand,
+                venue, parkFactor,
+                seasonHR:s.homeRuns??0, iso, oppHR:opp.homeRuns??0, oppISO,
+                avg:s.avg||"—", oppAvg:opp.avg||"—",
+              });
+            } catch {}
+          }));
+          return out;
+        };
+
+        const [awayStats, homeStats] = await Promise.allSettled([
+          fetchSplits(awayHitters, homeSPHand, awayName),
+          fetchSplits(homeHitters, awaySPHand, homeName),
+        ]);
+        const allPlayers = [...(awayStats.value||[]), ...(homeStats.value||[])];
+        if (allPlayers.length) gameContexts.push({game:`${awayName} @ ${homeName}`, venue, parkFactor, players:allPlayers});
+      }
+
+      // Build prompt with all players across all games
+      const allPlayersFlat = gameContexts.flatMap(g => g.players);
+      const playerCtx = allPlayersFlat.map(p =>
+        `${p.name}(${p.team}, ${p.pos}) vs ${p.sp}(${p.spHand}HP) @ ${p.venue}(PF:${p.parkFactor}): SZN ${p.seasonHR}HR ${p.avg}AVG ${p.iso}ISO | vs${p.spHand}HP: ${p.oppHR}HR ${p.oppAvg}AVG ${p.oppISO}ISO`
+      ).join("
+");
+
+      const prompt = `You are an elite MLB HR prop analyst. Rank the TOP 6 HR candidates across today's ENTIRE slate.
+
+ALL PLAYERS ACROSS TODAY'S SLATE:
+${playerCtx}
+
+RANKING FACTORS (in order):
+1. Split ISO vs today's opposing pitcher hand — most important
+2. Split HR history vs that pitcher hand
+3. Park factor (>110 big boost, <90 penalty)
+4. Season HR total as tiebreaker
+
+Pick the best 6 players across ALL teams and ALL games. Different teams preferred — avoid picking 3+ from same game.
+Include realistic HR odds (+150 to +600 range).
+
+Respond ONLY with valid JSON array, no markdown:
+[
+  {"rank":1,"player":"Full Name","team":"Team Name","pos":"POS","game":"Away @ Home","venue":"Park Name","parkFactor":105,"sp":"Pitcher Name","spHand":"R","seasonHR":8,"oppHR":3,"iso":"0.220","oppISO":"0.240","hrOdds":"+185","reason":"Specific stat-based reason","confidence":"HIGH"},
+  {"rank":2,"player":"Full Name","team":"Team Name","pos":"POS","game":"Away @ Home","venue":"Park Name","parkFactor":100,"sp":"Pitcher Name","spHand":"L","seasonHR":5,"oppHR":2,"iso":"0.190","oppISO":"0.210","hrOdds":"+240","reason":"reason","confidence":"HIGH"}
+]
+Generate exactly 6 picks.`;
+
+      const res = await fetch('/api/claude', {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-6", max_tokens:2000,
+          system:"Expert MLB HR analyst. Rank players from entire day's slate by HR probability. Valid JSON array only.",
+          messages:[{role:"user",content:prompt}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.map(b=>b.text||"").join("")||"[]";
+      let clean = text.replace(/```json|```/g,"").trim();
+      const s = clean.indexOf("["), e = clean.lastIndexOf("]");
+      if (s!==-1&&e!==-1) clean = clean.slice(s,e+1);
+      clean = clean.replace(/,(\s*[}\]])/g,"$1");
+      const parsed = JSON.parse(clean);
+      if (Array.isArray(parsed)) setSlatePicks(parsed);
+    } catch(err) { console.error("Slate error:", err); }
+    setSlateLoading(false);
+  };
+
   const PickCard = ({p, oppHand}) => (
     <div style={{background:"#111427",border:`1px solid ${C}${p.rank===1?"40":"20"}`,borderRadius:4,padding:"12px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start",boxShadow:p.rank===1?`0 0 10px ${C}10`:undefined}}>
       <div style={{width:34,height:34,borderRadius:"50%",background:p.rank===1?`${C}30`:`${C}15`,border:`2px solid ${p.rank===1?C:C+"40"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -2816,8 +2949,8 @@ Respond ONLY with valid JSON:
 
               {/* View toggle */}
               <div style={{display:"flex",gap:8,marginBottom:14}}>
-                {[{id:"COMBINED",label:"⚡ COMBINED RANKING"},{id:"TEAMS",label:"👥 BY TEAM"}].map(v=>(
-                  <button key={v.id} onClick={()=>setView(v.id)} style={{
+                {[{id:"COMBINED",label:"⚡ THIS GAME"},{id:"TEAMS",label:"👥 BY TEAM"},{id:"SLATE",label:"🌎 FULL SLATE TOP 6"}].map(v=>(
+                  <button key={v.id} onClick={()=>{ if(v.id==="SLATE"&&!slatePicks.length&&!slateLoading) generateSlate(); else setView(v.id); }} style={{
                     padding:"7px 20px",borderRadius:3,border:"1px solid",fontSize:10,letterSpacing:2,cursor:"pointer",
                     fontFamily:"'Orbitron',monospace",transition:"all 0.15s",
                     borderColor:view===v.id?C+"60":"rgba(255,255,255,0.1)",
@@ -2906,6 +3039,87 @@ Respond ONLY with valid JSON:
                   </div>
                 );
               })()}
+
+              {/* SLATE VIEW — top 6 across entire day */}
+              {view==="SLATE" && (
+                <div>
+                  {slateLoading && (
+                    <div style={{padding:60,textAlign:"center"}}>
+                      <div style={{fontSize:13,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>SCANNING FULL SLATE···</div>
+                      <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Fetching rosters + splits for all {games.length} games</div>
+                    </div>
+                  )}
+                  {!slateLoading && slatePicks.length===0 && (
+                    <div style={{padding:60,textAlign:"center"}}>
+                      <div style={{fontSize:32,marginBottom:12}}>🌎</div>
+                      <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Click 🌎 FULL SLATE TOP 6 to rank the best HR candidates across all {games.length} games today</div>
+                    </div>
+                  )}
+                  {!slateLoading && slatePicks.length>0 && (
+                    <div>
+                      <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:12}}>
+                        TOP 6 HR CANDIDATES — ENTIRE {games.length}-GAME SLATE
+                      </div>
+                      {slatePicks.map((p,i)=>{
+                        const rankColor = i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
+                        const CONF = {HIGH:"#818cf8",MED:"#fbbf24",LOW:"#ff6b35"};
+                        return (
+                          <div key={i} style={{
+                            background:"#111427",
+                            border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.06)"}`,
+                            borderLeft:`4px solid ${rankColor}`,
+                            borderRadius:4,padding:"12px 16px",marginBottom:8,
+                            boxShadow:i<3?`0 0 14px ${rankColor}15`:undefined,
+                          }}>
+                            <div style={{display:"flex",alignItems:"center",gap:12}}>
+                              {/* Rank */}
+                              <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,
+                                background:`${rankColor}20`,border:`2px solid ${rankColor}`,
+                                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                <span style={{fontSize:15,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
+                              </div>
+                              {/* Info */}
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                                  <span style={{fontSize:15,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
+                                  <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
+                                  <span style={{fontSize:9,color:"#38bdf8",background:"#38bdf815",border:"1px solid #38bdf830",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.team}</span>
+                                  <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
+                                </div>
+                                <div style={{display:"flex",gap:8,marginBottom:5,flexWrap:"wrap"}}>
+                                  <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{p.game}</span>
+                                  <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>· {p.venue}</span>
+                                  <span style={{fontSize:10,color:p.parkFactor>=110?"#f97316":p.parkFactor<=90?"#38bdf8":"#3a5070",fontFamily:"'Orbitron',monospace"}}>PF:{p.parkFactor}</span>
+                                  <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>· vs {p.sp}({p.spHand}HP)</span>
+                                </div>
+                                <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
+                              </div>
+                              {/* Stats + Odds */}
+                              <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
+                                {[
+                                  {label:"SZN HR",val:p.seasonHR,hot:p.seasonHR>=5},
+                                  {label:"ISO",   val:p.iso,     hot:parseFloat(p.iso)>=0.180},
+                                  {label:`vs${p.spHand}HP`,val:p.oppHR,hot:p.oppHR>=2},
+                                ].map(({label,val,hot})=>(
+                                  <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"4px 8px",textAlign:"center",minWidth:44}}>
+                                    <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                                    <div style={{fontSize:13,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
+                                  </div>
+                                ))}
+                                <div style={{background:i<3?`${rankColor}15`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"50":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"6px 12px",textAlign:"center",minWidth:70}}>
+                                  <div style={{fontSize:8,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:2}}>HR ODDS</div>
+                                  <div style={{fontSize:18,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <button onClick={generateSlate} style={{marginTop:8,width:"100%",padding:"10px",background:`${C}10`,border:`1px solid ${C}30`,borderRadius:3,color:C,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>↻ REGENERATE SLATE</button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* TEAMS VIEW — side by side */}
               {view==="TEAMS" && (
