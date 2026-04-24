@@ -2786,8 +2786,7 @@ Respond ONLY with valid JSON:
       const allPlayersFlat = gameContexts.flatMap(g => g.players);
       const playerCtx = allPlayersFlat.map(p =>
         `${p.name}(${p.team}, ${p.pos}) vs ${p.sp}(${p.spHand}HP) @ ${p.venue}(PF:${p.parkFactor}): SZN ${p.seasonHR}HR ${p.avg}AVG ${p.iso}ISO | vs${p.spHand}HP: ${p.oppHR}HR ${p.oppAvg}AVG ${p.oppISO}ISO`
-      ).join("
-");
+      ).join("\n");
 
       const prompt = `You are an elite MLB HR prop analyst. Rank the TOP 6 HR candidates across today's ENTIRE slate.
 
