@@ -2861,14 +2861,31 @@ Exactly 6 picks.`;
         })
       });
       const data = await res.json();
-      const text = data.content?.map(b=>b.text||"").join("")||"[]";
-      let clean = text.replace(/```json|```/g,"").trim();
-      const si=clean.indexOf("["), ei=clean.lastIndexOf("]");
-      if(si!==-1&&ei!==-1) clean=clean.slice(si,ei+1);
-      clean=clean.replace(/,(\s*[}\]])/g,"$1");
-      const parsed=JSON.parse(clean);
-      if(Array.isArray(parsed)) setSlatePicks(parsed);
-    } catch(err) { console.error("Slate error:", err); }
+      console.log("Claude response:", JSON.stringify(data).slice(0,300));
+      if (data.error) {
+        console.error("Claude API error:", data.error);
+        setSlateLoading(false); return;
+      }
+      const text = data.content?.map(b=>b.text||"").join("")||"";
+      console.log("Raw text:", text.slice(0,500));
+      if (!text) {
+        console.error("Empty response from Claude");
+        setSlateLoading(false); return;
+      }
+      try {
+        let clean = text.replace(/```json|```/g,"").trim();
+        const si=clean.indexOf("["), ei=clean.lastIndexOf("]");
+        if(si!==-1&&ei!==-1) clean=clean.slice(si,ei+1);
+        else { console.error("No JSON array found in:", clean.slice(0,200)); setSlateLoading(false); return; }
+        clean=clean.replace(/,(\s*[}\]])/g,"$1");
+        const parsed=JSON.parse(clean);
+        console.log("Parsed picks:", parsed?.length);
+        if(Array.isArray(parsed) && parsed.length>0) setSlatePicks(parsed);
+        else console.error("Parsed but empty or not array:", parsed);
+      } catch(parseErr) {
+        console.error("Parse error:", parseErr.message, "Text was:", text.slice(0,300));
+      }
+    } catch(err) { console.error("Slate fetch error:", err.message); }
     setSlateLoading(false);
   };
 
