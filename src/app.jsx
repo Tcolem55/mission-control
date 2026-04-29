@@ -2494,7 +2494,8 @@ function HRTeamPicker({ C, games }) {
   const [loading, setLoading]           = useState(false);
   const [status, setStatus]             = useState("");
   const [log, setLog]                   = useState([]);
-  const [view, setView]                 = useState("COMBINED"); // COMBINED | TEAMS | SLATE
+  const [hrSection, setHrSection]       = useState("GAME");     // GAME | SLATE
+  const [view, setView]                 = useState("COMBINED"); // COMBINED | TEAMS
   const [slatePicks, setSlatePicks]     = useState([]);
   const [slateLoading, setSlateLoading] = useState(false);
 
