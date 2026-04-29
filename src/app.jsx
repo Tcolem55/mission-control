@@ -3035,7 +3035,6 @@ Generate exactly 6 picks ranked 1-6.`;
         ].map((s,si)=>(
           <button key={s.id} onClick={()=>{
             setHrSection(s.id);
-            if(s.id==="SLATE"&&!slatePicks.length&&!slateLoading) generateSlate();
           }} style={{
             flex:1,padding:"10px 20px",cursor:"pointer",border:"none",textAlign:"left",
             background:hrSection===s.id?`${C}10`:"transparent",
@@ -3225,14 +3224,25 @@ Generate exactly 6 picks ranked 1-6.`;
           {!slateLoading&&slatePicks.length===0&&(
             <div style={{padding:60,textAlign:"center"}}>
               <div style={{fontSize:40,marginBottom:12}}>🌎</div>
-              <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Analyzing all {games.length} games today...</div>
-              <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",lineHeight:2}}>
-                Uses your weighted formula:<br/>
-                40% Batter Power (Barrel% + HardHit% + FlyBall%)<br/>
-                30% Pitcher HR Risk (HR/9 + hand-specific HR allowed)<br/>
-                20% Park Factor + Weather<br/>
-                10% Lineup Spot + Recent Form
-              </div>
+              {games.length===0 ? (
+                <div>
+                  <div style={{fontSize:14,color:"#ff3d5a",fontFamily:"'Inter',sans-serif",marginBottom:8}}>⚠️ No games loaded yet</div>
+                  <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:16}}>Go to the TODAY tab first to load today's games, then come back here.</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>{games.length} games found — scanning now...</div>
+                  <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",lineHeight:2,marginBottom:16}}>
+                    40% Batter Power (Barrel% + HardHit% + FlyBall%)<br/>
+                    30% Pitcher HR Risk (HR/9 + hand-specific)<br/>
+                    20% Park Factor + Weather<br/>
+                    10% Lineup Spot + Recent Form
+                  </div>
+                  <button onClick={generateSlate} style={{padding:"10px 28px",background:`${C}15`,border:`1px solid ${C}40`,borderRadius:3,color:C,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>
+                    🌎 GENERATE SLATE TOP 6
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {!slateLoading&&slatePicks.length>0&&(
