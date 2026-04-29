@@ -2704,26 +2704,38 @@ Respond ONLY with valid JSON:
   const generateSlate = async () => {
     if (!games.length) return;
     setSlateLoading(true); setSlatePicks([]);
-    setView("SLATE");
 
     try {
-      const gameContexts = [];
       const SKIP = ["P","SP","RP","CL"];
       const PARK_HR = {"Chase Field":105,"Truist Park":103,"Camden Yards":105,"Fenway Park":104,"Wrigley Field":108,"Guaranteed Rate Field":108,"Great American Ball Park":118,"Progressive Field":96,"Coors Field":138,"Comerica Park":88,"Minute Maid Park":102,"Kauffman Stadium":93,"Angel Stadium":95,"Dodger Stadium":96,"LoanDepot Park":82,"American Family Field":107,"Target Field":94,"Citi Field":95,"Yankee Stadium":112,"Citizens Bank Park":114,"PNC Park":94,"Petco Park":88,"Oracle Park":85,"T-Mobile Park":87,"Busch Stadium":90,"Tropicana Field":96,"Globe Life Field":98,"Rogers Centre":110,"Nationals Park":98};
 
-      // Fetch Statcast leaderboard once — barrel%, hard hit%, fly ball%, pull%, HR/FB%
+      // Step 1: Statcast leaderboard once
       let statcastMap = {};
       try {
-        const scRes = await fetch("/api/statcast?type=leaderboard");
-        const scData = await scRes.json();
-        if (Array.isArray(scData)) scData.forEach(p => { if(p.id) statcastMap[String(p.id)] = p; });
+        const sc = await fetch("/api/statcast?type=leaderboard").then(r=>r.json());
+        if (Array.isArray(sc)) sc.forEach(p => { if(p.id) statcastMap[String(p.id)] = p; });
       } catch {}
 
-      for (const game of games.slice(0,8)) {
-        const away = game.teams?.away;
-        const home = game.teams?.home;
-        const awayId = away?.team?.id;
-        const homeId = home?.team?.id;
+      // Step 2: Smart pre-filter — score each game, take best 7
+      // Score based on park factor only (fast, no extra fetches)
+      // This narrows 15 games → 7 best HR environments
+      const scoredGames = games.map(game => {
+        const venue = game.venue?.name || "";
+        const pf = PARK_HR[venue] || 100;
+        // Bonus for known pitcher names (TBD = less reliable)
+        const hasPitchers = !!(game.teams?.away?.probablePitcher && game.teams?.home?.probablePitcher);
+        return { game, pf, score: pf + (hasPitchers ? 5 : 0) };
+      }).sort((a,b) => b.score - a.score);
+
+      // Take top 7 by park factor — these are the best HR environments
+      const selectedGames = scoredGames.slice(0,7).map(g => g.game);
+
+      // Step 3: Process selected games in PARALLEL
+      const gameResults = await Promise.allSettled(selectedGames.map(async game => {
+        const away     = game.teams?.away;
+        const home     = game.teams?.home;
+        const awayId   = away?.team?.id;
+        const homeId   = home?.team?.id;
         const awayName = away?.team?.name;
         const homeName = home?.team?.name;
         const awaySP   = away?.probablePitcher;
@@ -2732,254 +2744,119 @@ Respond ONLY with valid JSON:
         const parkFactor = PARK_HR[venue] || 100;
         const parkFlag = parkFactor>=115?"🔥 EXTREME":parkFactor>=108?"🔥 HITTER":parkFactor<=88?"❄️ PITCHER":"⚾ NEUTRAL";
 
-        // ── Pitcher data: hand, HR/9, barrel% allowed, flyball% allowed, pitch mix ──
-        const fetchPitcherFullData = async (pitcher) => {
-          if (!pitcher?.id) return {hand:"R",hr9:"—",barrelAllowed:"—",flyballAllowed:"—",hrVsL:0,hrVsR:0,topPitch:"—",topPitchPct:"—"};
+        // Pitcher data + rosters all in parallel (4 fetches simultaneously)
+        const getPitcher = async (pitcher) => {
+          if (!pitcher?.id) return {hand:"R",name:"TBD",hr9:"—",hrVsL:0,hrVsR:0,era:"—"};
           try {
-            const [bio, season, splits] = await Promise.allSettled([
+            const [bio,season,splits] = await Promise.allSettled([
               fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}`).then(r=>r.json()),
               fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=season&group=pitching&season=2026`).then(r=>r.json()),
               fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=statSplits&group=pitching&season=2026&sitCodes=vl,vr`).then(r=>r.json()),
             ]);
-            const hand = bio.value?.people?.[0]?.pitchHand?.code || "R";
-            const s    = season.value?.stats?.[0]?.splits?.[0]?.stat || {};
-            const spl  = splits.value?.stats?.[0]?.splits || [];
-            const vsL  = spl.find(x=>x.split?.code==="vl")?.stat || {};
-            const vsR  = spl.find(x=>x.split?.code==="vr")?.stat || {};
-            // HR/9 = (HR allowed / IP) * 9
-            const ip   = parseFloat(s.inningsPitched) || 1;
-            const hr9  = ((s.homeRuns||0) / ip * 9).toFixed(2);
-            return {
-              hand, hr9,
-              hrVsL: vsL.homeRuns||0, hrVsR: vsR.homeRuns||0,
-              era: s.era||"—",
-              barrelAllowed: "—", // Statcast pitcher barrel% would need separate endpoint
-              flyballAllowed: s.groundOutsToAirouts ? (1/(1+parseFloat(s.groundOutsToAirouts))*100).toFixed(0)+"%" : "—",
-            };
-          } catch { return {hand:"R",hr9:"—",hrVsL:0,hrVsR:0,era:"—",barrelAllowed:"—",flyballAllowed:"—"}; }
+            const hand = bio.value?.people?.[0]?.pitchHand?.code||"R";
+            const s    = season.value?.stats?.[0]?.splits?.[0]?.stat||{};
+            const spl  = splits.value?.stats?.[0]?.splits||[];
+            const vsL  = spl.find(x=>x.split?.code==="vl")?.stat||{};
+            const vsR  = spl.find(x=>x.split?.code==="vr")?.stat||{};
+            const ip   = parseFloat(s.inningsPitched)||1;
+            return {hand, name:pitcher.fullName, hr9:((s.homeRuns||0)/ip*9).toFixed(2), hrVsL:vsL.homeRuns||0, hrVsR:vsR.homeRuns||0, era:s.era||"—"};
+          } catch { return {hand:"R",name:pitcher.fullName||"TBD",hr9:"—",hrVsL:0,hrVsR:0,era:"—"}; }
         };
 
-        // ── Weather: temp, wind speed, wind direction ──
-        let wxTemp="—", wxWind=0, wxWindDir=0, wxNote="—", wxBoost=false;
-        try {
-          const vRes  = await fetch(`https://statsapi.mlb.com/api/v1/venues/${game.venue?.id}?hydrate=location`);
-          const vData = await vRes.json();
-          const lat   = vData.venues?.[0]?.location?.defaultCoordinates?.latitude;
-          const lon   = vData.venues?.[0]?.location?.defaultCoordinates?.longitude;
-          if (lat && lon) {
-            const wx   = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m,relative_humidity_2m&temperature_unit=fahrenheit&wind_speed_unit=mph`);
-            const wxD  = await wx.json();
-            wxTemp     = Math.round(wxD.current?.temperature_2m);
-            wxWind     = Math.round(wxD.current?.wind_speed_10m);
-            wxWindDir  = wxD.current?.wind_direction_10m;
-            const humid = wxD.current?.relative_humidity_2m;
-            const windOut = wxWind>=8 && wxWindDir>45 && wxWindDir<225;
-            wxBoost    = windOut || wxTemp>=80;
-            wxNote     = `${wxTemp}°F, ${wxWind}mph ${windOut?"💨 WIND OUT (HR+)":wxWind>=8?"🌬 WIND IN":""}, ${humid}% humidity${wxTemp>=80?" 🌡 HOT (ball carries)":""}`;
-          }
-        } catch {}
-
-        const [aPData, hPData] = await Promise.allSettled([fetchPitcherFullData(awaySP), fetchPitcherFullData(homeSP)]);
-        const awayPitcherData  = aPData.value || {hand:"R",hr9:"—",hrVsL:0,hrVsR:0};
-        const homePitcherData  = hPData.value || {hand:"R",hr9:"—",hrVsL:0,hrVsR:0};
-
-        // ── Rosters ──
-        let awayHitters=[], homeHitters=[];
-        try {
-          const [aR,hR] = await Promise.allSettled([
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${awayId}/roster?rosterType=active&hydrate=person`).then(r=>r.json()),
-            fetch(`https://statsapi.mlb.com/api/v1/teams/${homeId}/roster?rosterType=active&hydrate=person`).then(r=>r.json()),
-          ]);
-          awayHitters=(aR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:awayName}));
-          homeHitters=(hR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:homeName}));
-        } catch {}
-
-        // ── Full batter metrics: barrel%, hard hit%, fly ball%, pull%, HR/FB%, xSLG, lineup spot ──
-        const fetchBatterMetrics = async (hitters, oppPitcher, spName, teamName) => {
-          const out = [];
-          const oppHand = oppPitcher.hand;
-          const oppHR9  = oppPitcher.hr9;
-          const oppHRvsHand = oppHand==="L" ? oppPitcher.hrVsL : oppPitcher.hrVsR;
-
-          // Try confirmed lineup for batting order
-          let lineupOrder = {};
+        const getRoster = async (teamId) => {
           try {
-            const feedRes = await fetch(`https://statsapi.mlb.com/api/v1.1/game/${game.gamePk}/feed/live?fields=liveData,boxscore,teams,battingOrder,players`);
-            const feedData = await feedRes.json();
-            const side = teamName===awayName?"away":"home";
-            const order = feedData.liveData?.boxscore?.teams?.[side]?.battingOrder||[];
-            order.forEach((id,idx) => { lineupOrder[String(id)] = idx+1; });
-          } catch {}
+            const d = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&hydrate=person`).then(r=>r.json());
+            return (d.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation}));
+          } catch { return []; }
+        };
 
-          await Promise.allSettled(hitters.slice(0,6).map(async h => {
+        const [aPD, hPD, awayH, homeH] = await Promise.all([
+          getPitcher(awaySP), getPitcher(homeSP),
+          getRoster(awayId), getRoster(homeId),
+        ]);
+
+        // Batter stats — top 3 per team only, all parallel
+        const getBatters = async (hitters, oppPitcher, spName, teamName) => {
+          const oppHand = oppPitcher.hand;
+          const res = await Promise.allSettled(hitters.slice(0,3).map(async h => {
             try {
-              const [sRes, spRes, recRes] = await Promise.allSettled([
+              const [szn, spl, rec] = await Promise.allSettled([
                 fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=season&group=hitting&season=2026`).then(r=>r.json()),
                 fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`).then(r=>r.json()),
                 fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=byDateRange&group=hitting&startDate=${new Date(Date.now()-14*86400000).toISOString().split("T")[0]}&endDate=${new Date().toISOString().split("T")[0]}&season=2026`).then(r=>r.json()),
               ]);
-
-              const s   = sRes.value?.stats?.[0]?.splits?.[0]?.stat || {};
-              const spl = spRes.value?.stats?.[0]?.splits || [];
-              const opp = spl.find(x=>x.split?.code===(oppHand==="L"?"vl":"vr"))?.stat || {};
-              const rec = recRes.value?.stats?.[0]?.splits?.[0]?.stat || {};
-
-              // Statcast — barrel%, hard hit%, fly ball%, pull%, HR/FB%, xSLG, avgEV
-              const sc = statcastMap[String(h.id)] || {};
-              const barrelPct  = sc.barrelPct  || null;
-              const hardHitPct = sc.hardHitPct || null;
-              const xSLG       = sc.xSLG || null;
-              const avgEV      = sc.avgEV || null;
-              // flyBallPct and pullPct not always in Statcast leaderboard — derive from MLB splits if available
-              const flyBallPct = s.flyOuts && s.totalBases ? ((s.flyOuts/(s.flyOuts+(s.groundOuts||1)+(s.lineOuts||1)))*100).toFixed(1) : null;
-
-              // ISO splits
+              const s   = szn.value?.stats?.[0]?.splits?.[0]?.stat||{};
+              const sp  = spl.value?.stats?.[0]?.splits||[];
+              const opp = sp.find(x=>x.split?.code===(oppHand==="L"?"vl":"vr"))?.stat||{};
+              const rec2= rec.value?.stats?.[0]?.splits?.[0]?.stat||{};
+              const sc  = statcastMap[String(h.id)]||{};
               const iso    = s.slg&&s.avg?(parseFloat(s.slg)-parseFloat(s.avg)).toFixed(3):"—";
               const oppISO = opp.slg&&opp.avg?(parseFloat(opp.slg)-parseFloat(opp.avg)).toFixed(3):"—";
-
-              // Batting order spot
-              const lineupSpot = lineupOrder[String(h.id)] || null;
-              const topOrder   = lineupSpot && lineupSpot<=4;
-
-              // HR/FB% = HR / (flyouts + HR) — proxy
-              const hrFBpct = s.homeRuns && s.flyOuts ? ((s.homeRuns/(s.homeRuns+s.flyOuts))*100).toFixed(1)+"%" : "—";
-
-              // Sharp filter flags
-              const sharpFlags = [];
-              if (barrelPct>=12)   sharpFlags.push("BARREL>12%");
-              if (hardHitPct>=45)  sharpFlags.push("HARDHIT>45%");
-              if (parseFloat(flyBallPct)>=38) sharpFlags.push("FB>38%");
-              if (parseFloat(oppHR9)>=1.3)    sharpFlags.push("SP HR/9>1.3");
-              if (wxBoost)         sharpFlags.push(wxWind>=8&&wxWindDir>45&&wxWindDir<225?"WIND OUT":"HOT GAME");
-              if (topOrder)        sharpFlags.push(`BAT #${lineupSpot}`);
-
-              out.push({
+              const spHRvsHand = oppHand==="L"?oppPitcher.hrVsL:oppPitcher.hrVsR;
+              const bp = sc.barrelPct, hh = sc.hardHitPct;
+              const flags = [];
+              if(bp>=12) flags.push("BARREL>12%");
+              if(hh>=45) flags.push("HARDHIT>45%");
+              if(parseFloat(oppPitcher.hr9)>=1.3) flags.push("SP HR/9>1.3");
+              if(parkFactor>=108) flags.push(`PF ${parkFactor}`);
+              return {
                 name:h.name, pos:h.pos, team:teamName,
-                game:`${awayName} @ ${homeName}`,
-                venue, parkFactor, parkFlag,
-                sp:spName,
-                spHand:oppHand, oppHR9, oppHRvsHand, oppPitcherERA:oppPitcher.era,
-                // Batter power metrics (40% weight)
-                barrelPct:   barrelPct   ? `${barrelPct}%`  : "—",
-                hardHitPct:  hardHitPct  ? `${hardHitPct}%` : "—",
-                flyBallPct:  flyBallPct  ? `${flyBallPct}%` : "—",
-                xSLG:        xSLG        ? xSLG             : "—",
-                avgEV:       avgEV       ? `${avgEV}mph`    : "—",
-                hrFBpct,
-                // Season + splits
-                seasonHR:s.homeRuns??0, seasonSLG:s.slg||"—", iso,
-                oppHR:opp.homeRuns??0, oppSLG:opp.slg||"—", oppISO, oppAB:opp.atBats??0,
-                // Recent form (10% weight)
-                last14HR:rec.homeRuns??0, last14AVG:rec.avg||"—", last14SLG:rec.slg||"—",
-                // Context
-                lineupSpot:lineupSpot||"?", topOrder,
-                weather:wxNote, wxBoost,
-                sharpFlags,
-              });
-            } catch {}
+                game:`${awayName} @ ${homeName}`, venue, parkFactor, parkFlag,
+                sp:spName, spHand:oppHand,
+                oppHR9:oppPitcher.hr9, oppHRvsHand:spHRvsHand, oppPitcherERA:oppPitcher.era,
+                seasonHR:s.homeRuns??0, iso,
+                oppHR:opp.homeRuns??0, oppISO, oppAB:opp.atBats??0,
+                last14HR:rec2.homeRuns??0, last14SLG:rec2.slg||"—",
+                barrelPct:bp?`${bp}%`:"—", hardHitPct:hh?`${hh}%`:"—",
+                xSLG:sc.xSLG||"—", avgEV:sc.avgEV?`${sc.avgEV}mph`:"—",
+                sharpFlags:flags,
+              };
+            } catch { return null; }
           }));
-          return out;
+          return res.map(r=>r.value).filter(Boolean);
         };
 
-        const [awayM, homeM] = await Promise.allSettled([
-          fetchBatterMetrics(awayHitters, homePitcherData, homeSP?.fullName||"TBD", awayName),
-          fetchBatterMetrics(homeHitters, awayPitcherData, awaySP?.fullName||"TBD", homeName),
+        const [awayBatters, homeBatters] = await Promise.all([
+          getBatters(awayH, hPD, homeSP?.fullName||"TBD", awayName),
+          getBatters(homeH, aPD, awaySP?.fullName||"TBD", homeName),
         ]);
-        const allPlayers = [...(awayM.value||[]), ...(homeM.value||[])];
-        if (allPlayers.length) gameContexts.push({game:`${awayName} @ ${homeName}`, players:allPlayers});
-      }
 
-      const allPlayersFlat = gameContexts.flatMap(g => g.players);
+        return [...awayBatters, ...homeBatters];
+      }));
 
-      // Build rich context string with all metrics
-      const playerCtx = allPlayersFlat.map(p => {
-        const flags = p.sharpFlags?.length ? `  🚨 SHARP FLAGS: ${p.sharpFlags.join(", ")}` : "";
-        return [
-          `${p.name} (${p.team}, ${p.pos}) | Facing: ${p.sp} (${p.spHand}HP) | ${p.game}`,
-          `  Lineup: #${p.lineupSpot}${p.topOrder?" ✅ TOP ORDER":""}`,
-          `  Park: ${p.venue} PF=${p.parkFactor} ${p.parkFlag}`,
-          `  Weather: ${p.weather}`,
-          `  Pitcher: ${p.sp} (${p.spHand}HP) — HR/9=${p.oppHR9}, ERA=${p.oppPitcherERA}, allowed ${p.oppHRvsHand}HR vs ${p.spHand==="L"?"LHB":"RHB"}`,
-          `  BATTER POWER (40%): Barrel%=${p.barrelPct} HardHit%=${p.hardHitPct} FlyBall%=${p.flyBallPct} HR/FB%=${p.hrFBpct} xSLG=${p.xSLG} avgEV=${p.avgEV}`,
-          `  SPLITS (20%): vs${p.spHand}HP — ${p.oppHR}HR ${p.oppSLG}SLG ${p.oppISO}ISO in ${p.oppAB}AB`,
-          `  SEASON: ${p.seasonHR}HR ${p.seasonSLG}SLG ${p.iso}ISO`,
-          `  RECENT FORM (10%): Last 14d — ${p.last14HR}HR ${p.last14AVG}AVG ${p.last14SLG}SLG`,
-          flags,
-        ].filter(Boolean).join("\n");
-      }).join("\n\n");
+      const allPlayers = gameResults.flatMap(r=>r.value||[]).filter(Boolean);
 
-      const prompt = `You are an elite MLB HR prop analyst. Rank the TOP 6 HR candidates across today's entire slate.
+      const playerCtx = allPlayers.map(p =>
+        `${p.name} (${p.team}, ${p.pos}) | Facing: ${p.sp} (${p.spHand}HP) | ${p.game} | Park:${p.venue} PF=${p.parkFactor} ${p.parkFlag} | SP HR/9=${p.oppHR9} ERA=${p.oppPitcherERA} allowed ${p.oppHRvsHand}HR vs ${p.spHand==="L"?"LHB":"RHB"} | Season:${p.seasonHR}HR ${p.iso}ISO | vs${p.spHand}HP:${p.oppHR}HR ${p.oppISO}ISO(${p.oppAB}AB) | L14:${p.last14HR}HR | Statcast:Barrel${p.barrelPct} HardHit${p.hardHitPct} xSLG${p.xSLG} EV${p.avgEV}`
+      ).join("\n");
 
-MY EXACT WEIGHTED FORMULA — apply this precisely:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-40% BATTER POWER: Barrel% + Hard Hit% + Fly Ball% + HR/FB%
-  - Barrel% >12% = elite, >15% = rare, >18% = lock
-  - Hard Hit% >45% = above avg, >50% = elite
-  - Fly Ball% >38% = needed for HR opportunity
-  - HR/FB% >15% = strong HR converter
+      const prompt = `MLB HR prop analyst. Rank TOP 6 HR candidates from today's best HR-environment games.
 
-30% PITCHER HR RISK: HR/9 + barrels allowed rate
-  - HR/9 >1.3 = very hittable, >1.8 = extremely vulnerable
-  - Also weight HR allowed specifically vs this batter's handedness
+WEIGHTED FORMULA (apply strictly):
+- 40% Batter Power: Barrel% + Hard Hit% (elite: >12% barrel, >45% HH)
+- 30% Pitcher HR Risk: HR/9 >1.3 = vulnerable, hand-specific HR allowed
+- 20% Park: PF>110 big boost, <90 = significant penalty
+- 10% Recent form: L14 HR hot streak
 
-20% PARK + WEATHER:
-  - Park factor >115 = massive boost (Coors, GABP)
-  - Park factor >108 = meaningful boost (Yankee, Citizens Bank)
-  - Park factor <90 = significant penalty (Petco, Oracle, T-Mobile)
-  - Wind blowing out 8+ mph = +boost
-  - Temperature 80°F+ = ball carries further
-  - High humidity = slight boost
+SHARP = barrel>12% + hardhit>45% + SP HR/9>1.3 + PF>108 = near lock
 
-10% LINEUP SPOT + RECENT FORM:
-  - Batting 1-4 = more plate appearances = more HR chances
-  - 2+ HR in last 14 days = hot streak
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL VALIDATION:
+- Each player's "Facing:" field shows their actual opposing pitcher
+- A batter CANNOT face their own team's pitcher — verify before including
+- Different teams for all 6 picks if possible, max 2 from same game
 
-SHARP PICK CRITERIA (player with 4+ of these = near-lock):
-✓ Barrel% >12%
-✓ Hard Hit% >45%  
-✓ Fly Ball% >38%
-✓ Facing pitcher with HR/9 >1.3
-✓ Wind blowing out 8+ mph
-✓ Batting 1-4 in lineup
-✓ Park factor >108
-
-ALL ${allPlayersFlat.length} PLAYERS TODAY:
+${allPlayers.length} PLAYERS FROM TOP HR-ENVIRONMENT GAMES TODAY:
 ${playerCtx}
 
-VALIDATION RULES (CRITICAL):
-- A player CANNOT face a pitcher on their OWN team — each player faces the OPPOSING team's pitcher
-- The "Facing" field in each player's data shows their actual opponent pitcher
-- Never assign a batter to face their own team's SP
-- Prefer variety — max 2 players from same game
-- A player with Barrel%>15 + HR/9>1.5 + park factor>110 = automatic top 3
-- Poor park (PF<90) drops player 2-3 spots regardless of other metrics
-- No lineup spot = slight penalty (unknown but possible top order)
-- Must have meaningful fly ball rate to consider — ground ball hitters excluded
-
-Return ONLY valid JSON array, no markdown:
-[{
-  "rank":1,"player":"Full Name","team":"Team","pos":"POS",
-  "game":"Away @ Home","venue":"Park","parkFactor":118,"parkFlag":"🔥 EXTREME",
-  "sp":"SP Name","spHand":"R","oppHR9":"1.42","oppHRvsHand":6,
-  "lineupSpot":3,"topOrder":true,
-  "barrelPct":"14.2%","hardHitPct":"51.3%","flyBallPct":"42.1%","hrFBpct":"18.3%","xSLG":"0.580","avgEV":"92.4mph",
-  "seasonHR":12,"oppHR":4,"oppISO":"0.260",
-  "last14HR":3,"last14SLG":"0.720",
-  "weather":"78°F, 12mph 💨 WIND OUT (HR+)",
-  "wxBoost":true,
-  "sharpFlags":["BARREL>12%","HARDHIT>45%","FB>38%","SP HR/9>1.3","WIND OUT","BAT #3"],
-  "hrOdds":"+185",
-  "score":94,
-  "reason":"Elite barrel% + hardest hit ball in lineup facing HR-prone pitcher + Yankee Stadium + wind out. 3 HR last 14 days. Near-lock."
-}]
-Generate exactly 6 picks ranked 1-6.`;
+Return JSON array only, no markdown:
+[{"rank":1,"player":"Name","team":"Team","pos":"POS","game":"Away @ Home","venue":"Park","parkFactor":105,"parkFlag":"🔥 HITTER","sp":"Pitcher Name","spHand":"R","oppHR9":"1.52","oppHRvsHand":6,"seasonHR":10,"oppHR":4,"oppISO":"0.260","last14HR":3,"barrelPct":"13.8%","hardHitPct":"49.1%","xSLG":"0.550","avgEV":"92.1mph","sharpFlags":["BARREL>12%","HARDHIT>45%","SP HR/9>1.3","PF 112"],"hrOdds":"+190","score":91,"confidence":"HIGH","reason":"Specific stat-based reason referencing actual numbers"}]
+Exactly 6 picks.`;
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6", max_tokens:3000,
-          system:"Expert MLB HR analyst. Apply exact weighted formula: 40% batter power (barrel/hardhit/flyball), 30% pitcher HR risk (HR/9), 20% park+weather, 10% lineup+form. Sharp filter: barrel>12%+hardhit>45%+flyball>38%+HR/9>1.3+wind out+top order. Valid JSON array only.",
+          model:"claude-sonnet-4-6", max_tokens:2500,
+          system:"Expert MLB HR analyst. Apply weighted formula. Validate each batter faces the opposing team pitcher only. Valid JSON array only.",
           messages:[{role:"user",content:prompt}]
         })
       });
