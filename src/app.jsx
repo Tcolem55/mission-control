@@ -2795,7 +2795,7 @@ Respond ONLY with valid JSON:
         } catch {}
 
         // ── Full batter metrics: barrel%, hard hit%, fly ball%, pull%, HR/FB%, xSLG, lineup spot ──
-        const fetchBatterMetrics = async (hitters, oppPitcher, oppName, teamName) => {
+        const fetchBatterMetrics = async (hitters, oppPitcher, spName, teamName) => {
           const out = [];
           const oppHand = oppPitcher.hand;
           const oppHR9  = oppPitcher.hr9;
@@ -2857,7 +2857,7 @@ Respond ONLY with valid JSON:
                 name:h.name, pos:h.pos, team:teamName,
                 game:`${awayName} @ ${homeName}`,
                 venue, parkFactor, parkFlag,
-                sp:oppPitcher.hand==="L"?(homeSP?.fullName||"TBD"):(awaySP?.fullName||"TBD"),
+                sp:spName,
                 spHand:oppHand, oppHR9, oppHRvsHand, oppPitcherERA:oppPitcher.era,
                 // Batter power metrics (40% weight)
                 barrelPct:   barrelPct   ? `${barrelPct}%`  : "—",
@@ -2882,8 +2882,8 @@ Respond ONLY with valid JSON:
         };
 
         const [awayM, homeM] = await Promise.allSettled([
-          fetchBatterMetrics(awayHitters, homePitcherData, homeName, awayName),
-          fetchBatterMetrics(homeHitters, awayPitcherData, awayName, homeName),
+          fetchBatterMetrics(awayHitters, homePitcherData, homeSP?.fullName||"TBD", awayName),
+          fetchBatterMetrics(homeHitters, awayPitcherData, awaySP?.fullName||"TBD", homeName),
         ]);
         const allPlayers = [...(awayM.value||[]), ...(homeM.value||[])];
         if (allPlayers.length) gameContexts.push({game:`${awayName} @ ${homeName}`, players:allPlayers});
@@ -2895,7 +2895,7 @@ Respond ONLY with valid JSON:
       const playerCtx = allPlayersFlat.map(p => {
         const flags = p.sharpFlags?.length ? `  🚨 SHARP FLAGS: ${p.sharpFlags.join(", ")}` : "";
         return [
-          `${p.name} (${p.team}, ${p.pos}) | ${p.game}`,
+          `${p.name} (${p.team}, ${p.pos}) | Facing: ${p.sp} (${p.spHand}HP) | ${p.game}`,
           `  Lineup: #${p.lineupSpot}${p.topOrder?" ✅ TOP ORDER":""}`,
           `  Park: ${p.venue} PF=${p.parkFactor} ${p.parkFlag}`,
           `  Weather: ${p.weather}`,
@@ -2947,7 +2947,10 @@ SHARP PICK CRITERIA (player with 4+ of these = near-lock):
 ALL ${allPlayersFlat.length} PLAYERS TODAY:
 ${playerCtx}
 
-RANKING RULES:
+VALIDATION RULES (CRITICAL):
+- A player CANNOT face a pitcher on their OWN team — each player faces the OPPOSING team's pitcher
+- The "Facing" field in each player's data shows their actual opponent pitcher
+- Never assign a batter to face their own team's SP
 - Prefer variety — max 2 players from same game
 - A player with Barrel%>15 + HR/9>1.5 + park factor>110 = automatic top 3
 - Poor park (PF<90) drops player 2-3 spots regardless of other metrics
