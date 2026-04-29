@@ -3025,338 +3025,313 @@ Generate exactly 6 picks ranked 1-6.`;
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Header */}
-      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
-        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>💣 HR Picks — By Matchup</div>
-        <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Select a game → top 5 HR candidates for each team based on splits, park, weather, pitcher</div>
+
+      {/* ── Section nav: BY GAME | FULL SLATE TOP 6 ── */}
+      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#08090f"}}>
+        {[
+          {id:"GAME",  icon:"💣", label:"BY GAME",          sub:"pick a matchup"},
+          {id:"SLATE", icon:"🌎", label:"FULL SLATE TOP 6",  sub:"best across all games today"},
+        ].map((s,si)=>(
+          <button key={s.id} onClick={()=>{
+            setHrSection(s.id);
+            if(s.id==="SLATE"&&!slatePicks.length&&!slateLoading) generateSlate();
+          }} style={{
+            flex:1,padding:"10px 20px",cursor:"pointer",border:"none",textAlign:"left",
+            background:hrSection===s.id?`${C}10`:"transparent",
+            borderBottom:hrSection===s.id?`2px solid ${C}`:"2px solid transparent",
+            borderRight:si===0?"1px solid #0a1828":"none",
+            transition:"all 0.2s",
+          }}>
+            <div style={{fontSize:10,letterSpacing:2,fontFamily:"'Orbitron',monospace",
+              color:hrSection===s.id?C:"#3a5070",fontWeight:hrSection===s.id?700:400}}>
+              {s.icon} {s.label}
+            </div>
+            <div style={{fontSize:9,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginTop:2}}>{s.sub}</div>
+          </button>
+        ))}
       </div>
 
-      <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
-        {/* Game selector sidebar */}
-        <div style={{width:200,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
-          {todayGames.length === 0 && (
-            <div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No games today</div>
-          )}
-          {todayGames.map((game,i) => {
-            const away = game.teams?.away;
-            const home = game.teams?.home;
-            const gameTime = new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"});
-            const isSelected = selectedGame?.gamePk === game.gamePk;
-            return (
-              <div key={game.gamePk} onClick={()=>!loading&&generate(game)}
-                style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:loading?"not-allowed":"pointer",
-                  background:isSelected?`${C}12`:"transparent",
-                  borderLeft:`3px solid ${isSelected?C:"transparent"}`,transition:"all 0.15s"}}
-                onMouseEnter={e=>{if(!isSelected&&!loading)e.currentTarget.style.background="#111427";}}
-                onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                  <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.team?.abbreviation}</div>
-                  <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
-                  <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.team?.abbreviation}</div>
+      {/* ── BY GAME section ── */}
+      {hrSection==="GAME" && (
+        <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+          {/* Game selector sidebar */}
+          <div style={{width:200,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
+            {todayGames.length===0&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No games today</div>}
+            {todayGames.map((game,i) => {
+              const away = game.teams?.away;
+              const home = game.teams?.home;
+              const gameTime = new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"});
+              const isSelected = selectedGame?.gamePk===game.gamePk;
+              return (
+                <div key={game.gamePk} onClick={()=>!loading&&generate(game)}
+                  style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:loading?"not-allowed":"pointer",
+                    background:isSelected?`${C}12`:"transparent",
+                    borderLeft:`3px solid ${isSelected?C:"transparent"}`,transition:"all 0.15s"}}
+                  onMouseEnter={e=>{if(!isSelected&&!loading)e.currentTarget.style.background="#111427";}}
+                  onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.team?.abbreviation}</div>
+                    <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
+                    <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.team?.abbreviation}</div>
+                  </div>
+                  <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",textAlign:"center"}}>{gameTime} ET</div>
+                  {game.venue?.name&&<div style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif",textAlign:"center",marginTop:2}}>{game.venue.name}</div>}
                 </div>
-                <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",textAlign:"center"}}>{gameTime} ET</div>
-                {game.venue?.name && <div style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif",textAlign:"center",marginTop:2}}>{game.venue.name}</div>}
+              );
+            })}
+          </div>
+
+          {/* Main panel */}
+          <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin"}}>
+            {/* Empty state */}
+            {!selectedGame&&!loading&&(
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"80%",gap:12}}>
+                <div style={{fontSize:40}}>💣</div>
+                <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>Select a game to see HR picks for both teams</div>
+                <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",textAlign:"center",lineHeight:2}}>
+                  ✓ Hitter splits vs pitcher hand<br/>
+                  ✓ Park HR factor · Live weather<br/>
+                  ✓ ISO, season HR, split HR<br/>
+                  ✓ Top 5 per team + combined ranking
+                </div>
               </div>
-            );
-          })}
-        </div>
-
-        {/* Main panel */}
-        <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin"}}>
-          {/* Empty state */}
-          {!selectedGame && !loading && (
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"80%",gap:12}}>
-              <div style={{fontSize:40}}>💣</div>
-              <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>Select a game to see HR picks for both teams</div>
-              <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",textAlign:"center",lineHeight:2}}>
-                ✓ Hitter splits vs today's opposing pitcher hand<br/>
-                ✓ Park HR factor<br/>
-                ✓ Live weather at game time<br/>
-                ✓ Pitcher last 5 starts (ER/HR/K per start)<br/>
-                ✓ Top 5 for each team side by side
+            )}
+            {loading&&(
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:10}}>
+                <div style={{fontSize:13,color:C,letterSpacing:4,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>LOADING···</div>
+                {log.map((l,i)=>(<div key={i} style={{fontSize:11,color:i===log.length-1?"#38bdf8":"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>))}
               </div>
-            </div>
-          )}
+            )}
+            {!loading&&picks&&(
+              <div>
+                {/* Game header */}
+                <div style={{background:`linear-gradient(90deg,${C}12,transparent)`,border:`1px solid ${C}25`,borderRadius:4,padding:"12px 18px",marginBottom:10}}>
+                  <div style={{fontSize:16,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:6}}>{picks.game}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                    {[
+                      {label:"PARK",    val:`${picks.venue} • HR Factor ${picks.parkFactor}`, sub:picks.parkFlag, color:picks.parkFactor>=110?"#f97316":picks.parkFactor<=90?"#38bdf8":"#8a9ab0"},
+                      {label:"WEATHER", val:picks.weather, color:"#fbbf24"},
+                      {label:"NOTE",    val:picks.parkFactor>=115?"Extreme hitter's park":picks.parkFactor<=88?"Pitcher's park — lower HR prob":"Neutral park", color:"#8a9ab0"},
+                    ].map(({label,val,sub,color})=>(
+                      <div key={label} style={{background:"#0d0f1e",border:"1px solid #0a1828",borderRadius:3,padding:"8px 12px"}}>
+                        <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
+                        <div style={{fontSize:11,color,fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.4}}>{val}</div>
+                        {sub&&<div style={{fontSize:9,color:"#3a5070",marginTop:2}}>{sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-          {/* Loading */}
-          {loading && (
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:10}}>
-              <div style={{fontSize:13,color:C,letterSpacing:4,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>LOADING···</div>
-              {log.map((l,i)=>(
-                <div key={i} style={{fontSize:11,color:i===log.length-1?"#38bdf8":"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>
-              ))}
-            </div>
-          )}
-
-          {/* Results */}
-          {!loading && picks && (
-            <div>
-              {/* Game header */}
-              <div style={{background:`linear-gradient(90deg,${C}12,transparent)`,border:`1px solid ${C}25`,borderRadius:4,padding:"12px 18px",marginBottom:10}}>
-                <div style={{fontSize:16,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:6}}>{picks.game}</div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {[
-                    {label:"PARK", val:`${picks.venue} • HR Factor ${picks.parkFactor}`, sub:picks.parkFlag, color:picks.parkFactor>=110?"#f97316":picks.parkFactor<=90?"#38bdf8":"#8a9ab0"},
-                    {label:"WEATHER", val:picks.weather, color:"#fbbf24"},
-                    {label:"NOTE", val:picks.parkFactor>=115?"Extreme hitter's park — target power hitters":picks.parkFactor<=88?"Pitcher's park — lower HR probability":"Neutral park", color:"#8a9ab0"},
-                  ].map(({label,val,sub,color})=>(
-                    <div key={label} style={{background:"#0d0f1e",border:"1px solid #0a1828",borderRadius:3,padding:"8px 12px"}}>
-                      <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
-                      <div style={{fontSize:11,color,fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.4}}>{val}</div>
-                      {sub&&<div style={{fontSize:9,color:"#3a5070",marginTop:2}}>{sub}</div>}
-                    </div>
+                {/* View toggle: THIS GAME (combined) | BY TEAM */}
+                <div style={{display:"flex",gap:8,marginBottom:14}}>
+                  {[{id:"COMBINED",label:"⚡ COMBINED RANKING"},{id:"TEAMS",label:"👥 BY TEAM"}].map(v=>(
+                    <button key={v.id} onClick={()=>setView(v.id)} style={{
+                      padding:"7px 20px",borderRadius:3,border:"1px solid",fontSize:10,letterSpacing:2,cursor:"pointer",
+                      fontFamily:"'Orbitron',monospace",transition:"all 0.15s",
+                      borderColor:view===v.id?C+"60":"rgba(255,255,255,0.1)",
+                      background:view===v.id?`${C}15`:"transparent",
+                      color:view===v.id?C:"#3a5070",
+                    }}>{v.label}</button>
                   ))}
                 </div>
-              </div>
 
-              {/* View toggle */}
-              <div style={{display:"flex",gap:8,marginBottom:14}}>
-                {[{id:"COMBINED",label:"⚡ THIS GAME"},{id:"TEAMS",label:"👥 BY TEAM"},{id:"SLATE",label:"🌎 FULL SLATE TOP 6"}].map(v=>(
-                  <button key={v.id} onClick={()=>{ if(v.id==="SLATE"&&!slatePicks.length&&!slateLoading) generateSlate(); else setView(v.id); }} style={{
-                    padding:"7px 20px",borderRadius:3,border:"1px solid",fontSize:10,letterSpacing:2,cursor:"pointer",
-                    fontFamily:"'Orbitron',monospace",transition:"all 0.15s",
-                    borderColor:view===v.id?C+"60":"rgba(255,255,255,0.1)",
-                    background:view===v.id?`${C}15`:"transparent",
-                    color:view===v.id?C:"#3a5070",
-                  }}>{v.label}</button>
-                ))}
-              </div>
-
-              {/* COMBINED VIEW — all players ranked 1-10 by HR odds */}
-              {view==="COMBINED" && (() => {
-                const awayHand = picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R";
-                const homeHand = picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R";
-                const combined = [
-                  ...(picks.awayPicks||[]).map(p=>({...p, oppHand:awayHand})),
-                  ...(picks.homePicks||[]).map(p=>({...p, oppHand:homeHand})),
-                ].sort((a,b)=>{
-                  // Sort by odds (lower absolute number = better odds = higher rank)
-                  const parseOdds = o => { if(!o) return 9999; const n=parseInt(o.replace("+","").replace("-","")); return o.startsWith("-")?-n:n; };
-                  return parseOdds(a.hrOdds) - parseOdds(b.hrOdds);
-                }).map((p,i)=>({...p, combinedRank:i+1}));
-
-                const CONF = {HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35"};
-                return (
-                  <div>
-                    <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>
-                      ALL {combined.length} PLAYERS — RANKED BEST ODDS TO HIT HR
-                    </div>
-                    {combined.map((p,i)=>{
-                      const isTop3 = i < 3;
-                      const rankColor = i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
-                      return (
-                        <div key={i} style={{
-                          background:"#111427",
-                          border:`1px solid ${isTop3?rankColor+"40":"rgba(255,255,255,0.06)"}`,
-                          borderLeft:`3px solid ${rankColor}`,
-                          borderRadius:4,padding:"10px 14px",marginBottom:6,
-                          display:"flex",alignItems:"center",gap:12,
-                          boxShadow:isTop3?`0 0 12px ${rankColor}15`:undefined,
-                        }}>
-                          {/* Rank badge */}
-                          <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,
-                            background:isTop3?`${rankColor}25`:"#0d0f1e",
-                            border:`2px solid ${isTop3?rankColor:rankColor+"40"}`,
-                            display:"flex",alignItems:"center",justifyContent:"center"}}>
-                            <span style={{fontSize:13,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
-                          </div>
-                          {/* Player info */}
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                              <span style={{fontSize:14,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
-                              <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
-                              <span style={{fontSize:9,padding:"1px 7px",borderRadius:2,fontFamily:"'Orbitron',monospace",
-                                color:p.team===picks.awayTeam?"#38bdf8":"#f472b6",
-                                background:p.team===picks.awayTeam?"#38bdf815":"#f472b615",
-                                border:`1px solid ${p.team===picks.awayTeam?"#38bdf830":"#f472b630"}`
-                              }}>{p.team===picks.awayTeam?"AWAY":"HOME"} · {p.team?.split(" ").slice(-1)[0]}</span>
-                              <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
-                            </div>
-                            <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
-                          </div>
-                          {/* Stats */}
-                          <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
-                            {[
-                              {label:"SZN HR",  val:p.seasonHR,  hot:p.seasonHR>=5},
-                              {label:"ISO",     val:p.iso,       hot:parseFloat(p.iso)>=0.180},
-                              {label:`vs${p.oppHand}HP`, val:p.oppHR, hot:p.oppHR>=2},
-                            ].map(({label,val,hot})=>(
-                              <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 8px",textAlign:"center",minWidth:44}}>
-                                <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                                <div style={{fontSize:12,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
-                              </div>
-                            ))}
-                          </div>
-                          {/* Odds */}
-                          <div style={{flexShrink:0,textAlign:"center",minWidth:64,
-                            background:isTop3?`${rankColor}12`:"#0d0f1e",
-                            border:`1px solid ${isTop3?rankColor+"40":"rgba(255,255,255,0.07)"}`,
-                            borderRadius:4,padding:"6px 10px"}}>
-                            <div style={{fontSize:8,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:2}}>HR ODDS</div>
-                            <div style={{fontSize:16,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-
-              {/* SLATE VIEW — top 6 across entire day */}
-              {view==="SLATE" && (
-                <div>
-                  {slateLoading && (
-                    <div style={{padding:60,textAlign:"center"}}>
-                      <div style={{fontSize:13,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>SCANNING FULL SLATE···</div>
-                      <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Fetching rosters + splits for all {games.length} games</div>
-                    </div>
-                  )}
-                  {!slateLoading && slatePicks.length===0 && (
-                    <div style={{padding:60,textAlign:"center"}}>
-                      <div style={{fontSize:32,marginBottom:12}}>🌎</div>
-                      <div style={{fontSize:13,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Click 🌎 FULL SLATE TOP 6 to rank the best HR candidates across all {games.length} games today</div>
-                    </div>
-                  )}
-                  {!slateLoading && slatePicks.length>0 && (
+                {/* COMBINED VIEW */}
+                {view==="COMBINED" && (()=>{
+                  const awayHand = picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R";
+                  const homeHand = picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R";
+                  const combined = [
+                    ...(picks.awayPicks||[]).map(p=>({...p,oppHand:awayHand})),
+                    ...(picks.homePicks||[]).map(p=>({...p,oppHand:homeHand})),
+                  ].sort((a,b)=>{
+                    const parseOdds = o=>{ if(!o) return 9999; const n=parseInt(o.replace("+","").replace("-","")); return o.startsWith("-")?-n:n; };
+                    return parseOdds(a.hrOdds)-parseOdds(b.hrOdds);
+                  }).map((p,i)=>({...p,combinedRank:i+1}));
+                  const CONF={HIGH:"#818cf8",MED:"#fbbf24",LOW:"#ff6b35"};
+                  return (
                     <div>
-                      <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:12}}>
-                        TOP 6 HR CANDIDATES — ENTIRE {games.length}-GAME SLATE
+                      <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>
+                        ALL {combined.length} PLAYERS — RANKED BEST ODDS TO HIT HR
                       </div>
-                      {slatePicks.map((p,i)=>{
-                        const rankColor = i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
-                        const CONF = {HIGH:"#818cf8",MED:"#fbbf24",LOW:"#ff6b35"};
+                      {combined.map((p,i)=>{
+                        const rankColor=i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
                         return (
-                          <div key={i} style={{
-                            background:"#111427",
-                            border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.06)"}`,
-                            borderLeft:`4px solid ${rankColor}`,
-                            borderRadius:4,padding:"12px 16px",marginBottom:8,
-                            boxShadow:i<3?`0 0 14px ${rankColor}15`:undefined,
-                          }}>
-                            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                              {/* Top row: rank + name + odds */}
-                              <div style={{display:"flex",alignItems:"center",gap:12}}>
-                                <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,
-                                  background:`${rankColor}20`,border:`2px solid ${rankColor}`,
-                                  display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                  <span style={{fontSize:15,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
+                          <div key={i} style={{background:"#111427",border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.06)"}`,borderLeft:`3px solid ${rankColor}`,borderRadius:4,padding:"10px 14px",marginBottom:6,display:"flex",alignItems:"center",gap:12,boxShadow:i<3?`0 0 12px ${rankColor}15`:undefined}}>
+                            <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:i<3?`${rankColor}25`:"#0d0f1e",border:`2px solid ${i<3?rankColor:rankColor+"40"}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              <span style={{fontSize:13,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                                <span style={{fontSize:14,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
+                                <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
+                                <span style={{fontSize:9,padding:"1px 7px",borderRadius:2,fontFamily:"'Orbitron',monospace",color:p.team===picks.awayTeam?"#38bdf8":"#f472b6",background:p.team===picks.awayTeam?"#38bdf815":"#f472b615",border:`1px solid ${p.team===picks.awayTeam?"#38bdf830":"#f472b630"}`}}>{p.team===picks.awayTeam?"AWAY":"HOME"} · {p.team?.split(" ").slice(-1)[0]}</span>
+                                <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
+                              </div>
+                              <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
+                            </div>
+                            <div style={{display:"flex",gap:6,flexShrink:0}}>
+                              {[{label:"SZN HR",val:p.seasonHR,hot:p.seasonHR>=5},{label:"ISO",val:p.iso,hot:parseFloat(p.iso)>=0.180},{label:`vs${p.oppHand}HP`,val:p.oppHR,hot:p.oppHR>=2}].map(({label,val,hot})=>(
+                                <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 8px",textAlign:"center",minWidth:44}}>
+                                  <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                                  <div style={{fontSize:12,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
                                 </div>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                                    <span style={{fontSize:15,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
-                                    <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
-                                    <span style={{fontSize:9,color:"#38bdf8",background:"#38bdf815",border:"1px solid #38bdf830",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.team}</span>
-                                    <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
-                                    {p.wxBoost&&<span style={{fontSize:9,color:"#fbbf24",background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>💨 WEATHER BOOST</span>}
-                                  </div>
-                                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:3}}>
-                                    <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{p.game}</span>
-                                    <span style={{fontSize:10,color:p.parkFactor>=108?"#f97316":p.parkFactor<=90?"#38bdf8":"#3a5070",fontFamily:"'Orbitron',monospace"}}>{p.parkFlag} PF:{p.parkFactor}</span>
-                                    <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>vs {p.sp}({p.spHand}HP)</span>
-                                    <span style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.weather}</span>
-                                  </div>
-                                  <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
-                                </div>
+                              ))}
+                            </div>
+                            <div style={{flexShrink:0,textAlign:"center",minWidth:64,background:i<3?`${rankColor}12`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"6px 10px"}}>
+                              <div style={{fontSize:8,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:2}}>HR ODDS</div>
+                              <div style={{fontSize:16,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
                             </div>
                           </div>
-                          {/* Metrics + Odds row */}
-                          <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
-                            {/* Stats columns */}
-                            <div style={{flex:1,display:"flex",flexDirection:"column",gap:5}}>
-                              {/* Row 1: Power metrics */}
-                              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                                {[
-                                  {label:"BARREL%",  val:p.barrelPct,   hot:parseFloat(p.barrelPct)>=12},
-                                  {label:"HARD HIT%",val:p.hardHitPct,  hot:parseFloat(p.hardHitPct)>=45},
-                                  {label:"FLY BALL%",val:p.flyBallPct,  hot:parseFloat(p.flyBallPct)>=38},
-                                  {label:"HR/FB%",   val:p.hrFBpct,     hot:parseFloat(p.hrFBpct)>=15},
-                                  {label:"xSLG",     val:p.xSLG,        hot:parseFloat(p.xSLG)>=0.500},
-                                  {label:"AVG EV",   val:p.avgEV,       hot:parseFloat(p.avgEV)>=92},
-                                ].map(({label,val,hot})=>(
-                                  <div key={label} style={{background:hot?"rgba(249,115,22,0.1)":"#0d0f1e",border:`1px solid ${hot?"#f9731660":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 7px",textAlign:"center"}}>
-                                    <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                                    <div style={{fontSize:11,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
-                                  </div>
-                                ))}
-                              </div>
-                              {/* Row 2: Pitcher + context */}
-                              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                                {[
-                                  {label:"SP HR/9",  val:p.oppHR9,                hot:parseFloat(p.oppHR9)>=1.3},
-                                  {label:"vs HAND",  val:`${p.oppHRvsHand||0}HR`, hot:(p.oppHRvsHand||0)>=4},
-                                  {label:"SZN HR",   val:p.seasonHR,              hot:p.seasonHR>=8},
-                                  {label:"L14 HR",   val:p.last14HR,              hot:p.last14HR>=2},
-                                  {label:"LINEUP",   val:`#${p.lineupSpot||"?"}`, hot:p.topOrder},
-                                  {label:"PF",       val:p.parkFactor,            hot:p.parkFactor>=108},
-                                ].map(({label,val,hot})=>(
-                                  <div key={label} style={{background:hot?"rgba(129,140,248,0.08)":"#0d0f1e",border:`1px solid ${hot?"#818cf840":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 7px",textAlign:"center"}}>
-                                    <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                                    <div style={{fontSize:11,fontWeight:"bold",color:hot?"#818cf8":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
-                                  </div>
-                                ))}
-                              </div>
-                              {/* Sharp flags */}
-                              {p.sharpFlags?.length>0 && (
-                                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                                  {p.sharpFlags.map((flag,fi)=>(
-                                    <div key={fi} style={{fontSize:8,padding:"2px 7px",borderRadius:2,background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>
-                                      ✓ {flag}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            {/* Odds + Score */}
-                            <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
-                              <div style={{background:i<3?`${rankColor}15`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"50":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"5px 10px",textAlign:"center",minWidth:70}}>
-                                <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>HR ODDS</div>
-                                <div style={{fontSize:17,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
-                              </div>
-                              {p.score&&<div style={{background:"#0d0f1e",border:"1px solid rgba(255,255,255,0.07)",borderRadius:4,padding:"4px 10px",textAlign:"center"}}>
-                                <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>SCORE</div>
-                                <div style={{fontSize:14,fontWeight:"bold",color:p.score>=80?"#818cf8":p.score>=65?"#fbbf24":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{p.score}</div>
-                              </div>}
-                            </div>
-                          </div>
-                        </div>
                         );
                       })}
-                      <button onClick={generateSlate} style={{marginTop:8,width:"100%",padding:"10px",background:`${C}10`,border:`1px solid ${C}30`,borderRadius:3,color:C,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>↻ REGENERATE SLATE</button>
                     </div>
-                  )}
-                </div>
-              )}
+                  );
+                })()}
 
-              {/* TEAMS VIEW — side by side */}
-              {view==="TEAMS" && (
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-                  <div>
-                    <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
-                      <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.awayTeam?.toUpperCase()} — AWAY</div>
-                      <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.homeSP}</div>
+                {/* BY TEAM VIEW */}
+                {view==="TEAMS"&&(
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                    <div>
+                      <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
+                        <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.awayTeam?.toUpperCase()} — AWAY</div>
+                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.homeSP}</div>
+                      </div>
+                      {(picks.awayPicks||[]).map((p,i)=>(<PickCard key={i} p={p} oppHand={picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>))}
                     </div>
-                    {(picks.awayPicks||[]).map((p,i)=>(
-                      <PickCard key={i} p={p} oppHand={picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
-                    ))}
-                  </div>
-                  <div>
-                    <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
-                      <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.homeTeam?.toUpperCase()} — HOME</div>
-                      <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.awaySP}</div>
+                    <div>
+                      <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
+                        <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.homeTeam?.toUpperCase()} — HOME</div>
+                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.awaySP}</div>
+                      </div>
+                      {(picks.homePicks||[]).map((p,i)=>(<PickCard key={i} p={p} oppHand={picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>))}
                     </div>
-                    {(picks.homePicks||[]).map((p,i)=>(
-                      <PickCard key={i} p={p} oppHand={picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
-                    ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── FULL SLATE TOP 6 section ── */}
+      {hrSection==="SLATE"&&(
+        <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin"}}>
+          {slateLoading&&(
+            <div style={{padding:60,textAlign:"center"}}>
+              <div style={{fontSize:13,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>SCANNING FULL SLATE···</div>
+              <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Fetching rosters · splits · Statcast · weather · pitcher data for all {games.length} games</div>
+            </div>
+          )}
+          {!slateLoading&&slatePicks.length===0&&(
+            <div style={{padding:60,textAlign:"center"}}>
+              <div style={{fontSize:40,marginBottom:12}}>🌎</div>
+              <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>Analyzing all {games.length} games today...</div>
+              <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",lineHeight:2}}>
+                Uses your weighted formula:<br/>
+                40% Batter Power (Barrel% + HardHit% + FlyBall%)<br/>
+                30% Pitcher HR Risk (HR/9 + hand-specific HR allowed)<br/>
+                20% Park Factor + Weather<br/>
+                10% Lineup Spot + Recent Form
+              </div>
+            </div>
+          )}
+          {!slateLoading&&slatePicks.length>0&&(
+            <div>
+              <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:12}}>
+                TOP 6 HR CANDIDATES — ENTIRE {games.length}-GAME SLATE
+              </div>
+              {slatePicks.map((p,i)=>{
+                const rankColor=i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
+                const CONF={HIGH:"#818cf8",MED:"#fbbf24",LOW:"#ff6b35"};
+                return (
+                  <div key={i} style={{background:"#111427",border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.06)"}`,borderLeft:`4px solid ${rankColor}`,borderRadius:4,padding:"14px 16px",marginBottom:10,boxShadow:i<3?`0 0 14px ${rankColor}15`:undefined}}>
+                    {/* Top row: rank + player + odds */}
+                    <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
+                      <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,background:`${rankColor}20`,border:`2px solid ${rankColor}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <span style={{fontSize:15,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
+                          <span style={{fontSize:15,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
+                          <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
+                          <span style={{fontSize:9,color:"#38bdf8",background:"#38bdf815",border:"1px solid #38bdf830",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.team}</span>
+                          <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
+                          {p.wxBoost&&<span style={{fontSize:9,color:"#fbbf24",background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>💨 WEATHER BOOST</span>}
+                        </div>
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:3}}>
+                          <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{p.game}</span>
+                          <span style={{fontSize:10,color:p.parkFactor>=108?"#f97316":p.parkFactor<=90?"#38bdf8":"#3a5070",fontFamily:"'Orbitron',monospace"}}>{p.parkFlag} PF:{p.parkFactor}</span>
+                          <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>vs {p.sp}({p.spHand}HP)</span>
+                          <span style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.weather}</span>
+                        </div>
+                        <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
+                      </div>
+                      {/* Odds + Score */}
+                      <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+                        <div style={{background:i<3?`${rankColor}15`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"50":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"5px 10px",textAlign:"center",minWidth:70}}>
+                          <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>HR ODDS</div>
+                          <div style={{fontSize:17,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
+                        </div>
+                        {p.score&&<div style={{background:"#0d0f1e",border:"1px solid rgba(255,255,255,0.07)",borderRadius:4,padding:"4px 10px",textAlign:"center"}}>
+                          <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>SCORE</div>
+                          <div style={{fontSize:14,fontWeight:"bold",color:p.score>=80?"#818cf8":p.score>=65?"#fbbf24":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{p.score}</div>
+                        </div>}
+                      </div>
+                    </div>
+                    {/* Metrics rows */}
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        {[
+                          {label:"BARREL%",  val:p.barrelPct,  hot:parseFloat(p.barrelPct)>=12},
+                          {label:"HARD HIT%",val:p.hardHitPct, hot:parseFloat(p.hardHitPct)>=45},
+                          {label:"FLY BALL%",val:p.flyBallPct, hot:parseFloat(p.flyBallPct)>=38},
+                          {label:"HR/FB%",   val:p.hrFBpct,    hot:parseFloat(p.hrFBpct)>=15},
+                          {label:"xSLG",     val:p.xSLG,       hot:parseFloat(p.xSLG)>=0.500},
+                          {label:"AVG EV",   val:p.avgEV,      hot:parseFloat(p.avgEV)>=92},
+                        ].map(({label,val,hot})=>(
+                          <div key={label} style={{background:hot?"rgba(249,115,22,0.1)":"#0d0f1e",border:`1px solid ${hot?"#f9731660":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 7px",textAlign:"center"}}>
+                            <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                            <div style={{fontSize:11,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        {[
+                          {label:"SP HR/9",  val:p.oppHR9,                hot:parseFloat(p.oppHR9)>=1.3},
+                          {label:"vs HAND",  val:`${p.oppHRvsHand||0}HR`, hot:(p.oppHRvsHand||0)>=4},
+                          {label:"SZN HR",   val:p.seasonHR,              hot:p.seasonHR>=8},
+                          {label:"L14 HR",   val:p.last14HR,              hot:p.last14HR>=2},
+                          {label:"LINEUP",   val:`#${p.lineupSpot||"?"}`, hot:p.topOrder},
+                          {label:"PF",       val:p.parkFactor,            hot:p.parkFactor>=108},
+                        ].map(({label,val,hot})=>(
+                          <div key={label} style={{background:hot?"rgba(129,140,248,0.08)":"#0d0f1e",border:`1px solid ${hot?"#818cf840":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 7px",textAlign:"center"}}>
+                            <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
+                            <div style={{fontSize:11,fontWeight:"bold",color:hot?"#818cf8":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {p.sharpFlags?.length>0&&(
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {p.sharpFlags.map((flag,fi)=>(
+                            <div key={fi} style={{fontSize:8,padding:"2px 7px",borderRadius:2,background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>
+                              ✓ {flag}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <button onClick={generateSlate} style={{marginTop:8,width:"100%",padding:"10px",background:`${C}10`,border:`1px solid ${C}30`,borderRadius:3,color:C,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>↻ REGENERATE SLATE</button>
             </div>
           )}
         </div>
-      </div>
+      )}
+
     </div>
   );
 }
+
 
 
 // ── Cheat Sheet ───────────────────────────────────────────────────────────────
