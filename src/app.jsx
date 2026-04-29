@@ -2708,6 +2708,15 @@ Respond ONLY with valid JSON:
     try {
       const gameContexts = [];
       const SKIP = ["P","SP","RP","CL"];
+      const PARK_HR = {"Chase Field":105,"Truist Park":103,"Camden Yards":105,"Fenway Park":104,"Wrigley Field":108,"Guaranteed Rate Field":108,"Great American Ball Park":118,"Progressive Field":96,"Coors Field":138,"Comerica Park":88,"Minute Maid Park":102,"Kauffman Stadium":93,"Angel Stadium":95,"Dodger Stadium":96,"LoanDepot Park":82,"American Family Field":107,"Target Field":94,"Citi Field":95,"Yankee Stadium":112,"Citizens Bank Park":114,"PNC Park":94,"Petco Park":88,"Oracle Park":85,"T-Mobile Park":87,"Busch Stadium":90,"Tropicana Field":96,"Globe Life Field":98,"Rogers Centre":110,"Nationals Park":98};
+
+      // Fetch Statcast leaderboard once for all players
+      let statcastMap = {};
+      try {
+        const scRes = await fetch("/api/statcast?type=leaderboard");
+        const scData = await scRes.json();
+        if (Array.isArray(scData)) scData.forEach(p => { if(p.id) statcastMap[String(p.id)] = p; });
+      } catch {}
 
       for (const game of games.slice(0,8)) {
         const away     = game.teams?.away;
@@ -2719,109 +2728,165 @@ Respond ONLY with valid JSON:
         const awaySP   = away?.probablePitcher;
         const homeSP   = home?.probablePitcher;
         const venue    = game.venue?.name || "";
-        const PARK_HR  = {"Chase Field":105,"Truist Park":103,"Camden Yards":105,"Fenway Park":104,"Wrigley Field":108,"Guaranteed Rate Field":108,"Great American Ball Park":118,"Progressive Field":96,"Coors Field":138,"Comerica Park":88,"Minute Maid Park":102,"Kauffman Stadium":93,"Angel Stadium":95,"Dodger Stadium":96,"LoanDepart Park":82,"American Family Field":107,"Target Field":94,"Citi Field":95,"Yankee Stadium":112,"Citizens Bank Park":114,"PNC Park":94,"Petco Park":88,"Oracle Park":85,"T-Mobile Park":87,"Busch Stadium":90,"Tropicana Field":96,"Globe Life Field":98,"Rogers Centre":110,"Nationals Park":98};
         const parkFactor = PARK_HR[venue] || 100;
+        const parkFlag = parkFactor>=115?"🔥 EXTREME":parkFactor>=108?"🔥 HITTER":parkFactor<=88?"❄️ PITCHER":"⚾ NEUTRAL";
 
-        // Get pitcher hands
-        let awaySPHand = "R", homeSPHand = "R";
+        // Pitcher hands + HR allowed splits
+        let awaySPHand="R", homeSPHand="R";
+        let awaySPHRallowed=0, homeSPHRallowed=0;
+        let awaySPHRvsL=0, awaySPHRvsR=0, homeSPHRvsL=0, homeSPHRvsR=0;
         try {
-          const [aBio, hBio] = await Promise.allSettled([
-            awaySP?.id ? fetch(`https://statsapi.mlb.com/api/v1/people/${awaySP.id}`).then(r=>r.json()) : Promise.resolve(null),
-            homeSP?.id ? fetch(`https://statsapi.mlb.com/api/v1/people/${homeSP.id}`).then(r=>r.json()) : Promise.resolve(null),
-          ]);
-          if (aBio.value?.people?.[0]?.pitchHand?.code) awaySPHand = aBio.value.people[0].pitchHand.code;
-          if (hBio.value?.people?.[0]?.pitchHand?.code) homeSPHand = hBio.value.people[0].pitchHand.code;
+          const pitcherFetch = async (pitcher) => {
+            if (!pitcher?.id) return {hand:"R",hrAllowed:0,hrVsL:0,hrVsR:0};
+            const [bio,logs,splits] = await Promise.allSettled([
+              fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}`).then(r=>r.json()),
+              fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=gameLog&group=pitching&season=2026&limit=10`).then(r=>r.json()),
+              fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=statSplits&group=pitching&season=2026&sitCodes=vl,vr`).then(r=>r.json()),
+            ]);
+            const hand = bio.value?.people?.[0]?.pitchHand?.code||"R";
+            const recentLogs = logs.value?.stats?.[0]?.splits?.slice(0,10)||[];
+            const hrAllowed = recentLogs.reduce((s,l)=>s+(l.stat?.homeRuns||0),0);
+            const spl = splits.value?.stats?.[0]?.splits||[];
+            const vsL = spl.find(x=>x.split?.code==="vl")?.stat||{};
+            const vsR = spl.find(x=>x.split?.code==="vr")?.stat||{};
+            return {hand, hrAllowed, hrVsL:vsL.homeRuns||0, hrVsR:vsR.homeRuns||0};
+          };
+          const [aP,hP] = await Promise.allSettled([pitcherFetch(awaySP),pitcherFetch(homeSP)]);
+          if(aP.value){awaySPHand=aP.value.hand;awaySPHRallowed=aP.value.hrAllowed;awaySPHRvsL=aP.value.hrVsL;awaySPHRvsR=aP.value.hrVsR;}
+          if(hP.value){homeSPHand=hP.value.hand;homeSPHRallowed=hP.value.hrAllowed;homeSPHRvsL=hP.value.hrVsL;homeSPHRvsR=hP.value.hrVsR;}
         } catch {}
 
-        // Get rosters
-        let awayHitters = [], homeHitters = [];
+        // Weather
+        let wxCtx = "N/A";
         try {
-          const [aR, hR] = await Promise.allSettled([
+          const vRes = await fetch(`https://statsapi.mlb.com/api/v1/venues/${game.venue?.id}?hydrate=location`);
+          const vData = await vRes.json();
+          const lat = vData.venues?.[0]?.location?.defaultCoordinates?.latitude;
+          const lon = vData.venues?.[0]?.location?.defaultCoordinates?.longitude;
+          if (lat && lon) {
+            const wx = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph`);
+            const wxD = await wx.json();
+            const temp = Math.round(wxD.current?.temperature_2m);
+            const wind = Math.round(wxD.current?.wind_speed_10m);
+            const dir  = wxD.current?.wind_direction_10m;
+            const windNote = wind>14?(dir>45&&dir<225?"💨 OUT (HR boost)":"🌬 IN (suppresses HR)"):"calm";
+            wxCtx = `${temp}°F, ${wind}mph ${windNote}`;
+          }
+        } catch {}
+
+        // Rosters
+        let awayHitters=[], homeHitters=[];
+        try {
+          const [aR,hR] = await Promise.allSettled([
             fetch(`https://statsapi.mlb.com/api/v1/teams/${awayId}/roster?rosterType=active&hydrate=person`).then(r=>r.json()),
             fetch(`https://statsapi.mlb.com/api/v1/teams/${homeId}/roster?rosterType=active&hydrate=person`).then(r=>r.json()),
           ]);
-          awayHitters = (aR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:awayName}));
-          homeHitters = (hR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:homeName}));
+          awayHitters=(aR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:awayName}));
+          homeHitters=(hR.value?.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation,team:homeName}));
         } catch {}
 
-        // Get splits for top hitters only (4 per team for speed)
-        const fetchSplits = async (hitters, oppHand, teamName) => {
+        // Full metrics per hitter
+        const fetchFullMetrics = async (hitters, oppHand, oppSP, oppHRvsL, oppHRvsR, teamName) => {
           const out = [];
-          await Promise.allSettled(hitters.slice(0,4).map(async h => {
+          await Promise.allSettled(hitters.slice(0,5).map(async h => {
             try {
-              const [sRes, spRes] = await Promise.allSettled([
-                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=season&group=hitting&season=2026`),
-                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`),
+              const [sRes, spRes, recRes] = await Promise.allSettled([
+                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=season&group=hitting&season=2026`).then(r=>r.json()),
+                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`).then(r=>r.json()),
+                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=byDateRange&group=hitting&startDate=${new Date(Date.now()-14*86400000).toISOString().split("T")[0]}&endDate=${new Date().toISOString().split("T")[0]}&season=2026`).then(r=>r.json()),
               ]);
-              const sD  = await sRes.value?.json();
-              const spD = await spRes.value?.json();
-              const s   = sD?.stats?.[0]?.splits?.[0]?.stat || {};
-              const spl = spD?.stats?.[0]?.splits || [];
+              const s   = sRes.value?.stats?.[0]?.splits?.[0]?.stat || {};
+              const spl = spRes.value?.stats?.[0]?.splits || [];
               const opp = spl.find(x=>x.split?.code===(oppHand==="L"?"vl":"vr"))?.stat || {};
+              const rec = recRes.value?.stats?.[0]?.splits?.[0]?.stat || {};
               const iso    = s.slg&&s.avg?(parseFloat(s.slg)-parseFloat(s.avg)).toFixed(3):"0.000";
               const oppISO = opp.slg&&opp.avg?(parseFloat(opp.slg)-parseFloat(opp.avg)).toFixed(3):"0.000";
+              // Statcast
+              const sc = statcastMap[String(h.id)] || {};
+              const spHRallowed = oppHand==="L" ? oppHRvsL : oppHRvsR;
               out.push({
                 name:h.name, pos:h.pos, team:teamName,
-                oppTeam: teamName===awayName?homeName:awayName,
-                sp: teamName===awayName?(homeSP?.fullName||"TBD"):(awaySP?.fullName||"TBD"),
-                spHand: oppHand,
-                venue, parkFactor,
-                seasonHR:s.homeRuns??0, iso, oppHR:opp.homeRuns??0, oppISO,
-                avg:s.avg||"—", oppAvg:opp.avg||"—",
+                game:`${awayName} @ ${homeName}`, venue, parkFactor, parkFlag,
+                sp:oppSP?.fullName||"TBD", spHand:oppHand,
+                spHRallowed,                          // HR allowed by SP vs this batter's hand
+                seasonHR:s.homeRuns??0,
+                seasonSLG:s.slg||"—",
+                iso, oppHR:opp.homeRuns??0, oppISO,
+                oppSLG:opp.slg||"—",
+                oppAB:opp.atBats??0,
+                last14HR:rec.homeRuns??0,             // HR in last 14 days
+                last14AVG:rec.avg||"—",
+                last14SLG:rec.slg||"—",
+                hardHit:sc.hardHitPct?`${sc.hardHitPct}%`:"—",  // Statcast hard hit%
+                barrel:sc.barrelPct?`${sc.barrelPct}%`:"—",     // Statcast barrel%
+                xSLG:sc.xSLG||"—",                               // Expected SLG
+                avgEV:sc.avgEV||"—",                             // Avg exit velocity
+                weather:wxCtx,
               });
             } catch {}
           }));
           return out;
         };
 
-        const [awayStats, homeStats] = await Promise.allSettled([
-          fetchSplits(awayHitters, homeSPHand, awayName),
-          fetchSplits(homeHitters, awaySPHand, homeName),
+        const [awayM, homeM] = await Promise.allSettled([
+          fetchFullMetrics(awayHitters, homeSPHand, homeSP, homeSPHRvsL, homeSPHRvsR, awayName),
+          fetchFullMetrics(homeHitters, awaySPHand, awaySP, awaySPHRvsL, awaySPHRvsR, homeName),
         ]);
-        const allPlayers = [...(awayStats.value||[]), ...(homeStats.value||[])];
-        if (allPlayers.length) gameContexts.push({game:`${awayName} @ ${homeName}`, venue, parkFactor, players:allPlayers});
+        const allPlayers = [...(awayM.value||[]), ...(homeM.value||[])];
+        if (allPlayers.length) gameContexts.push({game:`${awayName} @ ${homeName}`, players:allPlayers});
       }
 
-      // Build prompt with all players across all games
       const allPlayersFlat = gameContexts.flatMap(g => g.players);
-      const playerCtx = allPlayersFlat.map(p =>
-        `${p.name}(${p.team}, ${p.pos}) vs ${p.sp}(${p.spHand}HP) @ ${p.venue}(PF:${p.parkFactor}): SZN ${p.seasonHR}HR ${p.avg}AVG ${p.iso}ISO | vs${p.spHand}HP: ${p.oppHR}HR ${p.oppAvg}AVG ${p.oppISO}ISO`
-      ).join("\n");
+      const playerCtx = allPlayersFlat.map(p => [
+        `${p.name} (${p.team}, ${p.pos}) | Game: ${p.game}`,
+        `  Park: ${p.venue} PF=${p.parkFactor} ${p.parkFlag} | Weather: ${p.weather}`,
+        `  Pitcher: ${p.sp} (${p.spHand}HP) — allowed ${p.spHRallowed}HR vs ${p.spHand==="L"?"LHB":"RHB"} this season`,
+        `  Season: ${p.seasonHR}HR, ${p.seasonSLG} SLG, ${p.iso} ISO`,
+        `  vs${p.spHand}HP splits (${p.oppAB}AB): ${p.oppHR}HR, ${p.oppSLG} SLG, ${p.oppISO} ISO`,
+        `  Last 14 days: ${p.last14HR}HR, ${p.last14AVG} AVG, ${p.last14SLG} SLG`,
+        `  Statcast: ${p.hardHit} HardHit%, ${p.barrel} Barrel%, ${p.xSLG} xSLG, ${p.avgEV}mph avgEV`,
+      ].join("\n")).join("\n\n");
 
-      const prompt = `You are an elite MLB HR prop analyst. Rank the TOP 6 HR candidates across today's ENTIRE slate.
+      const prompt = `You are an elite MLB HR prop analyst with access to full Statcast and advanced metrics.
+Rank the TOP 6 HR candidates across today's ENTIRE slate using ALL available data.
 
-ALL PLAYERS ACROSS TODAY'S SLATE:
+HR SCORING CRITERIA — weight each factor:
+1. BARREL% + Hard Hit% (Statcast) — best predictor of HR power, weight 25%
+2. ISO vs opposing pitcher hand (split ISO) — power vs this exact handedness, weight 20%
+3. HR allowed by pitcher vs this batter's hand — pitcher vulnerability, weight 20%  
+4. Park factor — Coors/GABP/Yankee Stadium huge boost, Petco/Oracle/T-Mobile penalty, weight 15%
+5. xSLG + avgEV — true power indicators from exit velocity, weight 10%
+6. Last 14 days HR/SLG — recent hot streak, weight 5%
+7. Wind blowing out — significant boost when applicable, weight 5%
+
+FULL PLAYER DATA FOR ALL ${allPlayersFlat.length} HITTERS TODAY:
 ${playerCtx}
 
-RANKING FACTORS (in order):
-1. Split ISO vs today's opposing pitcher hand — most important
-2. Split HR history vs that pitcher hand
-3. Park factor (>110 big boost, <90 penalty)
-4. Season HR total as tiebreaker
+RULES:
+- Pick exactly 6 players ranked best to worst HR candidate
+- Prefer variety — max 2 players from same game
+- A high barrel% + favorable park + vulnerable pitcher = lock
+- Poor park factor should drop a player several spots even with good splits
+- Recent form (last 14 days) breaks ties
 
-Pick the best 6 players across ALL teams and ALL games. Different teams preferred — avoid picking 3+ from same game.
-Include realistic HR odds (+150 to +600 range).
+Return ONLY valid JSON array, no markdown:
+[{"rank":1,"player":"Full Name","team":"Team","pos":"POS","game":"Away @ Home","venue":"Park","parkFactor":118,"parkFlag":"🔥 EXTREME","sp":"SP Name","spHand":"R","spHRallowed":8,"seasonHR":12,"oppHR":4,"iso":"0.240","oppISO":"0.260","last14HR":3,"hardHit":"52.3%","barrel":"14.2%","xSLG":"0.580","avgEV":"92.4","weather":"72°F calm","hrOdds":"+185","score":91,"reason":"Best barrel% in game + GABP extreme HR park + SP has allowed 8HR vs RHB this season + 3HR last 14 days","confidence":"HIGH"}]
 
-Respond ONLY with valid JSON array, no markdown:
-[
-  {"rank":1,"player":"Full Name","team":"Team Name","pos":"POS","game":"Away @ Home","venue":"Park Name","parkFactor":105,"sp":"Pitcher Name","spHand":"R","seasonHR":8,"oppHR":3,"iso":"0.220","oppISO":"0.240","hrOdds":"+185","reason":"Specific stat-based reason","confidence":"HIGH"},
-  {"rank":2,"player":"Full Name","team":"Team Name","pos":"POS","game":"Away @ Home","venue":"Park Name","parkFactor":100,"sp":"Pitcher Name","spHand":"L","seasonHR":5,"oppHR":2,"iso":"0.190","oppISO":"0.210","hrOdds":"+240","reason":"reason","confidence":"HIGH"}
-]
-Generate exactly 6 picks.`;
+score = 0-100 composite HR probability. Generate exactly 6.`;
 
       const res = await fetch('/api/claude', {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
-          model:"claude-sonnet-4-6", max_tokens:2000,
-          system:"Expert MLB HR analyst. Rank players from entire day's slate by HR probability. Valid JSON array only.",
+          model:"claude-sonnet-4-6", max_tokens:3000,
+          system:"Expert MLB HR analyst using Statcast, splits, park factors, pitcher vulnerability, and weather. Rank by composite HR probability. Valid JSON array only, no markdown.",
           messages:[{role:"user",content:prompt}]
         })
       });
       const data = await res.json();
       const text = data.content?.map(b=>b.text||"").join("")||"[]";
       let clean = text.replace(/```json|```/g,"").trim();
-      const s = clean.indexOf("["), e = clean.lastIndexOf("]");
-      if (s!==-1&&e!==-1) clean = clean.slice(s,e+1);
+      const si = clean.indexOf("["), ei = clean.lastIndexOf("]");
+      if (si!==-1&&ei!==-1) clean = clean.slice(si,ei+1);
       clean = clean.replace(/,(\s*[}\]])/g,"$1");
       const parsed = JSON.parse(clean);
       if (Array.isArray(parsed)) setSlatePicks(parsed);
@@ -3097,18 +3162,27 @@ Generate exactly 6 picks.`;
                               {/* Stats + Odds */}
                               <div style={{display:"flex",gap:6,flexShrink:0,alignItems:"center"}}>
                                 {[
-                                  {label:"SZN HR",val:p.seasonHR,hot:p.seasonHR>=5},
-                                  {label:"ISO",   val:p.iso,     hot:parseFloat(p.iso)>=0.180},
-                                  {label:`vs${p.spHand}HP`,val:p.oppHR,hot:p.oppHR>=2},
+                                  {label:"BARREL%",  val:p.barrel,    hot:parseFloat(p.barrel)>=12},
+                                  {label:"HARD HIT%",val:p.hardHit,   hot:parseFloat(p.hardHit)>=48},
+                                  {label:"xSLG",     val:p.xSLG,      hot:parseFloat(p.xSLG)>=0.500},
+                                  {label:"SZN HR",   val:p.seasonHR,  hot:p.seasonHR>=8},
+                                  {label:"SP HR/G",  val:p.spHRallowed, hot:p.spHRallowed>=6},
+                                  {label:"PF",       val:p.parkFactor,hot:p.parkFactor>=110},
                                 ].map(({label,val,hot})=>(
                                   <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"4px 8px",textAlign:"center",minWidth:44}}>
                                     <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                                    <div style={{fontSize:13,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
+                                    <div style={{fontSize:12,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
                                   </div>
                                 ))}
-                                <div style={{background:i<3?`${rankColor}15`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"50":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"6px 12px",textAlign:"center",minWidth:70}}>
-                                  <div style={{fontSize:8,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:2}}>HR ODDS</div>
-                                  <div style={{fontSize:18,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
+                                <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                                  <div style={{background:i<3?`${rankColor}15`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"50":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"5px 10px",textAlign:"center",minWidth:70}}>
+                                    <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>HR ODDS</div>
+                                    <div style={{fontSize:17,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
+                                  </div>
+                                  {p.score&&<div style={{background:"#0d0f1e",border:"1px solid rgba(255,255,255,0.07)",borderRadius:4,padding:"4px 10px",textAlign:"center"}}>
+                                    <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>SCORE</div>
+                                    <div style={{fontSize:14,fontWeight:"bold",color:p.score>=80?"#818cf8":p.score>=65?"#fbbf24":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{p.score}</div>
+                                  </div>}
                                 </div>
                               </div>
                             </div>
