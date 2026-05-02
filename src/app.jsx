@@ -1101,6 +1101,7 @@ function JobsTab() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("United States");
+  const [shiftFilter, setShiftFilter] = useState("ALL"); // ALL | DAY | EVENING | NIGHT
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -1114,15 +1115,31 @@ function JobsTab() {
   const inputStyle  = { width:"100%", background:"#111427", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
   const labelStyle  = { fontSize:10, color:"#3a5070", fontFamily:"'Inter',sans-serif", marginBottom:4, display:"block" };
 
-  const searchJobs = async (query) => {
+  const SHIFT_KEYWORDS = {
+    DAY:     ["day shift","morning","8am","9am","7am","6am","day turn","first shift","days only"],
+    EVENING: ["evening","afternoon","2pm","3pm","4pm","swing shift","second shift","evenings"],
+    NIGHT:   ["night shift","overnight","nights","10pm","11pm","midnight","third shift","graveyard","3rd shift"],
+  };
+
+  const searchJobs = async (query, shift) => {
     const q = query || searchQuery;
     if (!q) return;
+    const sf = shift || shiftFilter;
+    // Append shift keyword to query if filtering
+    const shiftMap = { DAY:"day shift", EVENING:"evening shift", NIGHT:"night shift" };
+    const finalQuery = sf!=="ALL" ? `${q} ${shiftMap[sf]}` : q;
     setSearchLoading(true); setSearchResults([]); setSelectedJob(null); setAiResult("");
     try {
-      const params = new URLSearchParams({ query: q, location: searchLocation });
+      const params = new URLSearchParams({ query: finalQuery, location: searchLocation });
       const r = await fetch(`/api/jobs?${params}`);
       const d = await r.json();
-      setSearchResults(d.data || []);
+      const results = d.data || [];
+      // Client-side filter for extra accuracy
+      const filtered = sf==="ALL" ? results : results.filter(job => {
+        const text = `${job.job_title||""} ${job.job_description||""} ${job.job_highlights?.Qualifications?.join(" ")||""}`.toLowerCase();
+        return SHIFT_KEYWORDS[sf].some(kw => text.includes(kw));
+      });
+      setSearchResults(filtered.length > 0 ? filtered : results); // fallback to all if filter kills all
     } catch { setSearchResults([]); }
     setSearchLoading(false);
   };
@@ -1204,12 +1221,33 @@ function JobsTab() {
                   </button>
                 </div>
                 {/* Quick presets */}
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
                   {JOB_PRESETS.map(p=>(
                     <button key={p.label} onClick={()=>{setSearchQuery(p.query);searchJobs(p.query);}} style={{padding:"4px 10px",background:"#111427",border:"1px solid #1a2a40",borderRadius:20,color:"#4a6080",fontSize:10,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all 0.2s",display:"flex",alignItems:"center",gap:4}}
                       onMouseEnter={e=>{e.currentTarget.style.borderColor="#c084fc40";e.currentTarget.style.color=C;}}
                       onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a2a40";e.currentTarget.style.color="#4a6080";}}>
                       {p.icon} {p.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Shift filter */}
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:9,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",flexShrink:0}}>SHIFT:</span>
+                  {[
+                    {id:"ALL",     label:"ALL",     icon:"🔄"},
+                    {id:"DAY",     label:"DAY",     icon:"☀️"},
+                    {id:"EVENING", label:"EVENING", icon:"🌆"},
+                    {id:"NIGHT",   label:"NIGHT",   icon:"🌙"},
+                  ].map(s=>(
+                    <button key={s.id} onClick={()=>{setShiftFilter(s.id); if(searchQuery) searchJobs(searchQuery, s.id);}} style={{
+                      padding:"4px 12px",borderRadius:20,border:"1px solid",fontSize:10,cursor:"pointer",
+                      fontFamily:"'Orbitron',monospace",letterSpacing:1,transition:"all 0.15s",
+                      display:"flex",alignItems:"center",gap:4,
+                      borderColor:shiftFilter===s.id?C+"60":"#1a2a40",
+                      background:shiftFilter===s.id?`${C}15`:"#111427",
+                      color:shiftFilter===s.id?C:"#4a6080",
+                    }}>
+                      {s.icon} {s.label}
                     </button>
                   ))}
                 </div>
@@ -1239,6 +1277,13 @@ function JobsTab() {
                         {job.job_city&&<span style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{job.job_city}{job.job_state?`, ${job.job_state}`:""}</span>}
                         {job.job_employment_type&&<span style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>· {job.job_employment_type}</span>}
                         {job.job_min_salary&&<span style={{fontSize:10,color:"#fbbf24",fontFamily:"'Orbitron',monospace"}}>· ${(job.job_min_salary/1000).toFixed(0)}K{job.job_max_salary?`-$${(job.job_max_salary/1000).toFixed(0)}K`:""}</span>}
+                        {(()=>{
+                          const text = `${job.job_title||""} ${job.job_description||""}`.toLowerCase();
+                          if(SHIFT_KEYWORDS.NIGHT.some(k=>text.includes(k))) return <span style={{fontSize:8,color:"#818cf8",background:"#818cf815",border:"1px solid #818cf830",padding:"1px 6px",borderRadius:10,fontFamily:"'Orbitron',monospace"}}>🌙 NIGHT</span>;
+                          if(SHIFT_KEYWORDS.EVENING.some(k=>text.includes(k))) return <span style={{fontSize:8,color:"#f472b6",background:"#f472b615",border:"1px solid #f472b630",padding:"1px 6px",borderRadius:10,fontFamily:"'Orbitron',monospace"}}>🌆 EVENING</span>;
+                          if(SHIFT_KEYWORDS.DAY.some(k=>text.includes(k))) return <span style={{fontSize:8,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"1px 6px",borderRadius:10,fontFamily:"'Orbitron',monospace"}}>☀️ DAY</span>;
+                          return null;
+                        })()}
                       </div>
                     </div>
                   );
