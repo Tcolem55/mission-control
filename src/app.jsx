@@ -4531,7 +4531,7 @@ export default function App() {
         </div>
 
         {/* NUTRITION */}
-        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid rgba(0,180,255,0.1)",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid rgba(0,180,255,0.1)",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid rgba(0,180,255,0.1)",cursor:"pointer",background:"none",border:"none",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:5}}>
             <span style={{fontSize:7,letterSpacing:3,color:"rgba(0,255,180,0.6)",fontFamily:"'Share Tech Mono',monospace"}}>⚡ NUTRITION</span>
             <span style={{fontSize:7,color:"rgba(0,180,255,0.3)",fontFamily:"'Share Tech Mono',monospace"}}>{kcalPct}%</span>
