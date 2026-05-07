@@ -4445,7 +4445,6 @@ export default function App() {
   };
 
   const kcalPct = Math.min(Math.round((macroSnap.kcal/MACROS_GOAL.kcal)*100),100);
-  const protPct = Math.min(Math.round((macroSnap.protein/MACROS_GOAL.protein)*100),100);
 
   const extraProps = {
     stocks, stockLoading, stockUpdated, stockContext,
@@ -4459,23 +4458,20 @@ export default function App() {
   if (booting) return (
     <div style={{height:"100vh",width:"100vw",background:"#000408",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Share Tech Mono',monospace",position:"relative",overflow:"hidden"}}>
       <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
-      {/* Grid overlay */}
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.04) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
-      {/* Scan lines */}
       <div style={{position:"absolute",inset:0,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.3) 2px,rgba(0,0,0,0.3) 4px)",pointerEvents:"none"}}/>
-      {/* Corner brackets */}
       {[["0 0","borderTop","borderLeft"],["0 auto 0 0","borderTop","borderRight"],["auto 0 0","borderBottom","borderLeft"],["auto 0 0 auto","borderBottom","borderRight"]].map(([m,b1,b2],i)=>(
         <div key={i} style={{position:"absolute",margin:m,width:60,height:60,[b1]:"2px solid rgba(0,180,255,0.6)",[b2]:"2px solid rgba(0,180,255,0.6)"}}/>
       ))}
       <div style={{fontSize:9,letterSpacing:8,color:"rgba(0,180,255,0.4)",marginBottom:20}}>INITIALIZING COMMAND SYSTEMS</div>
       <div style={{fontSize:52,fontFamily:"'Bebas Neue',monospace",letterSpacing:12,color:"#00b4ff",textShadow:"0 0 40px rgba(0,180,255,0.8),0 0 80px rgba(0,180,255,0.3)",marginBottom:4}}>MISSION CTRL</div>
-      <div style={{fontSize:9,letterSpacing:6,color:"rgba(0,180,255,0.3)",marginBottom:40}}>PERSONAL COMMAND CENTER v3.8</div>
+      <div style={{fontSize:9,letterSpacing:6,color:"rgba(0,180,255,0.3)",marginBottom:40}}>PERSONAL COMMAND CENTER v4.4</div>
       <div style={{width:280,position:"relative"}}>
         <div style={{width:"100%",height:1,background:"rgba(0,180,255,0.15)"}}/>
         <div style={{height:1,background:"linear-gradient(90deg,transparent,#00b4ff,transparent)",width:"100%",animation:"bootbar 1.8s ease forwards",position:"absolute",top:0}}/>
       </div>
       <div style={{marginTop:12,fontSize:8,letterSpacing:3,color:"rgba(0,180,255,0.3)"}}>AUTHENTICATING OPERATOR · · ·</div>
-      <style>{`@keyframes bootbar{from{width:0%;opacity:0}to{width:100%;opacity:1}} @keyframes flicker{0%,100%{opacity:1}92%{opacity:0.97}95%{opacity:0.6}}`}</style>
+      <style>{`@keyframes bootbar{from{width:0%;opacity:0}to{width:100%;opacity:1}}`}</style>
     </div>
   );
 
@@ -4483,39 +4479,31 @@ export default function App() {
     <div style={{height:"100vh",width:"100vw",background:"#000408",color:"#a0c4d8",fontFamily:"'Share Tech Mono',monospace",display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
       <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
 
-      {/* Global background grid */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.03) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
-      {/* Scan lines */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px)"}}/>
-      {/* Vignette */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.6) 100%)"}}/>
 
       <style>{`
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
         @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-        @keyframes hudglow{0%,100%{box-shadow:0 0 8px rgba(0,180,255,0.3)}50%{box-shadow:0 0 16px rgba(0,180,255,0.6)}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         * { box-sizing: border-box; }
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-track{background:rgba(0,180,255,0.05)}
         ::-webkit-scrollbar-thumb{background:rgba(0,180,255,0.2);border-radius:2px}
         .hud-btn:hover{background:rgba(0,180,255,0.08)!important;color:#00b4ff!important}
+        input::placeholder{color:#3a5070;font-family:'Inter',sans-serif;}
       `}</style>
 
-      {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
+      {/* TOP BAR */}
       <div style={{flexShrink:0,height:56,borderBottom:"1px solid rgba(0,180,255,0.15)",display:"flex",alignItems:"stretch",background:"rgba(0,4,8,0.98)",zIndex:10,position:"relative"}}>
-        {/* Accent line */}
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.4),rgba(0,255,180,0.2),transparent)"}}/>
-        {/* Sweep effect */}
         <div style={{position:"absolute",top:0,bottom:0,width:60,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.03),transparent)",animation:"sweep 4s linear infinite",pointerEvents:"none"}}/>
-
-        {/* LOGO */}
-        <div style={{flexShrink:0,padding:"0 20px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)",position:"relative"}}>
+        <div style={{flexShrink:0,padding:"0 20px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:5,color:"rgba(0,180,255,0.4)",marginBottom:1}}>SYSTEM</div>
           <div style={{fontSize:18,fontFamily:"'Bebas Neue',monospace",letterSpacing:6,color:"#00b4ff",textShadow:"0 0 20px rgba(0,180,255,0.6)"}}>MISSION<span style={{color:"rgba(0,255,180,0.8)"}}>·</span>CTRL</div>
         </div>
-
-        {/* OPERATOR */}
         <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>OPERATOR</div>
           <div style={{fontSize:12,fontFamily:"'Rajdhani',sans-serif",fontWeight:600,letterSpacing:2}}>
@@ -4523,15 +4511,11 @@ export default function App() {
             <span style={{color:"#6366f1",textShadow:"0 0 12px rgba(0,255,180,0.5)"}}>{NAME}</span>
           </div>
         </div>
-
-        {/* UPTIME */}
         <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>UPTIME</div>
           <div style={{fontSize:12,color:"rgba(0,180,255,0.6)",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
-
-        {/* NUTRITION */}
-        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid rgba(0,180,255,0.1)",cursor:"pointer",background:"none",border:"none",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid rgba(0,180,255,0.1)",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:5}}>
             <span style={{fontSize:7,letterSpacing:3,color:"rgba(0,255,180,0.6)",fontFamily:"'Share Tech Mono',monospace"}}>⚡ NUTRITION</span>
             <span style={{fontSize:7,color:"rgba(0,180,255,0.3)",fontFamily:"'Share Tech Mono',monospace"}}>{kcalPct}%</span>
@@ -4544,8 +4528,6 @@ export default function App() {
             ))}
           </div>
         </button>
-
-        {/* CENTER — panel status */}
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:0}}>
           {PANELS_CFG.map((p,i)=>(
             <div key={p.id} style={{textAlign:"center",padding:"0 16px",borderRight:i<3?"1px solid rgba(0,180,255,0.08)":"none"}}>
@@ -4557,84 +4539,62 @@ export default function App() {
             </div>
           ))}
         </div>
-
-        {/* WEATHER */}
         {weather&&(
           <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
             <div style={{fontSize:16}}>{weather.icon}</div>
             <div style={{fontSize:9,color:"#00b4ff",letterSpacing:2,fontFamily:"'Rajdhani',sans-serif",fontWeight:600}}>{weather.temp}°F</div>
           </div>
         )}
-
-        {/* CLOCK */}
         <div style={{flexShrink:0,padding:"0 20px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end"}}>
           <div style={{fontSize:20,fontFamily:"'Bebas Neue',monospace",letterSpacing:3,color:"#c8e8f8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px rgba(0,180,255,0.3)"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
           <div style={{fontSize:7,color:"rgba(0,180,255,0.3)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
         </div>
       </div>
 
-      {/* ── SIDEBAR ── */}
-      <div style={{width:200,flexShrink:0,height:"100vh",background:"rgba(8,10,20,0.98)",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",zIndex:20}}>
-        <div style={{padding:"22px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:8,letterSpacing:5,color:"rgba(129,140,248,0.4)",marginBottom:4,fontFamily:"monospace"}}>SYSTEM</div>
-          <div style={{fontSize:20,fontWeight:800,letterSpacing:-0.5,color:"#fff"}}>Mission<span style={{color:"#6366f1"}}>.</span>Ctrl</div>
-        </div>
-        <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:34,height:34,borderRadius:8,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#fff",flexShrink:0}}>{NAME.charAt(0)}</div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,color:"#fff"}}>{NAME}</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",fontFamily:"monospace"}}>ANALYST I</div>
-            </div>
-          </div>
-        </div>
-        <div style={{flex:1,padding:"10px 8px",overflowY:"auto"}}>
-          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"4px 8px",marginBottom:4,fontFamily:"monospace"}}>NAVIGATION</div>
-          {[{id:"HOME",icon:"⊞",label:"Home Base"},{id:"TRADING",icon:"📡",label:"Trading"},{id:"FINANCE",icon:"◈",label:"Finance"},{id:"JOBS",icon:"◉",label:"Jobs"},{id:"HEALTH",icon:"♥",label:"Health"},{id:"TRAVEL",icon:"◎",label:"Travel"},{id:"SPORTS",icon:"⚾",label:"Sports"}].map(tab=>{
-            const active=activeTab===tab.id;
-            const cols={HOME:"#6366f1",TRADING:"#00e5a0",FINANCE:"#06b6d4",JOBS:"#a855f7",HEALTH:"#ec4899",TRAVEL:"#f59e0b",SPORTS:"#f97316"};
-            const tc=cols[tab.id];
-            return (
-              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,border:"none",cursor:"pointer",marginBottom:2,textAlign:"left",background:active?`${tc}18`:"transparent",color:active?tc:"rgba(255,255,255,0.4)",position:"relative",transition:"all 0.15s"}}
-                onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="rgba(255,255,255,0.7)";}}}
-                onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.4)";}}}
-              >
-                {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:16,borderRadius:999,background:tc,boxShadow:`0 0 8px ${tc}`}}/>}
-                <span style={{fontSize:13,paddingLeft:active?4:0}}>{tab.icon}</span>
-                <span style={{fontSize:12,fontWeight:active?600:400}}>{tab.label}</span>
-                {active&&<div style={{marginLeft:"auto",width:5,height:5,borderRadius:"50%",background:tc,animation:"blink 2s infinite"}}/>}
-              </button>
-            );
-          })}
-          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"14px 8px 4px",fontFamily:"monospace"}}>SYSTEMS</div>
-          {PANELS_CFG.map(p=>(
-            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 10px",marginBottom:1}}>
-              <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 5px ${p.color}`,flexShrink:0,animation:"blink 2s infinite"}}/>
-              <span style={{fontSize:10,color:"rgba(255,255,255,0.3)",flex:1,fontFamily:"monospace"}}>{p.label}</span>
-              <span style={{fontSize:8,color:"rgba(255,255,255,0.15)",fontFamily:"monospace"}}>LIVE</span>
-            </div>
-          ))}
-        </div>
-        <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-          <div style={{fontSize:8,color:"rgba(255,255,255,0.2)",marginBottom:3,letterSpacing:3,fontFamily:"monospace"}}>UPTIME</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",fontFamily:"monospace",fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
-        </div>
+      {/* NAV BAR */}
+      <div style={{flexShrink:0,height:38,borderBottom:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"stretch",background:"rgba(0,2,6,0.95)",zIndex:10,position:"relative"}}>
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.1),transparent)"}}/>
+        {[
+          {id:"HOME",   icon:"⊞", label:"HOME BASE"},
+          {id:"TRADING",icon:"📡",label:"TRADING"},
+          {id:"FINANCE",icon:"◈", label:"FINANCE"},
+          {id:"JOBS",   icon:"◉", label:"JOBS"},
+          {id:"HEALTH", icon:"♥", label:"HEALTH"},
+          {id:"TRAVEL", icon:"◎", label:"TRAVEL"},
+          {id:"SPORTS", icon:"⚾", label:"SPORTS"},
+        ].map((tab,i)=>{
+          const active=activeTab===tab.id;
+          const colors={HOME:"#6366f1",TRADING:"#00e5a0",FINANCE:"#00b4ff",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24",SPORTS:"#f97316"};
+          const tc=colors[tab.id];
+          return (
+            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="hud-btn" style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              background:active?`${tc}12`:"transparent",border:"none",
+              borderBottom:active?`2px solid ${tc}`:"2px solid transparent",
+              borderRight:i<6?"1px solid rgba(0,180,255,0.08)":"none",
+              color:active?tc:"rgba(0,180,255,0.25)",
+              cursor:"pointer",transition:"all 0.2s",padding:"0 8px",position:"relative",overflow:"hidden",
+            }}>
+              {active&&<div style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:"60%",height:1,background:tc,boxShadow:`0 0 10px ${tc}`,filter:"blur(1px)"}}/>}
+              <span style={{fontSize:10,fontFamily:"'Share Tech Mono',monospace",opacity:active?1:0.5}}>{tab.icon}</span>
+              <span style={{fontSize:8,letterSpacing:3,fontWeight:active?600:400}}>{tab.label}</span>
+              {active&&<div style={{width:4,height:4,borderRadius:"50%",background:tc,boxShadow:`0 0 8px ${tc}`,animation:"blink 2s infinite"}}/>}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── MAIN CONTENT ── */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
+      {/* TAB CONTENT */}
       {activeTab==="HOME" && (
         <>
-          {/* GRID */}
           <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#000206",minHeight:0,overflow:"hidden",zIndex:1}}>
             {PANELS_CFG.map(cfg=>{
               if(expanded&&expanded!==cfg.id) return null;
               return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
             })}
           </div>
-          {/* BOTTOM BAR */}
           <div style={{flexShrink:0,padding:"4px 20px",borderTop:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(0,2,6,0.95)",zIndex:10}}>
-            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
+            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART"}</div>
             <div style={{display:"flex",gap:16}}>
               {[["SYS","#6366f1"],["AI","#c084fc"],["MKT","#00b4ff"],["NEWS","#f97316"]].map(([label,color])=>(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:4}}>
@@ -4646,50 +4606,29 @@ export default function App() {
           </div>
         </>
       )}
-
       {activeTab==="TRADING" && <TradingTab />}
       {activeTab==="FINANCE" && <FinanceTab />}
-      {activeTab==="JOBS" && <JobsTab />}
-      {activeTab==="HEALTH" && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
-      {activeTab==="TRAVEL" && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
-      {activeTab==="SPORTS" && <SportsTab />}
+      {activeTab==="JOBS"    && <JobsTab />}
+      {activeTab==="HEALTH"  && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
+      {activeTab==="TRAVEL"  && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
+      {activeTab==="SPORTS"  && <SportsTab />}
 
-      {/* Article Modal */}
       {selectedArticle&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={()=>setSelectedArticle(null)}>
-          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",boxShadow:"0 0 60px #fb923c10",position:"relative"}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",position:"relative"}} onClick={e=>e.stopPropagation()}>
             <HUDBrackets color="#fb923c" size={12}/>
             <div style={{fontSize:7,color:"#fb923c",letterSpacing:4,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>🌐 INTEL REPORT</div>
             <div style={{fontSize:14,color:"#e0d4c4",lineHeight:1.6,marginBottom:12,fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{selectedArticle.title}</div>
             <div style={{fontSize:13,color:"#8a7a6a",lineHeight:1.7,marginBottom:20,fontFamily:"'Inter',sans-serif"}}>{selectedArticle.description}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:7,color:"#2a1a08",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{selectedArticle.source?.name?.toUpperCase()}</span>
-              <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#fb923c",textDecoration:"none",letterSpacing:2,border:"1px solid #fb923c40",padding:"6px 14px",borderRadius:3,fontFamily:"'Orbitron',monospace",boxShadow:"0 0 15px #fb923c15"}}>FULL REPORT →</a>
+              <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#fb923c",textDecoration:"none",letterSpacing:2,border:"1px solid #fb923c40",padding:"6px 14px",borderRadius:3,fontFamily:"'Orbitron',monospace"}}>FULL REPORT →</a>
             </div>
           </div>
         </div>
       )}
-
-      {/* Stock Chart Modal */}
-      {selectedStock&&(
-        <StockChartModal stock={selectedStock} stockData={stocks[selectedStock.ticker]} onClose={()=>setSelectedStock(null)}/>
-      )}
-
+      {selectedStock&&<StockChartModal stock={selectedStock} stockData={stocks[selectedStock.ticker]} onClose={()=>setSelectedStock(null)}/>}
       {showMacros&&<MacroModal onClose={()=>setShowMacros(false)}/>}
-
-      <style>{`
-        @keyframes blink{0%,100%{opacity:0.2}50%{opacity:1}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
-        *{box-sizing:border-box;margin:0;padding:0;}
-        ::-webkit-scrollbar{width:2px;height:2px;}
-        ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:#0d1a30;border-radius:2px;}
-        input::placeholder{color:#3a5070;font-family:'Inter',sans-serif;}
-        a{color:inherit;}
-        button{font-family:'Inter',sans-serif;} .orb{font-family:'Orbitron',monospace;}
-      `}</style>
-      </div>
     </div>
   );
 }
