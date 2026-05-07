@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 
-
 const NAME = "Tris";
 const MACROS_GOAL = { kcal: 3300, protein: 200, carbs: 380, fat: 90 };
 
@@ -1102,7 +1101,6 @@ function JobsTab() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("United States");
-  const [shiftFilter, setShiftFilter] = useState("ALL"); // ALL | DAY | EVENING | NIGHT
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
@@ -1116,31 +1114,15 @@ function JobsTab() {
   const inputStyle  = { width:"100%", background:"#111427", border:"1px solid #1a2a40", borderRadius:3, padding:"8px 12px", color:"#c8d8f0", fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", boxSizing:"border-box" };
   const labelStyle  = { fontSize:10, color:"#3a5070", fontFamily:"'Inter',sans-serif", marginBottom:4, display:"block" };
 
-  const SHIFT_KEYWORDS = {
-    DAY:     ["day shift","morning","8am","9am","7am","6am","day turn","first shift","days only"],
-    EVENING: ["evening","afternoon","2pm","3pm","4pm","swing shift","second shift","evenings"],
-    NIGHT:   ["night shift","overnight","nights","10pm","11pm","midnight","third shift","graveyard","3rd shift"],
-  };
-
-  const searchJobs = async (query, shift) => {
+  const searchJobs = async (query) => {
     const q = query || searchQuery;
     if (!q) return;
-    const sf = shift || shiftFilter;
-    // Append shift keyword to query if filtering
-    const shiftMap = { DAY:"day shift", EVENING:"evening shift", NIGHT:"night shift" };
-    const finalQuery = sf!=="ALL" ? `${q} ${shiftMap[sf]}` : q;
     setSearchLoading(true); setSearchResults([]); setSelectedJob(null); setAiResult("");
     try {
-      const params = new URLSearchParams({ query: finalQuery, location: searchLocation });
+      const params = new URLSearchParams({ query: q, location: searchLocation });
       const r = await fetch(`/api/jobs?${params}`);
       const d = await r.json();
-      const results = d.data || [];
-      // Client-side filter for extra accuracy
-      const filtered = sf==="ALL" ? results : results.filter(job => {
-        const text = `${job.job_title||""} ${job.job_description||""} ${job.job_highlights?.Qualifications?.join(" ")||""}`.toLowerCase();
-        return SHIFT_KEYWORDS[sf].some(kw => text.includes(kw));
-      });
-      setSearchResults(filtered.length > 0 ? filtered : results); // fallback to all if filter kills all
+      setSearchResults(d.data || []);
     } catch { setSearchResults([]); }
     setSearchLoading(false);
   };
@@ -1176,7 +1158,7 @@ function JobsTab() {
   const counts = STATUSES_J.reduce((acc,s)=>({...acc,[s]:jobs.filter(j=>j.status===s).length}),{});
 
   return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden"}}>
+    <div style={{flex:1,display:"flex",flexDirection:"column",background:"#0b0d1a",overflow:"hidden",animation:"fadeUp 0.4s ease"}}>
 
       {/* Header */}
       <div style={{flexShrink:0,padding:"14px 20px",borderBottom:"1px solid #0a1828",background:"linear-gradient(90deg,#02040a,#0c0818)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -1222,33 +1204,12 @@ function JobsTab() {
                   </button>
                 </div>
                 {/* Quick presets */}
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {JOB_PRESETS.map(p=>(
                     <button key={p.label} onClick={()=>{setSearchQuery(p.query);searchJobs(p.query);}} style={{padding:"4px 10px",background:"#111427",border:"1px solid #1a2a40",borderRadius:20,color:"#4a6080",fontSize:10,cursor:"pointer",fontFamily:"'Inter',sans-serif",transition:"all 0.2s",display:"flex",alignItems:"center",gap:4}}
                       onMouseEnter={e=>{e.currentTarget.style.borderColor="#c084fc40";e.currentTarget.style.color=C;}}
                       onMouseLeave={e=>{e.currentTarget.style.borderColor="#1a2a40";e.currentTarget.style.color="#4a6080";}}>
                       {p.icon} {p.label}
-                    </button>
-                  ))}
-                </div>
-                {/* Shift filter */}
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:9,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",flexShrink:0}}>SHIFT:</span>
-                  {[
-                    {id:"ALL",     label:"ALL",     icon:"🔄"},
-                    {id:"DAY",     label:"DAY",     icon:"☀️"},
-                    {id:"EVENING", label:"EVENING", icon:"🌆"},
-                    {id:"NIGHT",   label:"NIGHT",   icon:"🌙"},
-                  ].map(s=>(
-                    <button key={s.id} onClick={()=>{setShiftFilter(s.id); if(searchQuery) searchJobs(searchQuery, s.id);}} style={{
-                      padding:"4px 12px",borderRadius:20,border:"1px solid",fontSize:10,cursor:"pointer",
-                      fontFamily:"'Orbitron',monospace",letterSpacing:1,transition:"all 0.15s",
-                      display:"flex",alignItems:"center",gap:4,
-                      borderColor:shiftFilter===s.id?C+"60":"#1a2a40",
-                      background:shiftFilter===s.id?`${C}15`:"#111427",
-                      color:shiftFilter===s.id?C:"#4a6080",
-                    }}>
-                      {s.icon} {s.label}
                     </button>
                   ))}
                 </div>
@@ -1278,13 +1239,6 @@ function JobsTab() {
                         {job.job_city&&<span style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{job.job_city}{job.job_state?`, ${job.job_state}`:""}</span>}
                         {job.job_employment_type&&<span style={{fontSize:10,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>· {job.job_employment_type}</span>}
                         {job.job_min_salary&&<span style={{fontSize:10,color:"#fbbf24",fontFamily:"'Orbitron',monospace"}}>· ${(job.job_min_salary/1000).toFixed(0)}K{job.job_max_salary?`-$${(job.job_max_salary/1000).toFixed(0)}K`:""}</span>}
-                        {(()=>{
-                          const text = `${job.job_title||""} ${job.job_description||""}`.toLowerCase();
-                          if(SHIFT_KEYWORDS.NIGHT.some(k=>text.includes(k))) return <span style={{fontSize:8,color:"#818cf8",background:"#818cf815",border:"1px solid #818cf830",padding:"1px 6px",borderRadius:10,fontFamily:"'Orbitron',monospace"}}>🌙 NIGHT</span>;
-                          if(SHIFT_KEYWORDS.EVENING.some(k=>text.includes(k))) return <span style={{fontSize:8,color:"#f472b6",background:"#f472b615",border:"1px solid #f472b630",padding:"1px 6px",borderRadius:10,fontFamily:"'Orbitron',monospace"}}>🌆 EVENING</span>;
-                          if(SHIFT_KEYWORDS.DAY.some(k=>text.includes(k))) return <span style={{fontSize:8,color:"#fbbf24",background:"#fbbf2415",border:"1px solid #fbbf2430",padding:"1px 6px",borderRadius:10,fontFamily:"'Orbitron',monospace"}}>☀️ DAY</span>;
-                          return null;
-                        })()}
                       </div>
                     </div>
                   );
@@ -1424,7 +1378,6 @@ function JobsTab() {
     </div>
   );
 }
-
 
 
 
@@ -2540,10 +2493,6 @@ function HRTeamPicker({ C, games }) {
   const [loading, setLoading]           = useState(false);
   const [status, setStatus]             = useState("");
   const [log, setLog]                   = useState([]);
-  const [hrSection, setHrSection]       = useState("GAME");     // GAME | SLATE
-  const [view, setView]                 = useState("COMBINED"); // COMBINED | TEAMS
-  const [slatePicks, setSlatePicks]     = useState([]);
-  const [slateLoading, setSlateLoading] = useState(false);
 
   const addLog = msg => setLog(prev=>[...prev, msg]);
 
@@ -2708,18 +2657,18 @@ Respond ONLY with valid JSON:
   "awaySP":"${awaySPCtx}",
   "homeSP":"${homeSPCtx}",
   "awayPicks":[
-    {"rank":1,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+180","reason":"Specific reason referencing splits, park, weather","confidence":"HIGH"},
-    {"rank":2,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+220","reason":"reason","confidence":"HIGH"},
-    {"rank":3,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+280","reason":"reason","confidence":"MED"},
-    {"rank":4,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+350","reason":"reason","confidence":"MED"},
-    {"rank":5,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+450","reason":"reason","confidence":"LOW"}
+    {"rank":1,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"Specific reason referencing splits, park, weather","confidence":"HIGH"},
+    {"rank":2,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"HIGH"},
+    {"rank":3,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
+    {"rank":4,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
+    {"rank":5,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"LOW"}
   ],
   "homePicks":[
-    {"rank":1,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+200","reason":"reason","confidence":"HIGH"},
-    {"rank":2,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+240","reason":"reason","confidence":"HIGH"},
-    {"rank":3,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+300","reason":"reason","confidence":"MED"},
-    {"rank":4,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+380","reason":"reason","confidence":"MED"},
-    {"rank":5,"player":"Name","team":"TeamName","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","hrOdds":"+480","reason":"reason","confidence":"LOW"}
+    {"rank":1,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"HIGH"},
+    {"rank":2,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"HIGH"},
+    {"rank":3,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
+    {"rank":4,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"MED"},
+    {"rank":5,"player":"Name","pos":"POS","seasonHR":0,"oppHR":0,"iso":"0.000","oppISO":"0.000","reason":"reason","confidence":"LOW"}
   ]
 }`;
 
@@ -2745,195 +2694,6 @@ Respond ONLY with valid JSON:
   };
 
   const CONF = {HIGH:"#818cf8", MED:"#fbbf24", LOW:"#ff6b35"};
-
-  // ── Generate slate-wide rankings across ALL today's games ──────────────────
-  const generateSlate = async () => {
-    if (!games.length) return;
-    setSlateLoading(true); setSlatePicks([]);
-
-    try {
-      const SKIP = ["P","SP","RP","CL"];
-      const PARK_HR = {"Chase Field":105,"Truist Park":103,"Camden Yards":105,"Fenway Park":104,"Wrigley Field":108,"Guaranteed Rate Field":108,"Great American Ball Park":118,"Progressive Field":96,"Coors Field":138,"Comerica Park":88,"Minute Maid Park":102,"Kauffman Stadium":93,"Angel Stadium":95,"Dodger Stadium":96,"LoanDepot Park":82,"American Family Field":107,"Target Field":94,"Citi Field":95,"Yankee Stadium":112,"Citizens Bank Park":114,"PNC Park":94,"Petco Park":88,"Oracle Park":85,"T-Mobile Park":87,"Busch Stadium":90,"Tropicana Field":96,"Globe Life Field":98,"Rogers Centre":110,"Nationals Park":98};
-
-      // Step 1: Statcast leaderboard once
-      let statcastMap = {};
-      try {
-        const sc = await fetch("/api/statcast?type=leaderboard").then(r=>r.json());
-        if (Array.isArray(sc)) sc.forEach(p => { if(p.id) statcastMap[String(p.id)] = p; });
-      } catch {}
-
-      // Step 2: Smart pre-filter — score each game, take best 7
-      // Score based on park factor only (fast, no extra fetches)
-      // This narrows 15 games → 7 best HR environments
-      const scoredGames = games.map(game => {
-        const venue = game.venue?.name || "";
-        const pf = PARK_HR[venue] || 100;
-        // Bonus for known pitcher names (TBD = less reliable)
-        const hasPitchers = !!(game.teams?.away?.probablePitcher && game.teams?.home?.probablePitcher);
-        return { game, pf, score: pf + (hasPitchers ? 5 : 0) };
-      }).sort((a,b) => b.score - a.score);
-
-      // Take top 7 by park factor — these are the best HR environments
-      const selectedGames = scoredGames.slice(0,7).map(g => g.game);
-
-      // Step 3: Process selected games in PARALLEL
-      const gameResults = await Promise.allSettled(selectedGames.map(async game => {
-        const away     = game.teams?.away;
-        const home     = game.teams?.home;
-        const awayId   = away?.team?.id;
-        const homeId   = home?.team?.id;
-        const awayName = away?.team?.name;
-        const homeName = home?.team?.name;
-        const awaySP   = away?.probablePitcher;
-        const homeSP   = home?.probablePitcher;
-        const venue    = game.venue?.name || "";
-        const parkFactor = PARK_HR[venue] || 100;
-        const parkFlag = parkFactor>=115?"🔥 EXTREME":parkFactor>=108?"🔥 HITTER":parkFactor<=88?"❄️ PITCHER":"⚾ NEUTRAL";
-
-        // Pitcher data + rosters all in parallel (4 fetches simultaneously)
-        const getPitcher = async (pitcher) => {
-          if (!pitcher?.id) return {hand:"R",name:"TBD",hr9:"—",hrVsL:0,hrVsR:0,era:"—"};
-          try {
-            const [bio,season,splits] = await Promise.allSettled([
-              fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}`).then(r=>r.json()),
-              fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=season&group=pitching&season=2026`).then(r=>r.json()),
-              fetch(`https://statsapi.mlb.com/api/v1/people/${pitcher.id}/stats?stats=statSplits&group=pitching&season=2026&sitCodes=vl,vr`).then(r=>r.json()),
-            ]);
-            const hand = bio.value?.people?.[0]?.pitchHand?.code||"R";
-            const s    = season.value?.stats?.[0]?.splits?.[0]?.stat||{};
-            const spl  = splits.value?.stats?.[0]?.splits||[];
-            const vsL  = spl.find(x=>x.split?.code==="vl")?.stat||{};
-            const vsR  = spl.find(x=>x.split?.code==="vr")?.stat||{};
-            const ip   = parseFloat(s.inningsPitched)||1;
-            return {hand, name:pitcher.fullName, hr9:((s.homeRuns||0)/ip*9).toFixed(2), hrVsL:vsL.homeRuns||0, hrVsR:vsR.homeRuns||0, era:s.era||"—"};
-          } catch { return {hand:"R",name:pitcher.fullName||"TBD",hr9:"—",hrVsL:0,hrVsR:0,era:"—"}; }
-        };
-
-        const getRoster = async (teamId) => {
-          try {
-            const d = await fetch(`https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&hydrate=person`).then(r=>r.json());
-            return (d.roster||[]).filter(p=>!SKIP.includes(p.position?.abbreviation)).map(p=>({id:p.person?.id,name:p.person?.fullName,pos:p.position?.abbreviation}));
-          } catch { return []; }
-        };
-
-        const [aPD, hPD, awayH, homeH] = await Promise.all([
-          getPitcher(awaySP), getPitcher(homeSP),
-          getRoster(awayId), getRoster(homeId),
-        ]);
-
-        // Batter stats — top 3 per team only, all parallel
-        const getBatters = async (hitters, oppPitcher, spName, teamName) => {
-          const oppHand = oppPitcher.hand;
-          const res = await Promise.allSettled(hitters.slice(0,3).map(async h => {
-            try {
-              const [szn, spl, rec] = await Promise.allSettled([
-                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=season&group=hitting&season=2026`).then(r=>r.json()),
-                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=statSplits&group=hitting&season=2026&sitCodes=vl,vr`).then(r=>r.json()),
-                fetch(`https://statsapi.mlb.com/api/v1/people/${h.id}/stats?stats=byDateRange&group=hitting&startDate=${new Date(Date.now()-14*86400000).toISOString().split("T")[0]}&endDate=${new Date().toISOString().split("T")[0]}&season=2026`).then(r=>r.json()),
-              ]);
-              const s   = szn.value?.stats?.[0]?.splits?.[0]?.stat||{};
-              const sp  = spl.value?.stats?.[0]?.splits||[];
-              const opp = sp.find(x=>x.split?.code===(oppHand==="L"?"vl":"vr"))?.stat||{};
-              const rec2= rec.value?.stats?.[0]?.splits?.[0]?.stat||{};
-              const sc  = statcastMap[String(h.id)]||{};
-              const iso    = s.slg&&s.avg?(parseFloat(s.slg)-parseFloat(s.avg)).toFixed(3):"—";
-              const oppISO = opp.slg&&opp.avg?(parseFloat(opp.slg)-parseFloat(opp.avg)).toFixed(3):"—";
-              const spHRvsHand = oppHand==="L"?oppPitcher.hrVsL:oppPitcher.hrVsR;
-              const bp = sc.barrelPct, hh = sc.hardHitPct;
-              const flags = [];
-              if(bp>=12) flags.push("BARREL>12%");
-              if(hh>=45) flags.push("HARDHIT>45%");
-              if(parseFloat(oppPitcher.hr9)>=1.3) flags.push("SP HR/9>1.3");
-              if(parkFactor>=108) flags.push(`PF ${parkFactor}`);
-              return {
-                name:h.name, pos:h.pos, team:teamName,
-                game:`${awayName} @ ${homeName}`, venue, parkFactor, parkFlag,
-                sp:spName, spHand:oppHand,
-                oppHR9:oppPitcher.hr9, oppHRvsHand:spHRvsHand, oppPitcherERA:oppPitcher.era,
-                seasonHR:s.homeRuns??0, iso,
-                oppHR:opp.homeRuns??0, oppISO, oppAB:opp.atBats??0,
-                last14HR:rec2.homeRuns??0, last14SLG:rec2.slg||"—",
-                barrelPct:bp?`${bp}%`:"—", hardHitPct:hh?`${hh}%`:"—",
-                xSLG:sc.xSLG||"—", avgEV:sc.avgEV?`${sc.avgEV}mph`:"—",
-                sharpFlags:flags,
-              };
-            } catch { return null; }
-          }));
-          return res.map(r=>r.value).filter(Boolean);
-        };
-
-        const [awayBatters, homeBatters] = await Promise.all([
-          getBatters(awayH, hPD, homeSP?.fullName||"TBD", awayName),
-          getBatters(homeH, aPD, awaySP?.fullName||"TBD", homeName),
-        ]);
-
-        return [...awayBatters, ...homeBatters];
-      }));
-
-      const allPlayers = gameResults.flatMap(r=>r.value||[]).filter(Boolean);
-
-      const playerCtx = allPlayers.map(p =>
-        `${p.name} (${p.team}, ${p.pos}) | Facing: ${p.sp} (${p.spHand}HP) | ${p.game} | Park:${p.venue} PF=${p.parkFactor} ${p.parkFlag} | SP HR/9=${p.oppHR9} ERA=${p.oppPitcherERA} allowed ${p.oppHRvsHand}HR vs ${p.spHand==="L"?"LHB":"RHB"} | Season:${p.seasonHR}HR ${p.iso}ISO | vs${p.spHand}HP:${p.oppHR}HR ${p.oppISO}ISO(${p.oppAB}AB) | L14:${p.last14HR}HR | Statcast:Barrel${p.barrelPct} HardHit${p.hardHitPct} xSLG${p.xSLG} EV${p.avgEV}`
-      ).join("\n");
-
-      const prompt = `MLB HR prop analyst. Rank TOP 6 HR candidates from today's best HR-environment games.
-
-WEIGHTED FORMULA (apply strictly):
-- 40% Batter Power: Barrel% + Hard Hit% (elite: >12% barrel, >45% HH)
-- 30% Pitcher HR Risk: HR/9 >1.3 = vulnerable, hand-specific HR allowed
-- 20% Park: PF>110 big boost, <90 = significant penalty
-- 10% Recent form: L14 HR hot streak
-
-SHARP = barrel>12% + hardhit>45% + SP HR/9>1.3 + PF>108 = near lock
-
-CRITICAL VALIDATION:
-- Each player's "Facing:" field shows their actual opposing pitcher
-- A batter CANNOT face their own team's pitcher — verify before including
-- Different teams for all 6 picks if possible, max 2 from same game
-
-${allPlayers.length} PLAYERS FROM TOP HR-ENVIRONMENT GAMES TODAY:
-${playerCtx}
-
-Return JSON array only, no markdown:
-[{"rank":1,"player":"Name","team":"Team","pos":"POS","game":"Away @ Home","venue":"Park","parkFactor":105,"parkFlag":"🔥 HITTER","sp":"Pitcher Name","spHand":"R","oppHR9":"1.52","oppHRvsHand":6,"seasonHR":10,"oppHR":4,"oppISO":"0.260","last14HR":3,"barrelPct":"13.8%","hardHitPct":"49.1%","xSLG":"0.550","avgEV":"92.1mph","sharpFlags":["BARREL>12%","HARDHIT>45%","SP HR/9>1.3","PF 112"],"hrOdds":"+190","score":91,"confidence":"HIGH","reason":"Specific stat-based reason referencing actual numbers"}]
-Exactly 6 picks.`;
-
-      const res = await fetch('/api/claude', {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          model:"claude-sonnet-4-6", max_tokens:2500,
-          system:"Expert MLB HR analyst. Apply weighted formula. Validate each batter faces the opposing team pitcher only. Valid JSON array only.",
-          messages:[{role:"user",content:prompt}]
-        })
-      });
-      const data = await res.json();
-      console.log("Claude response:", JSON.stringify(data).slice(0,300));
-      if (data.error) {
-        console.error("Claude API error:", data.error);
-        setSlateLoading(false); return;
-      }
-      const text = data.content?.map(b=>b.text||"").join("")||"";
-      console.log("Raw text:", text.slice(0,500));
-      if (!text) {
-        console.error("Empty response from Claude");
-        setSlateLoading(false); return;
-      }
-      try {
-        let clean = text.replace(/```json|```/g,"").trim();
-        const si=clean.indexOf("["), ei=clean.lastIndexOf("]");
-        if(si!==-1&&ei!==-1) clean=clean.slice(si,ei+1);
-        else { console.error("No JSON array found in:", clean.slice(0,200)); setSlateLoading(false); return; }
-        clean=clean.replace(/,(\s*[}\]])/g,"$1");
-        const parsed=JSON.parse(clean);
-        console.log("Parsed picks:", parsed?.length);
-        if(Array.isArray(parsed) && parsed.length>0) setSlatePicks(parsed);
-        else console.error("Parsed but empty or not array:", parsed);
-      } catch(parseErr) {
-        console.error("Parse error:", parseErr.message, "Text was:", text.slice(0,300));
-      }
-    } catch(err) { console.error("Slate fetch error:", err.message); }
-    setSlateLoading(false);
-  };
 
   const PickCard = ({p, oppHand}) => (
     <div style={{background:"#111427",border:`1px solid ${C}${p.rank===1?"40":"20"}`,borderRadius:4,padding:"12px 16px",marginBottom:8,display:"flex",gap:12,alignItems:"flex-start",boxShadow:p.rank===1?`0 0 10px ${C}10`:undefined}}>
@@ -2969,324 +2729,120 @@ Exactly 6 picks.`;
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-
-      {/* ── Section nav: BY GAME | FULL SLATE TOP 6 ── */}
-      <div style={{flexShrink:0,display:"flex",borderBottom:"1px solid #0a1828",background:"#08090f"}}>
-        {[
-          {id:"GAME",  icon:"💣", label:"BY GAME",          sub:"pick a matchup"},
-          {id:"SLATE", icon:"🌎", label:"FULL SLATE TOP 6",  sub:"best across all games today"},
-        ].map((s,si)=>(
-          <button key={s.id} onClick={()=>{
-            setHrSection(s.id);
-          }} style={{
-            flex:1,padding:"10px 20px",cursor:"pointer",border:"none",textAlign:"left",
-            background:hrSection===s.id?`${C}10`:"transparent",
-            borderBottom:hrSection===s.id?`2px solid ${C}`:"2px solid transparent",
-            borderRight:si===0?"1px solid #0a1828":"none",
-            transition:"all 0.2s",
-          }}>
-            <div style={{fontSize:10,letterSpacing:2,fontFamily:"'Orbitron',monospace",
-              color:hrSection===s.id?C:"#3a5070",fontWeight:hrSection===s.id?700:400}}>
-              {s.icon} {s.label}
-            </div>
-            <div style={{fontSize:9,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginTop:2}}>{s.sub}</div>
-          </button>
-        ))}
+      {/* Header */}
+      <div style={{flexShrink:0,padding:"12px 20px",borderBottom:"1px solid #0a1828",background:"#0d0f1a"}}>
+        <div style={{fontSize:13,color:"#c8d8f0",fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>💣 HR Picks — By Matchup</div>
+        <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Select a game → top 5 HR candidates for each team based on splits, park, weather, pitcher</div>
       </div>
 
-      {/* ── BY GAME section ── */}
-      {hrSection==="GAME" && (
-        <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
-          {/* Game selector sidebar */}
-          <div style={{width:200,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
-            {todayGames.length===0&&<div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No games today</div>}
-            {todayGames.map((game,i) => {
-              const away = game.teams?.away;
-              const home = game.teams?.home;
-              const gameTime = new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"});
-              const isSelected = selectedGame?.gamePk===game.gamePk;
-              return (
-                <div key={game.gamePk} onClick={()=>!loading&&generate(game)}
-                  style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:loading?"not-allowed":"pointer",
-                    background:isSelected?`${C}12`:"transparent",
-                    borderLeft:`3px solid ${isSelected?C:"transparent"}`,transition:"all 0.15s"}}
-                  onMouseEnter={e=>{if(!isSelected&&!loading)e.currentTarget.style.background="#111427";}}
-                  onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.team?.abbreviation}</div>
-                    <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
-                    <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.team?.abbreviation}</div>
-                  </div>
-                  <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",textAlign:"center"}}>{gameTime} ET</div>
-                  {game.venue?.name&&<div style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif",textAlign:"center",marginTop:2}}>{game.venue.name}</div>}
+      <div style={{flex:1,display:"flex",minHeight:0,overflow:"hidden"}}>
+        {/* Game selector sidebar */}
+        <div style={{width:200,flexShrink:0,borderRight:"1px solid #0a1828",overflowY:"auto",scrollbarWidth:"thin"}}>
+          {todayGames.length === 0 && (
+            <div style={{padding:16,textAlign:"center",color:"#2a3a55",fontSize:11,fontFamily:"'Inter',sans-serif"}}>No games today</div>
+          )}
+          {todayGames.map((game,i) => {
+            const away = game.teams?.away;
+            const home = game.teams?.home;
+            const gameTime = new Date(game.gameDate).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",timeZone:"America/New_York"});
+            const isSelected = selectedGame?.gamePk === game.gamePk;
+            return (
+              <div key={game.gamePk} onClick={()=>!loading&&generate(game)}
+                style={{padding:"12px 14px",borderBottom:"1px solid #0a1828",cursor:loading?"not-allowed":"pointer",
+                  background:isSelected?`${C}12`:"transparent",
+                  borderLeft:`3px solid ${isSelected?C:"transparent"}`,transition:"all 0.15s"}}
+                onMouseEnter={e=>{if(!isSelected&&!loading)e.currentTarget.style.background="#111427";}}
+                onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent";}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                  <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{away?.team?.abbreviation}</div>
+                  <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Orbitron',monospace"}}>@</div>
+                  <div style={{fontSize:12,fontWeight:"bold",color:isSelected?C:"#c8d8f0",fontFamily:"'Orbitron',monospace"}}>{home?.team?.abbreviation}</div>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Main panel */}
-          <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin"}}>
-            {/* Empty state */}
-            {!selectedGame&&!loading&&(
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"80%",gap:12}}>
-                <div style={{fontSize:40}}>💣</div>
-                <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>Select a game to see HR picks for both teams</div>
-                <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",textAlign:"center",lineHeight:2}}>
-                  ✓ Hitter splits vs pitcher hand<br/>
-                  ✓ Park HR factor · Live weather<br/>
-                  ✓ ISO, season HR, split HR<br/>
-                  ✓ Top 5 per team + combined ranking
-                </div>
+                <div style={{fontSize:9,color:"#3a5070",fontFamily:"'Inter',sans-serif",textAlign:"center"}}>{gameTime} ET</div>
+                {game.venue?.name && <div style={{fontSize:8,color:"#2a3a55",fontFamily:"'Inter',sans-serif",textAlign:"center",marginTop:2}}>{game.venue.name}</div>}
               </div>
-            )}
-            {loading&&(
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:10}}>
-                <div style={{fontSize:13,color:C,letterSpacing:4,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>LOADING···</div>
-                {log.map((l,i)=>(<div key={i} style={{fontSize:11,color:i===log.length-1?"#38bdf8":"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>))}
-              </div>
-            )}
-            {!loading&&picks&&(
-              <div>
-                {/* Game header */}
-                <div style={{background:`linear-gradient(90deg,${C}12,transparent)`,border:`1px solid ${C}25`,borderRadius:4,padding:"12px 18px",marginBottom:10}}>
-                  <div style={{fontSize:16,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:6}}>{picks.game}</div>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                    {[
-                      {label:"PARK",    val:`${picks.venue} • HR Factor ${picks.parkFactor}`, sub:picks.parkFlag, color:picks.parkFactor>=110?"#f97316":picks.parkFactor<=90?"#38bdf8":"#8a9ab0"},
-                      {label:"WEATHER", val:picks.weather, color:"#fbbf24"},
-                      {label:"NOTE",    val:picks.parkFactor>=115?"Extreme hitter's park":picks.parkFactor<=88?"Pitcher's park — lower HR prob":"Neutral park", color:"#8a9ab0"},
-                    ].map(({label,val,sub,color})=>(
-                      <div key={label} style={{background:"#0d0f1e",border:"1px solid #0a1828",borderRadius:3,padding:"8px 12px"}}>
-                        <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
-                        <div style={{fontSize:11,color,fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.4}}>{val}</div>
-                        {sub&&<div style={{fontSize:9,color:"#3a5070",marginTop:2}}>{sub}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            );
+          })}
+        </div>
 
-                {/* View toggle: THIS GAME (combined) | BY TEAM */}
-                <div style={{display:"flex",gap:8,marginBottom:14}}>
-                  {[{id:"COMBINED",label:"⚡ COMBINED RANKING"},{id:"TEAMS",label:"👥 BY TEAM"}].map(v=>(
-                    <button key={v.id} onClick={()=>setView(v.id)} style={{
-                      padding:"7px 20px",borderRadius:3,border:"1px solid",fontSize:10,letterSpacing:2,cursor:"pointer",
-                      fontFamily:"'Orbitron',monospace",transition:"all 0.15s",
-                      borderColor:view===v.id?C+"60":"rgba(255,255,255,0.1)",
-                      background:view===v.id?`${C}15`:"transparent",
-                      color:view===v.id?C:"#3a5070",
-                    }}>{v.label}</button>
+        {/* Main panel */}
+        <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin"}}>
+          {/* Empty state */}
+          {!selectedGame && !loading && (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"80%",gap:12}}>
+              <div style={{fontSize:40}}>💣</div>
+              <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif"}}>Select a game to see HR picks for both teams</div>
+              <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",textAlign:"center",lineHeight:2}}>
+                ✓ Hitter splits vs today's opposing pitcher hand<br/>
+                ✓ Park HR factor<br/>
+                ✓ Live weather at game time<br/>
+                ✓ Pitcher last 5 starts (ER/HR/K per start)<br/>
+                ✓ Top 5 for each team side by side
+              </div>
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60%",gap:10}}>
+              <div style={{fontSize:13,color:C,letterSpacing:4,fontFamily:"'Orbitron',monospace",animation:"pulse 1s infinite"}}>LOADING···</div>
+              {log.map((l,i)=>(
+                <div key={i} style={{fontSize:11,color:i===log.length-1?"#38bdf8":"#2a3a55",fontFamily:"'Inter',sans-serif"}}>{l}</div>
+              ))}
+            </div>
+          )}
+
+          {/* Results */}
+          {!loading && picks && (
+            <div>
+              {/* Game header */}
+              <div style={{background:`linear-gradient(90deg,${C}12,transparent)`,border:`1px solid ${C}25`,borderRadius:4,padding:"12px 18px",marginBottom:14}}>
+                <div style={{fontSize:16,fontWeight:"900",color:"#c8d8f0",fontFamily:"'Orbitron',monospace",letterSpacing:2,marginBottom:6}}>{picks.game}</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                  {[
+                    {label:"PARK", val:`${picks.venue} • HR Factor ${picks.parkFactor}`, sub:picks.parkFlag, color:picks.parkFactor>=110?"#f97316":picks.parkFactor<=90?"#38bdf8":"#8a9ab0"},
+                    {label:"WEATHER", val:picks.weather, color:"#fbbf24"},
+                    {label:"NOTE", val:picks.parkFactor>=115?"Extreme hitter's park — target power hitters":picks.parkFactor<=88?"Pitcher's park — lower HR probability":"Neutral park", color:"#8a9ab0"},
+                  ].map(({label,val,sub,color})=>(
+                    <div key={label} style={{background:"#0d0f1e",border:"1px solid #0a1828",borderRadius:3,padding:"8px 12px"}}>
+                      <div style={{fontSize:8,color:"#3a5070",letterSpacing:2,fontFamily:"'Orbitron',monospace",marginBottom:3}}>{label}</div>
+                      <div style={{fontSize:11,color,fontFamily:"'Inter',sans-serif",fontWeight:"500",lineHeight:1.4}}>{val}</div>
+                      {sub&&<div style={{fontSize:9,color:"#3a5070",marginTop:2}}>{sub}</div>}
+                    </div>
                   ))}
                 </div>
-
-                {/* COMBINED VIEW */}
-                {view==="COMBINED" && (()=>{
-                  const awayHand = picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R";
-                  const homeHand = picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R";
-                  const combined = [
-                    ...(picks.awayPicks||[]).map(p=>({...p,oppHand:awayHand})),
-                    ...(picks.homePicks||[]).map(p=>({...p,oppHand:homeHand})),
-                  ].sort((a,b)=>{
-                    const parseOdds = o=>{ if(!o) return 9999; const n=parseInt(o.replace("+","").replace("-","")); return o.startsWith("-")?-n:n; };
-                    return parseOdds(a.hrOdds)-parseOdds(b.hrOdds);
-                  }).map((p,i)=>({...p,combinedRank:i+1}));
-                  const CONF={HIGH:"#818cf8",MED:"#fbbf24",LOW:"#ff6b35"};
-                  return (
-                    <div>
-                      <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:10}}>
-                        ALL {combined.length} PLAYERS — RANKED BEST ODDS TO HIT HR
-                      </div>
-                      {combined.map((p,i)=>{
-                        const rankColor=i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
-                        return (
-                          <div key={i} style={{background:"#111427",border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.06)"}`,borderLeft:`3px solid ${rankColor}`,borderRadius:4,padding:"10px 14px",marginBottom:6,display:"flex",alignItems:"center",gap:12,boxShadow:i<3?`0 0 12px ${rankColor}15`:undefined}}>
-                            <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,background:i<3?`${rankColor}25`:"#0d0f1e",border:`2px solid ${i<3?rankColor:rankColor+"40"}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                              <span style={{fontSize:13,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
-                            </div>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                                <span style={{fontSize:14,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
-                                <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
-                                <span style={{fontSize:9,padding:"1px 7px",borderRadius:2,fontFamily:"'Orbitron',monospace",color:p.team===picks.awayTeam?"#38bdf8":"#f472b6",background:p.team===picks.awayTeam?"#38bdf815":"#f472b615",border:`1px solid ${p.team===picks.awayTeam?"#38bdf830":"#f472b630"}`}}>{p.team===picks.awayTeam?"AWAY":"HOME"} · {p.team?.split(" ").slice(-1)[0]}</span>
-                                <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
-                              </div>
-                              <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
-                            </div>
-                            <div style={{display:"flex",gap:6,flexShrink:0}}>
-                              {[{label:"SZN HR",val:p.seasonHR,hot:p.seasonHR>=5},{label:"ISO",val:p.iso,hot:parseFloat(p.iso)>=0.180},{label:`vs${p.oppHand}HP`,val:p.oppHR,hot:p.oppHR>=2}].map(({label,val,hot})=>(
-                                <div key={label} style={{background:"#0d0f1e",border:`1px solid ${hot?"#f9731640":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 8px",textAlign:"center",minWidth:44}}>
-                                  <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                                  <div style={{fontSize:12,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val??""}</div>
-                                </div>
-                              ))}
-                            </div>
-                            <div style={{flexShrink:0,textAlign:"center",minWidth:64,background:i<3?`${rankColor}12`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"6px 10px"}}>
-                              <div style={{fontSize:8,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:2}}>HR ODDS</div>
-                              <div style={{fontSize:16,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-
-                {/* BY TEAM VIEW */}
-                {view==="TEAMS"&&(
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-                    <div>
-                      <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
-                        <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.awayTeam?.toUpperCase()} — AWAY</div>
-                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.homeSP}</div>
-                      </div>
-                      {(picks.awayPicks||[]).map((p,i)=>(<PickCard key={i} p={p} oppHand={picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>))}
-                    </div>
-                    <div>
-                      <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
-                        <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.homeTeam?.toUpperCase()} — HOME</div>
-                        <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.awaySP}</div>
-                      </div>
-                      {(picks.homePicks||[]).map((p,i)=>(<PickCard key={i} p={p} oppHand={picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>))}
-                    </div>
-                  </div>
-                )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* ── FULL SLATE TOP 6 section ── */}
-      {hrSection==="SLATE"&&(
-        <div style={{flex:1,overflowY:"auto",padding:16,scrollbarWidth:"thin"}}>
-          {slateLoading&&(
-            <div style={{padding:60,textAlign:"center"}}>
-              <div style={{fontSize:13,color:C,letterSpacing:4,animation:"pulse 1s infinite",fontFamily:"'Orbitron',monospace",marginBottom:12}}>SCANNING FULL SLATE···</div>
-              <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>Fetching rosters · splits · Statcast · weather · pitcher data for all {games.length} games</div>
-            </div>
-          )}
-          {!slateLoading&&slatePicks.length===0&&(
-            <div style={{padding:60,textAlign:"center"}}>
-              <div style={{fontSize:40,marginBottom:12}}>🌎</div>
-              {games.length===0 ? (
+              {/* Side by side picks */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                {/* Away team */}
                 <div>
-                  <div style={{fontSize:14,color:"#ff3d5a",fontFamily:"'Inter',sans-serif",marginBottom:8}}>⚠️ No games loaded yet</div>
-                  <div style={{fontSize:11,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginBottom:16}}>Go to the TODAY tab first to load today's games, then come back here.</div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{fontSize:14,color:"#2a3a55",fontFamily:"'Inter',sans-serif",marginBottom:8}}>{games.length} games found — scanning now...</div>
-                  <div style={{fontSize:11,color:"#1a2a4a",fontFamily:"'Inter',sans-serif",lineHeight:2,marginBottom:16}}>
-                    40% Batter Power (Barrel% + HardHit% + FlyBall%)<br/>
-                    30% Pitcher HR Risk (HR/9 + hand-specific)<br/>
-                    20% Park Factor + Weather<br/>
-                    10% Lineup Spot + Recent Form
+                  <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
+                    <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.awayTeam?.toUpperCase()} — AWAY</div>
+                    <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.homeSP}</div>
                   </div>
-                  <button onClick={generateSlate} style={{padding:"10px 28px",background:`${C}15`,border:`1px solid ${C}40`,borderRadius:3,color:C,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>
-                    🌎 GENERATE SLATE TOP 6
-                  </button>
+                  {(picks.awayPicks||[]).map((p,i)=>(
+                    <PickCard key={i} p={p} oppHand={picks.homeSP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
-          {!slateLoading&&slatePicks.length>0&&(
-            <div>
-              <div style={{fontSize:9,color:`${C}70`,letterSpacing:3,fontFamily:"'Orbitron',monospace",marginBottom:12}}>
-                TOP 6 HR CANDIDATES — ENTIRE {games.length}-GAME SLATE
+                {/* Home team */}
+                <div>
+                  <div style={{padding:"8px 12px",background:`${C}10`,border:`1px solid ${C}25`,borderRadius:"4px 4px 0 0",marginBottom:8}}>
+                    <div style={{fontSize:12,fontWeight:"bold",color:C,fontFamily:"'Orbitron',monospace",letterSpacing:2}}>{picks.homeTeam?.toUpperCase()} — HOME</div>
+                    <div style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif",marginTop:2}}>Facing: {picks.awaySP}</div>
+                  </div>
+                  {(picks.homePicks||[]).map((p,i)=>(
+                    <PickCard key={i} p={p} oppHand={picks.awaySP?.match(/\(([LR])HP\)/)?.[1]||"R"}/>
+                  ))}
+                </div>
               </div>
-              {slatePicks.map((p,i)=>{
-                const rankColor=i===0?"#fbbf24":i===1?"#c8d4e8":i===2?"#f97316":C;
-                const CONF={HIGH:"#818cf8",MED:"#fbbf24",LOW:"#ff6b35"};
-                return (
-                  <div key={i} style={{background:"#111427",border:`1px solid ${i<3?rankColor+"40":"rgba(255,255,255,0.06)"}`,borderLeft:`4px solid ${rankColor}`,borderRadius:4,padding:"14px 16px",marginBottom:10,boxShadow:i<3?`0 0 14px ${rankColor}15`:undefined}}>
-                    {/* Top row: rank + player + odds */}
-                    <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:10}}>
-                      <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,background:`${rankColor}20`,border:`2px solid ${rankColor}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <span style={{fontSize:15,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{i+1}</span>
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                          <span style={{fontSize:15,fontWeight:"600",color:"#c8d8f0",fontFamily:"'Inter',sans-serif"}}>{p.player}</span>
-                          <span style={{fontSize:9,color:"#3a5070",background:"#0d0f1e",border:"1px solid #0a1828",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.pos}</span>
-                          <span style={{fontSize:9,color:"#38bdf8",background:"#38bdf815",border:"1px solid #38bdf830",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.team}</span>
-                          <span style={{fontSize:9,color:CONF[p.confidence]||"#555",background:`${CONF[p.confidence]||"#555"}15`,border:`1px solid ${CONF[p.confidence]||"#555"}30`,padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>{p.confidence}</span>
-                          {p.wxBoost&&<span style={{fontSize:9,color:"#fbbf24",background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",padding:"1px 6px",borderRadius:2,fontFamily:"'Orbitron',monospace"}}>💨 WEATHER BOOST</span>}
-                        </div>
-                        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:3}}>
-                          <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>{p.game}</span>
-                          <span style={{fontSize:10,color:p.parkFactor>=108?"#f97316":p.parkFactor<=90?"#38bdf8":"#3a5070",fontFamily:"'Orbitron',monospace"}}>{p.parkFlag} PF:{p.parkFactor}</span>
-                          <span style={{fontSize:10,color:"#3a5070",fontFamily:"'Inter',sans-serif"}}>vs {p.sp}({p.spHand}HP)</span>
-                          <span style={{fontSize:10,color:"#4a6080",fontFamily:"'Inter',sans-serif"}}>{p.weather}</span>
-                        </div>
-                        <div style={{fontSize:11,color:"#4a6080",fontFamily:"'Inter',sans-serif",lineHeight:1.5}}>{p.reason}</div>
-                      </div>
-                      {/* Odds + Score */}
-                      <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
-                        <div style={{background:i<3?`${rankColor}15`:"#0d0f1e",border:`1px solid ${i<3?rankColor+"50":"rgba(255,255,255,0.07)"}`,borderRadius:4,padding:"5px 10px",textAlign:"center",minWidth:70}}>
-                          <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>HR ODDS</div>
-                          <div style={{fontSize:17,fontWeight:"bold",color:rankColor,fontFamily:"'Orbitron',monospace"}}>{p.hrOdds||"—"}</div>
-                        </div>
-                        {p.score&&<div style={{background:"#0d0f1e",border:"1px solid rgba(255,255,255,0.07)",borderRadius:4,padding:"4px 10px",textAlign:"center"}}>
-                          <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace",marginBottom:1}}>SCORE</div>
-                          <div style={{fontSize:14,fontWeight:"bold",color:p.score>=80?"#818cf8":p.score>=65?"#fbbf24":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{p.score}</div>
-                        </div>}
-                      </div>
-                    </div>
-                    {/* Metrics rows */}
-                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                        {[
-                          {label:"BARREL%",  val:p.barrelPct,  hot:parseFloat(p.barrelPct)>=12},
-                          {label:"HARD HIT%",val:p.hardHitPct, hot:parseFloat(p.hardHitPct)>=45},
-                          {label:"FLY BALL%",val:p.flyBallPct, hot:parseFloat(p.flyBallPct)>=38},
-                          {label:"HR/FB%",   val:p.hrFBpct,    hot:parseFloat(p.hrFBpct)>=15},
-                          {label:"xSLG",     val:p.xSLG,       hot:parseFloat(p.xSLG)>=0.500},
-                          {label:"AVG EV",   val:p.avgEV,      hot:parseFloat(p.avgEV)>=92},
-                        ].map(({label,val,hot})=>(
-                          <div key={label} style={{background:hot?"rgba(249,115,22,0.1)":"#0d0f1e",border:`1px solid ${hot?"#f9731660":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 7px",textAlign:"center"}}>
-                            <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                            <div style={{fontSize:11,fontWeight:"bold",color:hot?"#f97316":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                        {[
-                          {label:"SP HR/9",  val:p.oppHR9,                hot:parseFloat(p.oppHR9)>=1.3},
-                          {label:"vs HAND",  val:`${p.oppHRvsHand||0}HR`, hot:(p.oppHRvsHand||0)>=4},
-                          {label:"SZN HR",   val:p.seasonHR,              hot:p.seasonHR>=8},
-                          {label:"L14 HR",   val:p.last14HR,              hot:p.last14HR>=2},
-                          {label:"LINEUP",   val:`#${p.lineupSpot||"?"}`, hot:p.topOrder},
-                          {label:"PF",       val:p.parkFactor,            hot:p.parkFactor>=108},
-                        ].map(({label,val,hot})=>(
-                          <div key={label} style={{background:hot?"rgba(129,140,248,0.08)":"#0d0f1e",border:`1px solid ${hot?"#818cf840":"rgba(255,255,255,0.07)"}`,borderRadius:3,padding:"3px 7px",textAlign:"center"}}>
-                            <div style={{fontSize:7,color:"#3a5070",letterSpacing:1,fontFamily:"'Orbitron',monospace"}}>{label}</div>
-                            <div style={{fontSize:11,fontWeight:"bold",color:hot?"#818cf8":"#8a9ab0",fontFamily:"'Orbitron',monospace"}}>{val||"—"}</div>
-                          </div>
-                        ))}
-                      </div>
-                      {p.sharpFlags?.length>0&&(
-                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                          {p.sharpFlags.map((flag,fi)=>(
-                            <div key={fi} style={{fontSize:8,padding:"2px 7px",borderRadius:2,background:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.3)",color:"#fbbf24",fontFamily:"'Orbitron',monospace",letterSpacing:1}}>
-                              ✓ {flag}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <button onClick={generateSlate} style={{marginTop:8,width:"100%",padding:"10px",background:`${C}10`,border:`1px solid ${C}30`,borderRadius:3,color:C,fontSize:10,cursor:"pointer",fontFamily:"'Orbitron',monospace",letterSpacing:2}}>↻ REGENERATE SLATE</button>
             </div>
           )}
         </div>
-      )}
-
+      </div>
     </div>
   );
 }
-
-
 
 // ── Cheat Sheet ───────────────────────────────────────────────────────────────
 function CheatSheet({ games, gamesLoading, C }) {
@@ -4328,6 +3884,8 @@ Only recommend players from the lists above.`;
   );
 }
 
+// ── Main App ──────────────────────────────────────────────────────────────────
+// ── Main App ──────────────────────────────────────────────────────────────────
 
 // ── Trading Tab — 0DTE Signal Feed ───────────────────────────────────────────
 const SIGNAL_TICKERS = ["SPY","QQQ","NVDA","PLTR","MSFT","AMD","TSLA","AAPL","META","GLD","TLT","IWM"];
@@ -4830,7 +4388,6 @@ Generate all 5 signals in that format.`;
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 
-
 export default function App() {
   const [time, setTime]           = useState(new Date());
   const [uptime, setUptime]       = useState(0);
@@ -4848,6 +4405,7 @@ export default function App() {
   const [selectedStock, setSelectedStock] = useState(null);
   const [booting, setBooting]     = useState(true);
   const [activeTab, setActiveTab] = useState("HOME");
+
   const stockContext = Object.entries(stocks).map(([t,d])=>`${t}: $${d.price?.toFixed(2)} (${fmtP(d.changePct)})`).join(", ");
 
   useEffect(()=>{
@@ -4887,6 +4445,7 @@ export default function App() {
   };
 
   const kcalPct = Math.min(Math.round((macroSnap.kcal/MACROS_GOAL.kcal)*100),100);
+  const protPct = Math.min(Math.round((macroSnap.protein/MACROS_GOAL.protein)*100),100);
 
   const extraProps = {
     stocks, stockLoading, stockUpdated, stockContext,
@@ -4900,51 +4459,63 @@ export default function App() {
   if (booting) return (
     <div style={{height:"100vh",width:"100vw",background:"#000408",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"'Share Tech Mono',monospace",position:"relative",overflow:"hidden"}}>
       <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
+      {/* Grid overlay */}
       <div style={{position:"absolute",inset:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.04) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
+      {/* Scan lines */}
       <div style={{position:"absolute",inset:0,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.3) 2px,rgba(0,0,0,0.3) 4px)",pointerEvents:"none"}}/>
+      {/* Corner brackets */}
       {[["0 0","borderTop","borderLeft"],["0 auto 0 0","borderTop","borderRight"],["auto 0 0","borderBottom","borderLeft"],["auto 0 0 auto","borderBottom","borderRight"]].map(([m,b1,b2],i)=>(
         <div key={i} style={{position:"absolute",margin:m,width:60,height:60,[b1]:"2px solid rgba(0,180,255,0.6)",[b2]:"2px solid rgba(0,180,255,0.6)"}}/>
       ))}
       <div style={{fontSize:9,letterSpacing:8,color:"rgba(0,180,255,0.4)",marginBottom:20}}>INITIALIZING COMMAND SYSTEMS</div>
       <div style={{fontSize:52,fontFamily:"'Bebas Neue',monospace",letterSpacing:12,color:"#00b4ff",textShadow:"0 0 40px rgba(0,180,255,0.8),0 0 80px rgba(0,180,255,0.3)",marginBottom:4}}>MISSION CTRL</div>
-      <div style={{fontSize:9,letterSpacing:6,color:"rgba(0,180,255,0.3)",marginBottom:40}}>PERSONAL COMMAND CENTER v4.2</div>
+      <div style={{fontSize:9,letterSpacing:6,color:"rgba(0,180,255,0.3)",marginBottom:40}}>PERSONAL COMMAND CENTER v3.8</div>
       <div style={{width:280,position:"relative"}}>
         <div style={{width:"100%",height:1,background:"rgba(0,180,255,0.15)"}}/>
         <div style={{height:1,background:"linear-gradient(90deg,transparent,#00b4ff,transparent)",width:"100%",animation:"bootbar 1.8s ease forwards",position:"absolute",top:0}}/>
       </div>
       <div style={{marginTop:12,fontSize:8,letterSpacing:3,color:"rgba(0,180,255,0.3)"}}>AUTHENTICATING OPERATOR · · ·</div>
-      <style>{`@keyframes bootbar{from{width:0%;opacity:0}to{width:100%;opacity:1}}`}</style>
+      <style>{`@keyframes bootbar{from{width:0%;opacity:0}to{width:100%;opacity:1}} @keyframes flicker{0%,100%{opacity:1}92%{opacity:0.97}95%{opacity:0.6}}`}</style>
     </div>
   );
 
   return (
     <div style={{height:"100vh",width:"100vw",background:"#000408",color:"#a0c4d8",fontFamily:"'Share Tech Mono',monospace",display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
       <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&amp;family=Rajdhani:wght@300;400;500;600;700&amp;family=Bebas+Neue&amp;display=swap" rel="stylesheet"/>
+
+      {/* Global background grid */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,backgroundImage:"linear-gradient(rgba(0,180,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,255,0.03) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
+      {/* Scan lines */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,backgroundImage:"repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.12) 2px,rgba(0,0,0,0.12) 4px)"}}/>
+      {/* Vignette */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:1,background:"radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,0.6) 100%)"}}/>
 
       <style>{`
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
         @keyframes sweep{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes hudglow{0%,100%{box-shadow:0 0 8px rgba(0,180,255,0.3)}50%{box-shadow:0 0 16px rgba(0,180,255,0.6)}}
         * { box-sizing: border-box; }
         ::-webkit-scrollbar{width:4px;height:4px}
         ::-webkit-scrollbar-track{background:rgba(0,180,255,0.05)}
         ::-webkit-scrollbar-thumb{background:rgba(0,180,255,0.2);border-radius:2px}
         .hud-btn:hover{background:rgba(0,180,255,0.08)!important;color:#00b4ff!important}
-        input::placeholder{color:#3a5070;font-family:'Inter',sans-serif;}
       `}</style>
 
-      {/* TOP BAR */}
+      {/* ── TOP BAR ─────────────────────────────────────────────────────────── */}
       <div style={{flexShrink:0,height:56,borderBottom:"1px solid rgba(0,180,255,0.15)",display:"flex",alignItems:"stretch",background:"rgba(0,4,8,0.98)",zIndex:10,position:"relative"}}>
+        {/* Accent line */}
         <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.4),rgba(0,255,180,0.2),transparent)"}}/>
+        {/* Sweep effect */}
         <div style={{position:"absolute",top:0,bottom:0,width:60,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.03),transparent)",animation:"sweep 4s linear infinite",pointerEvents:"none"}}/>
-        <div style={{flexShrink:0,padding:"0 20px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
+
+        {/* LOGO */}
+        <div style={{flexShrink:0,padding:"0 20px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)",position:"relative"}}>
           <div style={{fontSize:7,letterSpacing:5,color:"rgba(0,180,255,0.4)",marginBottom:1}}>SYSTEM</div>
           <div style={{fontSize:18,fontFamily:"'Bebas Neue',monospace",letterSpacing:6,color:"#00b4ff",textShadow:"0 0 20px rgba(0,180,255,0.6)"}}>MISSION<span style={{color:"rgba(0,255,180,0.8)"}}>·</span>CTRL</div>
         </div>
+
+        {/* OPERATOR */}
         <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>OPERATOR</div>
           <div style={{fontSize:12,fontFamily:"'Rajdhani',sans-serif",fontWeight:600,letterSpacing:2}}>
@@ -4952,11 +4523,15 @@ export default function App() {
             <span style={{color:"#6366f1",textShadow:"0 0 12px rgba(0,255,180,0.5)"}}>{NAME}</span>
           </div>
         </div>
+
+        {/* UPTIME */}
         <div style={{flexShrink:0,padding:"0 16px",display:"flex",flexDirection:"column",justifyContent:"center",borderRight:"1px solid rgba(0,180,255,0.1)"}}>
           <div style={{fontSize:7,letterSpacing:4,color:"rgba(0,180,255,0.35)",marginBottom:2}}>UPTIME</div>
           <div style={{fontSize:12,color:"rgba(0,180,255,0.6)",letterSpacing:2,fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
         </div>
-        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid rgba(0,180,255,0.1)",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
+
+        {/* NUTRITION */}
+        <button onClick={()=>setShowMacros(true)} style={{flexShrink:0,padding:"0 16px",borderRight:"1px solid rgba(0,180,255,0.1)",cursor:"pointer",background:"none",border:"none",borderRight:"1px solid rgba(0,180,255,0.1)",textAlign:"left",display:"flex",flexDirection:"column",justifyContent:"center"}}>
           <div style={{display:"flex",justifyContent:"space-between",gap:12,marginBottom:5}}>
             <span style={{fontSize:7,letterSpacing:3,color:"rgba(0,255,180,0.6)",fontFamily:"'Share Tech Mono',monospace"}}>⚡ NUTRITION</span>
             <span style={{fontSize:7,color:"rgba(0,180,255,0.3)",fontFamily:"'Share Tech Mono',monospace"}}>{kcalPct}%</span>
@@ -4969,6 +4544,8 @@ export default function App() {
             ))}
           </div>
         </button>
+
+        {/* CENTER — panel status */}
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:0}}>
           {PANELS_CFG.map((p,i)=>(
             <div key={p.id} style={{textAlign:"center",padding:"0 16px",borderRight:i<3?"1px solid rgba(0,180,255,0.08)":"none"}}>
@@ -4980,62 +4557,84 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        {/* WEATHER */}
         {weather&&(
           <div style={{flexShrink:0,padding:"0 16px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2}}>
             <div style={{fontSize:16}}>{weather.icon}</div>
             <div style={{fontSize:9,color:"#00b4ff",letterSpacing:2,fontFamily:"'Rajdhani',sans-serif",fontWeight:600}}>{weather.temp}°F</div>
           </div>
         )}
+
+        {/* CLOCK */}
         <div style={{flexShrink:0,padding:"0 20px",borderLeft:"1px solid rgba(0,180,255,0.1)",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end"}}>
           <div style={{fontSize:20,fontFamily:"'Bebas Neue',monospace",letterSpacing:3,color:"#c8e8f8",fontVariantNumeric:"tabular-nums",textShadow:"0 0 15px rgba(0,180,255,0.3)"}}>{time.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
           <div style={{fontSize:7,color:"rgba(0,180,255,0.3)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{time.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}).toUpperCase()}</div>
         </div>
       </div>
 
-      {/* NAV BAR */}
-      <div style={{flexShrink:0,height:38,borderBottom:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"stretch",background:"rgba(0,2,6,0.95)",zIndex:10,position:"relative"}}>
-        <div style={{position:"absolute",bottom:0,left:0,right:0,height:1,background:"linear-gradient(90deg,transparent,rgba(0,180,255,0.1),transparent)"}}/>
-        {[
-          {id:"HOME",   icon:"⊞", label:"HOME BASE"},
-          {id:"TRADING",icon:"📡",label:"TRADING"},
-          {id:"FINANCE",icon:"◈", label:"FINANCE"},
-          {id:"JOBS",   icon:"◉", label:"JOBS"},
-          {id:"HEALTH", icon:"♥", label:"HEALTH"},
-          {id:"TRAVEL", icon:"◎", label:"TRAVEL"},
-          {id:"SPORTS", icon:"⚾", label:"SPORTS"},
-        ].map((tab,i)=>{
-          const active = activeTab===tab.id;
-          const colors = {HOME:"#6366f1",TRADING:"#00e5a0",FINANCE:"#00b4ff",JOBS:"#c084fc",HEALTH:"#f472b6",TRAVEL:"#fbbf24",SPORTS:"#f97316"};
-          const tc = colors[tab.id];
-          return (
-            <button key={tab.id} onClick={()=>setActiveTab(tab.id)} className="hud-btn" style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              background:active?`${tc}12`:"transparent",border:"none",
-              borderBottom:active?`2px solid ${tc}`:"2px solid transparent",
-              borderRight:i<6?"1px solid rgba(0,180,255,0.08)":"none",
-              color:active?tc:"rgba(0,180,255,0.25)",
-              cursor:"pointer",transition:"all 0.2s",padding:"0 8px",position:"relative",overflow:"hidden",
-            }}>
-              {active&&<div style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",width:"60%",height:1,background:tc,boxShadow:`0 0 10px ${tc}`,filter:"blur(1px)"}}/>}
-              <span style={{fontSize:10,fontFamily:"'Share Tech Mono',monospace",opacity:active?1:0.5}}>{tab.icon}</span>
-              <span style={{fontSize:8,letterSpacing:3,fontWeight:active?600:400}}>{tab.label}</span>
-              {active&&<div style={{width:4,height:4,borderRadius:"50%",background:tc,boxShadow:`0 0 8px ${tc}`,animation:"blink 2s infinite"}}/>}
-            </button>
-          );
-        })}
+      {/* ── SIDEBAR ── */}
+      <div style={{width:200,flexShrink:0,height:"100vh",background:"rgba(8,10,20,0.98)",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",zIndex:20}}>
+        <div style={{padding:"22px 16px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontSize:8,letterSpacing:5,color:"rgba(129,140,248,0.4)",marginBottom:4,fontFamily:"monospace"}}>SYSTEM</div>
+          <div style={{fontSize:20,fontWeight:800,letterSpacing:-0.5,color:"#fff"}}>Mission<span style={{color:"#6366f1"}}>.</span>Ctrl</div>
+        </div>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:34,height:34,borderRadius:8,background:"linear-gradient(135deg,#6366f1,#8b5cf6)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"#fff",flexShrink:0}}>{NAME.charAt(0)}</div>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:"#fff"}}>{NAME}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",fontFamily:"monospace"}}>ANALYST I</div>
+            </div>
+          </div>
+        </div>
+        <div style={{flex:1,padding:"10px 8px",overflowY:"auto"}}>
+          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"4px 8px",marginBottom:4,fontFamily:"monospace"}}>NAVIGATION</div>
+          {[{id:"HOME",icon:"⊞",label:"Home Base"},{id:"TRADING",icon:"📡",label:"Trading"},{id:"FINANCE",icon:"◈",label:"Finance"},{id:"JOBS",icon:"◉",label:"Jobs"},{id:"HEALTH",icon:"♥",label:"Health"},{id:"TRAVEL",icon:"◎",label:"Travel"},{id:"SPORTS",icon:"⚾",label:"Sports"}].map(tab=>{
+            const active=activeTab===tab.id;
+            const cols={HOME:"#6366f1",TRADING:"#00e5a0",FINANCE:"#06b6d4",JOBS:"#a855f7",HEALTH:"#ec4899",TRAVEL:"#f59e0b",SPORTS:"#f97316"};
+            const tc=cols[tab.id];
+            return (
+              <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:8,border:"none",cursor:"pointer",marginBottom:2,textAlign:"left",background:active?`${tc}18`:"transparent",color:active?tc:"rgba(255,255,255,0.4)",position:"relative",transition:"all 0.15s"}}
+                onMouseEnter={e=>{if(!active){e.currentTarget.style.background="rgba(255,255,255,0.05)";e.currentTarget.style.color="rgba(255,255,255,0.7)";}}}
+                onMouseLeave={e=>{if(!active){e.currentTarget.style.background="transparent";e.currentTarget.style.color="rgba(255,255,255,0.4)";}}}
+              >
+                {active&&<div style={{position:"absolute",left:0,top:"50%",transform:"translateY(-50%)",width:3,height:16,borderRadius:999,background:tc,boxShadow:`0 0 8px ${tc}`}}/>}
+                <span style={{fontSize:13,paddingLeft:active?4:0}}>{tab.icon}</span>
+                <span style={{fontSize:12,fontWeight:active?600:400}}>{tab.label}</span>
+                {active&&<div style={{marginLeft:"auto",width:5,height:5,borderRadius:"50%",background:tc,animation:"blink 2s infinite"}}/>}
+              </button>
+            );
+          })}
+          <div style={{fontSize:9,letterSpacing:3,color:"rgba(255,255,255,0.18)",padding:"14px 8px 4px",fontFamily:"monospace"}}>SYSTEMS</div>
+          {PANELS_CFG.map(p=>(
+            <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 10px",marginBottom:1}}>
+              <div style={{width:5,height:5,borderRadius:"50%",background:p.color,boxShadow:`0 0 5px ${p.color}`,flexShrink:0,animation:"blink 2s infinite"}}/>
+              <span style={{fontSize:10,color:"rgba(255,255,255,0.3)",flex:1,fontFamily:"monospace"}}>{p.label}</span>
+              <span style={{fontSize:8,color:"rgba(255,255,255,0.15)",fontFamily:"monospace"}}>LIVE</span>
+            </div>
+          ))}
+        </div>
+        <div style={{padding:"10px 16px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+          <div style={{fontSize:8,color:"rgba(255,255,255,0.2)",marginBottom:3,letterSpacing:3,fontFamily:"monospace"}}>UPTIME</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.4)",fontFamily:"monospace",fontVariantNumeric:"tabular-nums"}}>{formatUptime(uptime)}</div>
+        </div>
       </div>
 
-      {/* TAB CONTENT */}
+      {/* ── MAIN CONTENT ── */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
       {activeTab==="HOME" && (
         <>
+          {/* GRID */}
           <div style={{flex:1,display:"grid",gridTemplateColumns:expanded?"1fr":"1fr 1fr",gridTemplateRows:expanded?"1fr":"1fr 1fr",gap:2,padding:2,background:"#000206",minHeight:0,overflow:"hidden",zIndex:1}}>
             {PANELS_CFG.map(cfg=>{
               if(expanded&&expanded!==cfg.id) return null;
               return <Panel key={cfg.id} cfg={cfg} isExpanded={expanded===cfg.id} onExpand={()=>setExpanded(cfg.id)} onCollapse={()=>setExpanded(null)} extraProps={extraProps}/>;
             })}
           </div>
+          {/* BOTTOM BAR */}
           <div style={{flexShrink:0,padding:"4px 20px",borderTop:"1px solid rgba(0,180,255,0.1)",display:"flex",alignItems:"center",justifyContent:"space-between",background:"rgba(0,2,6,0.95)",zIndex:10}}>
-            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART"}</div>
+            <div style={{fontSize:7,color:"rgba(0,180,255,0.25)",letterSpacing:3,fontFamily:"'Share Tech Mono',monospace"}}>{expanded?`◈ FOCUSED MODE: ${expanded.toUpperCase()} · PRESS ✕ TO RETURN TO GRID`:"◈ SELECT PANEL TO FOCUS · ⤢ EXPAND · CLICK TICKER FOR CHART · CLICK NUTRITION TO LOG"}</div>
             <div style={{display:"flex",gap:16}}>
               {[["SYS","#6366f1"],["AI","#c084fc"],["MKT","#00b4ff"],["NEWS","#f97316"]].map(([label,color])=>(
                 <div key={label} style={{display:"flex",alignItems:"center",gap:4}}>
@@ -5047,29 +4646,50 @@ export default function App() {
           </div>
         </>
       )}
+
       {activeTab==="TRADING" && <TradingTab />}
       {activeTab==="FINANCE" && <FinanceTab />}
-      {activeTab==="JOBS"    && <JobsTab />}
-      {activeTab==="HEALTH"  && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
-      {activeTab==="TRAVEL"  && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
-      {activeTab==="SPORTS"  && <SportsTab />}
+      {activeTab==="JOBS" && <JobsTab />}
+      {activeTab==="HEALTH" && <ComingSoon tab="HEALTH" color="#f472b6" icon="🏋️" features={["Workout Logger","Body Metrics","Sleep Tracker","Supplement Schedule"]}/>}
+      {activeTab==="TRAVEL" && <ComingSoon tab="TRAVEL" color="#fbbf24" icon="✈️" features={["Deal Finder","Trip Planner","Saved Destinations","Flight Alerts"]}/>}
+      {activeTab==="SPORTS" && <SportsTab />}
 
+      {/* Article Modal */}
       {selectedArticle&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.9)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}} onClick={()=>setSelectedArticle(null)}>
-          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",position:"relative"}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:"linear-gradient(135deg,#06100a,#040c14)",border:"1px solid #fb923c30",borderRadius:4,padding:28,width:440,maxWidth:"90vw",maxHeight:"70vh",overflow:"auto",boxShadow:"0 0 60px #fb923c10",position:"relative"}} onClick={e=>e.stopPropagation()}>
             <HUDBrackets color="#fb923c" size={12}/>
             <div style={{fontSize:7,color:"#fb923c",letterSpacing:4,marginBottom:12,fontFamily:"'Orbitron',monospace"}}>🌐 INTEL REPORT</div>
             <div style={{fontSize:14,color:"#e0d4c4",lineHeight:1.6,marginBottom:12,fontFamily:"'Inter',sans-serif",fontWeight:"500"}}>{selectedArticle.title}</div>
             <div style={{fontSize:13,color:"#8a7a6a",lineHeight:1.7,marginBottom:20,fontFamily:"'Inter',sans-serif"}}>{selectedArticle.description}</div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:7,color:"#2a1a08",letterSpacing:2,fontFamily:"'Orbitron',monospace"}}>{selectedArticle.source?.name?.toUpperCase()}</span>
-              <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#fb923c",textDecoration:"none",letterSpacing:2,border:"1px solid #fb923c40",padding:"6px 14px",borderRadius:3,fontFamily:"'Orbitron',monospace"}}>FULL REPORT →</a>
+              <a href={selectedArticle.url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#fb923c",textDecoration:"none",letterSpacing:2,border:"1px solid #fb923c40",padding:"6px 14px",borderRadius:3,fontFamily:"'Orbitron',monospace",boxShadow:"0 0 15px #fb923c15"}}>FULL REPORT →</a>
             </div>
           </div>
         </div>
       )}
-      {selectedStock&&<StockChartModal stock={selectedStock} stockData={stocks[selectedStock.ticker]} onClose={()=>setSelectedStock(null)}/>}
+
+      {/* Stock Chart Modal */}
+      {selectedStock&&(
+        <StockChartModal stock={selectedStock} stockData={stocks[selectedStock.ticker]} onClose={()=>setSelectedStock(null)}/>
+      )}
+
       {showMacros&&<MacroModal onClose={()=>setShowMacros(false)}/>}
+
+      <style>{`
+        @keyframes blink{0%,100%{opacity:0.2}50%{opacity:1}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        ::-webkit-scrollbar{width:2px;height:2px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:#0d1a30;border-radius:2px;}
+        input::placeholder{color:#3a5070;font-family:'Inter',sans-serif;}
+        a{color:inherit;}
+        button{font-family:'Inter',sans-serif;} .orb{font-family:'Orbitron',monospace;}
+      `}</style>
+      </div>
     </div>
   );
 }
